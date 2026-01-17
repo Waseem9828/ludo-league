@@ -70,13 +70,15 @@ service cloud.firestore {
     
     // Deposit Requests
     match /depositRequests/{depositId} {
-        allow read: if isOwner(resource.data.userId);
+        allow get: if isOwner(resource.data.userId);
+        allow list: if request.auth.uid == request.query.where.userId;
         allow create: if isOwner(request.resource.data.userId);
     }
     
     // Withdrawal Requests
     match /withdrawalRequests/{withdrawalId} {
-        allow read: if isOwner(resource.data.userId);
+        allow get: if isOwner(resource.data.userId);
+        allow list: if request.auth.uid == request.query.where.userId;
         allow create: if isOwner(request.resource.data.userId);
     }
 
