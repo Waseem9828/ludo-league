@@ -18,8 +18,17 @@ export const useFcm = () => {
         }
 
         const vapidKey = process.env.NEXT_PUBLIC_FCM_VAPID_KEY;
+        
+        // ADDED FOR DEBUGGING: Log the VAPID key to the console
+        console.log("Attempting to use VAPID key:", vapidKey);
+
         if (!vapidKey) {
             console.error('VAPID key is not configured in environment variables.');
+            toast({
+                title: "Notification Error",
+                description: "VAPID key is not configured. Please contact support.",
+                variant: "destructive"
+            });
             return;
         }
 
