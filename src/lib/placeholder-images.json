@@ -1,0 +1,94 @@
+{
+  "placeholderImages": [
+    {
+      "id": "avatar-1",
+      "description": "User avatar 1",
+      "imageUrl": "https://images.unsplash.com/photo-1531123414780-f74242c2b052?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxMHx8cGVyc29uJTIwcG9ydHJhaXR8ZW58MHx8fHwxNzY3Mzk2MzAxfDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "person portrait"
+    },
+    {
+      "id": "avatar-2",
+      "description": "User avatar 2",
+      "imageUrl": "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw2fHxwZXJzb24lMjBwb3J0cmFpdHxlbnwwfHx8fDE3NjczOTYzMDF8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "person portrait"
+    },
+    {
+      "id": "avatar-3",
+      "description": "User avatar 3",
+      "imageUrl": "https://images.unsplash.com/photo-1609505848912-b7c3b8b4beda?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw2fHx3b21hbiUyMHBvcnRyYWl0fGVufDB8fHx8MTc2NzMzOTY4MXww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "woman portrait"
+    },
+    {
+      "id": "avatar-4",
+      "description": "User avatar 4",
+      "imageUrl": "https://images.unsplash.com/photo-1636377985931-898218afd306?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw5fHxtYW4lMjBwb3J0cmFpdHxlbnwwfHx8fDE3NjczMzMwMDl8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "man portrait"
+    },
+    {
+      "id": "community-banner",
+      "description": "Community Page Banner",
+      "imageUrl": "https://images.unsplash.com/photo-1759701547379-8b39a6a99727?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxMHx8ZXNwb3J0cyUyMGNvbW11bml0eXxlbnwwfHx8fDE3NjgyMjYxODl8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "esports community"
+    },
+    {
+      "id": "leaderboard-banner",
+      "description": "Leaderboard Page Banner",
+      "imageUrl": "https://images.unsplash.com/photo-1533237264985-ee62f6d342bb?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwyfHxnYW1pbmclMjBsZWFkZXJib2FyZHxlbnwwfHx8fDE3NjgyMjYxODh8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "gaming leaderboard"
+    },
+    {
+      "id": "lobby-banner",
+      "description": "Lobby Page Banner",
+      "imageUrl": "https://images.unsplash.com/photo-1632017734927-48988a0efae7?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw4fHxnYW1pbmclMjBsb2JieXxlbnwwfHx8fDE3NjgyMjYxODl8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "gaming lobby"
+    },
+    {
+      "id": "news-banner",
+      "description": "News Page Banner",
+      "imageUrl": "https://images.unsplash.com/photo-1498644035638-2c3357894b10?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxMHx8YnJlYWtpbmclMjBuZXdzfGVufDB8fHx8MTc2ODIyNjE4OHww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "breaking news"
+    },
+    {
+      "id": "profile-banner",
+      "description": "Profile Page Banner",
+      "imageUrl": "https://images.unsplash.com/photo-1659259809484-355b1ead9656?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw0fHxnYW1lciUyMHByb2ZpbGV8ZW58MHx8fHwxNzY4MjI2MTg4fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "gamer profile"
+    },
+    {
+      "id": "referrals-banner",
+      "description": "Referrals Page Banner",
+      "imageUrl": "https://images.unsplash.com/photo-1634228932781-af5c387d73c0?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwzfHxyZWZlcnJhbCUyMGJvbnVzfGVufDB8fHx8MTc2ODIyNjE4OXww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "referral bonus"
+    },
+    {
+      "id": "support-banner",
+      "description": "Support Page Banner",
+      "imageUrl": "https://images.unsplash.com/photo-1553775282-20af80779df7?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwyfHxjdXN0b21lciUyMHN1cHBvcnR8ZW58MHx8fHwxNzY4MTU5Mzc5fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "customer support"
+    },
+    {
+      "id": "tutorials-banner",
+      "description": "Tutorials Page Banner",
+      "imageUrl": "https://images.unsplash.com/photo-1737268466083-44bcc588b4ab?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw4fHxnYW1pbmclMjB0dXRvcmlhbHxlbnwwfHx8fDE3NjgyMjYxODl8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "gaming tutorial"
+    },
+    {
+      "id": "wallet-banner",
+      "description": "Wallet Page Banner",
+      "imageUrl": "https://images.unsplash.com/photo-1483478550801-ceba5fe50e8e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwyfHxkaWdpdGFsJTIwd2FsbGV0fGVufDB8fHx8MTc2ODIyMDM5Mnww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "digital wallet"
+    },
+    {
+      "id": "tournaments-banner",
+      "description": "Tournaments Page Banner",
+      "imageUrl": "https://images.unsplash.com/photo-1759709867188-7d94e0041de2?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw4fHxlc3BvcnRzJTIwdG91cm5hbWVudHxlbnwwfHx8fDE3NjgxNDEzMjR8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "esports tournament"
+    },
+    {
+      "id": "dashboard-banner",
+      "description": "Dashboard Page Banner",
+      "imageUrl": "https://images.unsplash.com/photo-1698512475067-74ed7c956c8d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwyfHxnYW1pbmclMjBkYXNoYm9hcmR8ZW58MHx8fHwxNzY4MjI2MTg5fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "gaming dashboard"
+    }
+  ]
+}

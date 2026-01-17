@@ -1,0 +1,29 @@
+mutation CreateNewTournament($name: String!, $startDate: Date!, $createdAt: Timestamp!) @auth(level: USER) {
+  tournament_insert(data: {name: $name, startDate: $startDate, createdAt: $createdAt})
+}
+
+query ListTournaments @auth(level: PUBLIC, insecureReason: "This operation is safe to expose to the public") {
+  tournaments {
+    id
+    name
+    startDate
+    endDate
+    description
+  }
+}
+
+mutation JoinTournament($tournamentId: UUID!, $userId_expr: String!) @auth(level: USER) {
+  tournamentParticipant_insert(data: {tournamentId: $tournamentId, userId_expr: "auth.uid", joinedAt_expr: "request.time"})
+}
+
+query GetMyGames @auth(level: USER) {
+  playerGameStatss(where: {userId: {eq_expr: "auth.uid"}}) {
+    id
+    score
+    position
+    game {
+      id
+      gameDate
+    }
+  }
+}

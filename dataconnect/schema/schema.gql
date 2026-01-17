@@ -1,0 +1,35 @@
+type User @table {
+  displayName: String!
+  createdAt: Timestamp!
+  email: String
+  photoUrl: String
+}
+
+type Tournament @table {
+  name: String!
+  startDate: Date!
+  createdAt: Timestamp!
+  endDate: Date
+  description: String
+}
+
+type Game @table {
+  gameDate: Date!
+  createdAt: Timestamp!
+  tournament: Tournament
+}
+
+type PlayerGameStats @table {
+  score: Int!
+  position: Int!
+  createdAt: Timestamp!
+  notes: String
+  user: User!
+  game: Game!
+}
+
+type TournamentParticipant @table(key: ["user", "tournament"]) {
+  joinedAt: Timestamp!
+  user: User!
+  tournament: Tournament!
+}

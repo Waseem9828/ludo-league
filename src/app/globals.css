@@ -1,0 +1,115 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 220 20% 97%; /* Soft Light Gray - E8EEF4 */
+    --foreground: 215 68% 21%; /* Deep Navy - 0E2C4E */
+    
+    --card: 0 0% 100%;
+    --card-foreground: 215 68% 21%;
+ 
+    --popover: 0 0% 100%;
+    --popover-foreground: 215 68% 21%;
+ 
+    --primary: 212 78% 37%; /* Primary Royal Blue - 1F5FA8 */
+    --primary-foreground: 0 0% 100%;
+ 
+    --secondary: 210 40% 98%;
+    --secondary-foreground: 215 68% 21%;
+ 
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+ 
+    --accent: 178 65% 41%; /* Teal Aqua - 25B7AF */
+    --accent-foreground: 0 0% 100%;
+ 
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 212 78% 37%;
+    
+    --radius: 14px;
+
+    --gradient-primary: linear-gradient(135deg, #2BB6B0 0%, #2A9DB8 30%, #1F6CA8 65%, #163F73 100%);
+  }
+
+  .dark {
+    --background: 215 68% 10%; /* Deep Navy */
+    --foreground: 220 20% 97%;
+
+    --card: 219 63% 15%; /* Slightly Lighter Navy */
+    --card-foreground: 220 20% 97%;
+
+    --popover: 215 68% 15%;
+    --popover-foreground: 220 20% 97%;
+
+    --primary: 212 78% 47%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 214 55% 25%;
+    --secondary-foreground: 220 20% 97%;
+
+    --muted: 214 55% 25%;
+    --muted-foreground: 215 20.2% 65.1%;
+
+    --accent: 178 65% 41%; /* Teal Aqua */
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 63% 31%;
+    --destructive-foreground: 220 20% 97%;
+
+    --border: 214 55% 28%;
+    --input: 214 55% 25%;
+    --ring: 212 78% 47%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}
+
+@layer components {
+    .text-gradient-primary {
+        @apply text-transparent bg-clip-text bg-gradient-primary;
+    }
+    .bg-gradient-primary {
+        background: var(--gradient-primary);
+    }
+    .card-gradient-border {
+        @apply relative;
+    }
+    .card-gradient-border::before {
+        content: "";
+        position: absolute;
+        inset: -2px;
+        background: var(--gradient-primary);
+        border-radius: 18px; /* Should be card's border-radius + border width */
+        z-index: -1;
+    }
+}
+
+@layer utilities {
+  .animate-grid-glow {
+    animation: grid-glow 4s linear infinite;
+  }
+  @keyframes grid-glow {
+    0% {
+      transform: translate(-50%, -50%) scale(1);
+      opacity: 1;
+    }
+    100% {
+      transform: translate(-50%, -50%) scale(1.5);
+      opacity: 0;
+    }
+  }
+}

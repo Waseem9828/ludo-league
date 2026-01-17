@@ -1,0 +1,68 @@
+
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // ========= Helper Functions =========
+    function isOwner(userId) {
+      return request.auth != null && request.auth.uid == userId;
+    }
+    
+    function isAdmin() {
+      // Storage rules cannot read from Firestore. 
+      // Rely solely on the custom claim set on the auth token.
+      return request.auth != null && request.auth.token.admin == true;
+    }
+    
+    // ===================================
+    //      Storage Rules by Path
+    // ===================================
+
+    // --- User Profile Pictures ---
+    // A user can manage their own profile pictures.
+    // Any authenticated user can view them.
+    match /profile-pictures/{userId}/{allPaths=**} {
+        allow read: if request.auth != null;
+        allow write: if isOwner(userId) || isAdmin();
+    }
+
+    // --- KYC Documents ---
+    // A user can create files in their own KYC folder.
+    // Only the user or an admin can read, update, or delete those specific files afterward.
+    match /kyc/{userId}/{allPaths=**} {
+      allow read, write: if isOwner(userId) || isAdmin();
+    }
+    
+    // --- Deposit Screenshots ---
+    // A user can create screenshots in their own deposits folder.
+    // Only the user or an admin can read, update, or delete them later.
+    match /deposits/{userId}/{allPaths=**} {
+      allow read, write: if isOwner(userId) || isAdmin();
+    }
+
+    // --- Match Result Screenshots ---
+    // A user can upload a result for their own user ID.
+    // Only the user or an admin can read, update, or delete them.
+    match /match-results/{matchId}/{userId}/{fileName} {
+      allow read, write: if isOwner(userId) || isAdmin();
+    }
+    
+    // --- Publicly Accessible Files & Banners ---
+    // Anyone can read these, but only admins can write.
+    match /public/{allPaths=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+     match /banners/{allPaths=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // --- Default Deny as a security best practice ---
+    // This rule MUST be last.
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
