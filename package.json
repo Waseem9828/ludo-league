@@ -7,7 +7,8 @@
     "build": "NODE_ENV=production next build",
     "start": "next start -p ${PORT:=9002}",
     "lint": "next lint",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "fix-cors": "node set-storage-cors.js"
   },
   "dependencies": {
     "@dataconnect/generated": "file:src/dataconnect-generated",
