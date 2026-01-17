@@ -21,6 +21,10 @@ firebase.initializeApp(firebaseConfig);
 // messages.
 const messaging = firebase.messaging();
 
+// Add the VAPID key to the messaging instance.
+// Replace 'YOUR_VAPID_KEY' with your actual VAPID key from the Firebase console.
+messaging.getToken({ vapidKey: "YOUR_VAPID_KEY" });
+
 messaging.onBackgroundMessage((payload) => {
   console.log(
     "[firebase-messaging-sw.js] Received background message ",
