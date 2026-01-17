@@ -21,7 +21,7 @@ import {
   TabsTrigger,
 } from "@/components/ui/tabs"
 import { cn } from "@/lib/utils"
-import { ArrowDownLeft, ArrowUpRight, UploadCloud, DownloadCloud, Landmark, Wallet as WalletIcon, AlertCircle, Loader2, ScanBarcode, ExternalLink, History } from "lucide-react"
+import { ArrowDownLeft, ArrowUpRight, UploadCloud, DownloadCloud, Landmark, Wallet as WalletIcon, AlertCircle, Loader2, ScanBarcode, ExternalLink, History, ArrowLeft } from "lucide-react"
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert"
 import { useUser, useFirestore, storage } from "@/firebase"
 import { collection, query, where, onSnapshot, orderBy, addDoc, serverTimestamp, doc, limit } from "firebase/firestore"
@@ -84,6 +84,7 @@ export default function WalletPage() {
   const [depositAmount, setDepositAmount] = useState(100);
   const [depositScreenshot, setDepositScreenshot] = useState<File | null>(null);
   const [activeUpiId, setActiveUpiId] = useState<string | null>(null);
+  const [depositStep, setDepositStep] = useState<'enterAmount' | 'confirmUtr'>('enterAmount');
   
   const balance = userProfile?.walletBalance ?? 0;
 
@@ -195,6 +196,26 @@ export default function WalletPage() {
     }
   };
 
+  const handleConfirmPayment = () => {
+    if (depositAmount < 100) {
+      toast({
+        title: "Invalid Amount",
+        description: "Minimum deposit amount is ₹100.",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (!activeUpiId) {
+        toast({
+            title: "Payment Details Not Available",
+            description: "Please wait for the payment QR code to load.",
+            variant: "destructive",
+        });
+        return;
+    }
+    setDepositStep('confirmUtr');
+  };
+
   const handleDepositSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!user || !firestore || !depositScreenshot) {
@@ -204,11 +225,6 @@ export default function WalletPage() {
 
     const formData = new FormData(e.currentTarget);
     const utr = formData.get('utr') as string;
-    
-    if (depositAmount < 100) {
-        toast({ title: "Invalid Amount", description: "Minimum deposit amount is ₹100.", variant: "destructive"});
-        return;
-    }
     
     if(!utr) {
         toast({title: "UTR / Transaction ID is required.", variant: "destructive"});
@@ -239,6 +255,7 @@ export default function WalletPage() {
         (e.target as HTMLFormElement).reset();
         setDepositScreenshot(null);
         setDepositAmount(100);
+        setDepositStep('enterAmount');
 
     } catch (error: any) {
         console.error("Deposit Error:", error);
@@ -317,54 +334,77 @@ export default function WalletPage() {
             </TabsList>
             <TabsContent value="deposit">
                 <Card>
-                    <form onSubmit={handleDepositSubmit}>
-                        <CardHeader>
-                            <CardTitle>Deposit Funds</CardTitle>
-                            <CardDescription>Add money to your wallet to join matches.</CardDescription>
-                        </CardHeader>
-                        <CardContent className="grid gap-6">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <div className="space-y-4">
-                                    <Alert variant="destructive">
-                                        <AlertCircle className="h-4 w-4" />
-                                        <AlertTitle>Important: Name Match Required</AlertTitle>
-                                        <AlertDescription>
-                                            Please deposit from a bank account or UPI ID where the name matches your KYC documents. Mismatched names will result in rejection.
-                                        </AlertDescription>
-                                    </Alert>
-                                    <div className="grid gap-2">
-                                        <Label htmlFor="deposit-amount">Amount (Min. ₹100)</Label>
-                                        <Input name="deposit-amount" id="deposit-amount" value={depositAmount} onChange={(e) => setDepositAmount(Number(e.target.value))} placeholder="e.g., 500" type="number" required />
-                                    </div>
-                                    <div className="grid gap-2">
-                                        <Label htmlFor="utr">UTR / Transaction ID</Label>
-                                        <Input name="utr" id="utr" placeholder="Enter the 12-digit UTR number" required />
-                                    </div>
-                                     <div className="grid gap-2">
-                                        <Label htmlFor="screenshot">Payment Screenshot</Label>
-                                        <Input name="screenshot" id="screenshot" type="file" required onChange={handleFileChange} className="file:text-primary" accept="image/*"/>
-                                    </div>
-                                </div>
-                                
-                                <div className="flex flex-col gap-4">
-                                    {depositAmount >= 100 ? (
-                                        <DynamicQrCode upiId={activeUpiId} amount={depositAmount} />
-                                    ) : (
-                                        <div className="flex flex-col items-center justify-center gap-4 p-4 bg-muted rounded-lg h-full">
-                                            <ScanBarcode className="h-10 w-10 text-muted-foreground"/>
-                                            <p className="text-sm text-center text-muted-foreground">Enter an amount of ₹100 or more to generate QR code.</p>
+                    {depositStep === 'enterAmount' ? (
+                        <>
+                            <CardHeader>
+                                <CardTitle>Deposit Funds</CardTitle>
+                                <CardDescription>Step 1: Enter amount and complete the payment.</CardDescription>
+                            </CardHeader>
+                            <CardContent className="grid gap-6">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div className="space-y-4">
+                                        <Alert variant="destructive">
+                                            <AlertCircle className="h-4 w-4" />
+                                            <AlertTitle>Important: Name Match Required</AlertTitle>
+                                            <AlertDescription>
+                                                Please deposit from a bank account or UPI ID where the name matches your KYC documents. Mismatched names will result in rejection.
+                                            </AlertDescription>
+                                        </Alert>
+                                        <div className="grid gap-2">
+                                            <Label htmlFor="deposit-amount">Amount (Min. ₹100)</Label>
+                                            <Input name="deposit-amount" id="deposit-amount" value={depositAmount} onChange={(e) => setDepositAmount(Number(e.target.value))} placeholder="e.g., 500" type="number" required />
                                         </div>
-                                    )}
+                                    </div>
+                                    
+                                    <div className="flex flex-col gap-4">
+                                        {depositAmount >= 100 ? (
+                                            <DynamicQrCode upiId={activeUpiId} amount={depositAmount} />
+                                        ) : (
+                                            <div className="flex flex-col items-center justify-center gap-4 p-4 bg-muted rounded-lg h-full">
+                                                <ScanBarcode className="h-10 w-10 text-muted-foreground"/>
+                                                <p className="text-sm text-center text-muted-foreground">Enter an amount of ₹100 or more to generate QR code.</p>
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
-                            </div>
-                        </CardContent>
-                         <CardFooter>
-                            <Button type="submit" disabled={isSubmitting} className="w-full">
-                                {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null}
-                                Submit Deposit Request
-                            </Button>
-                        </CardFooter>
-                    </form>
+                            </CardContent>
+                            <CardFooter>
+                                <Button type="button" onClick={handleConfirmPayment} className="w-full">
+                                    I have made the payment, Confirm
+                                </Button>
+                            </CardFooter>
+                        </>
+                    ) : (
+                        <form onSubmit={handleDepositSubmit}>
+                            <CardHeader>
+                                <Button variant="ghost" size="sm" className="absolute left-2 top-2 h-8" onClick={() => setDepositStep('enterAmount')}>
+                                    <ArrowLeft className="h-4 w-4 mr-2" /> Back
+                                </Button>
+                                <CardTitle className="pt-8">Confirm Your Deposit</CardTitle>
+                                <CardDescription>Step 2: Submit your payment details for verification.</CardDescription>
+                            </CardHeader>
+                            <CardContent className="space-y-6">
+                                <div className="flex justify-between items-center bg-muted p-3 rounded-lg">
+                                    <span className="text-sm font-medium">Amount Paid:</span>
+                                    <span className="text-xl font-bold text-primary">₹{depositAmount.toFixed(2)}</span>
+                                </div>
+                                <div className="grid gap-2">
+                                    <Label htmlFor="utr">UTR / Transaction ID</Label>
+                                    <Input name="utr" id="utr" placeholder="Enter the 12-digit UTR number" required />
+                                </div>
+                                <div className="grid gap-2">
+                                    <Label htmlFor="screenshot">Payment Screenshot</Label>
+                                    <Input name="screenshot" id="screenshot" type="file" required onChange={handleFileChange} className="file:text-primary" accept="image/*"/>
+                                </div>
+                            </CardContent>
+                            <CardFooter>
+                                <Button type="submit" disabled={isSubmitting} className="w-full">
+                                    {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null}
+                                    Submit Deposit Request
+                                </Button>
+                            </CardFooter>
+                        </form>
+                    )}
                 </Card>
             </TabsContent>
             <TabsContent value="withdraw">
@@ -459,7 +499,7 @@ export default function WalletPage() {
                                     <div className="flex justify-between items-center">
                                         <div className="flex items-center gap-3">
                                             <div className={cn("p-2 rounded-full", t.amount >= 0 ? "bg-green-100" : "bg-red-100")}>
-                                                {t.amount >= 0 ? <ArrowUpRight className="h-4 w-4 text-green-600"/> : <ArrowDownLeft className="h-4 w-4 text-red-600"/>}
+                                                {t.amount >= 0 ? <ArrowUpRight className="h-4 w-4 text-green-600"/> : <ArrowDownLeft className="h-4 w-4 text-red-500"/>}
                                             </div>
                                             <div>
                                                 <p className="font-semibold capitalize">{t.description || t.type.replace('-', ' ')}</p>
