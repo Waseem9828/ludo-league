@@ -43,24 +43,31 @@ const sendNotification = async (userId, title, body, link) => {
 
 
 exports.setRole = functions.https.onCall(async (data, context) => {
-  // 1. Authentication and Authorization Check
+  // 1. Authentication Check
   if (!context.auth) {
     throw new functions.https.HttpsError(
       "unauthenticated",
       "The function must be called while authenticated."
     );
   }
+  
+  const { uid, role } = data;
 
-  const callerClaims = context.auth.token;
-  if (callerClaims.role !== "superAdmin") {
-    throw new functions.https.HttpsError(
-      "permission-denied",
-      "Only super admins can set user roles."
-    );
+  // TEMPORARY BYPASS: Allow user 8VHy30yW04XgFsRlnPo1ZzQPCch1 to make themselves a superAdmin
+  const isFirstAdminRequest = context.auth.uid === '8VHy30yW04XgFsRlnPo1ZzQPCch1' && uid === '8VHy30yW04XgFsRlnPo1ZzQPCch1' && role === 'superAdmin';
+
+  // 2. Authorization Check
+  if (!isFirstAdminRequest) {
+      const callerClaims = context.auth.token;
+      if (callerClaims.role !== "superAdmin") {
+        throw new functions.https.HttpsError(
+          "permission-denied",
+          "Only super admins can set user roles."
+        );
+      }
   }
 
-  // 2. Input Validation
-  const { uid, role } = data;
+  // 3. Input Validation
   if (typeof uid !== "string" || uid.length === 0) {
     throw new functions.https.HttpsError(
       "invalid-argument",
@@ -76,15 +83,17 @@ exports.setRole = functions.https.onCall(async (data, context) => {
     );
   }
 
-  // 3. Set Custom Claim
+  // 4. Set Custom Claim
   try {
     if (role === 'none') {
         // Remove all admin-related claims
         await admin.auth().setCustomUserClaims(uid, { role: null, admin: null });
+        await db.collection('users').doc(uid).update({ isAdmin: false });
         return { message: `Success! User ${uid} has had their roles removed.` };
     } else {
         // Set the specific role and the general admin flag
         await admin.auth().setCustomUserClaims(uid, { role: role, admin: true });
+        await db.collection('users').doc(uid).update({ isAdmin: true });
         return { message: `Success! User ${uid} has been made a ${role}.` };
     }
   } catch (error) {
@@ -862,5 +871,3 @@ exports.distributeTournamentWinnings = functions.https.onCall(async (data, conte
         throw new HttpsError('internal', 'An unexpected error occurred.', error);
     }
 });
-
-    

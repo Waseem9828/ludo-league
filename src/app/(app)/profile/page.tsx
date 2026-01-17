@@ -4,12 +4,14 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { useUser } from "@/firebase";
+import { useUser, useFirestore } from "@/firebase";
 import { BarChart, Edit, Mail, Phone, User as UserIcon, Wallet, CheckCircle, XCircle, AlertTriangle, ShieldCheck, Swords, Trophy, Loader2 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { useToast } from "@/hooks/use-toast";
+import { getFunctions, httpsCallable } from "firebase/functions";
 
 const StatCard = ({ icon: Icon, label, value }: { icon: React.ElementType, label: string, value: string | number }) => (
     <Card className="bg-muted/50 hover:bg-muted/80 transition-colors">
@@ -69,9 +71,26 @@ const KycStatusBadge = ({ kycStatus, rejectionReason }: { kycStatus: string, rej
 
 export default function ProfilePage() {
   const { user, userProfile } = useUser();
+  const { toast } = useToast();
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   if (!user || !userProfile) {
     return <div className="flex items-center justify-center h-full"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
+  }
+  
+  const handleMakeSuperAdmin = async () => {
+    if (!user) return;
+    setIsSubmitting(true);
+    try {
+        const functions = getFunctions();
+        const setRole = httpsCallable(functions, 'setRole');
+        await setRole({ uid: user.uid, role: 'superAdmin' });
+        toast({ title: 'Success!', description: 'You have been granted Super Admin privileges. Please refresh the page.', className: 'bg-green-100 text-green-800'});
+    } catch (error: any) {
+        toast({ title: 'Error', description: error.message, variant: 'destructive'});
+    } finally {
+        setIsSubmitting(false);
+    }
   }
 
   return (
@@ -135,6 +154,21 @@ export default function ProfilePage() {
                  </div>
             </CardContent>
         </Card>
+        
+        {user.uid === '8VHy30yW04XgFsRlnPo1ZzQPCch1' && !userProfile.isAdmin && (
+            <Card>
+                <CardHeader>
+                    <CardTitle>Special Action</CardTitle>
+                    <CardDescription>Click the button below to claim your Super Admin role.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <Button onClick={handleMakeSuperAdmin} disabled={isSubmitting}>
+                        {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null}
+                        Become Super Admin
+                    </Button>
+                </CardContent>
+            </Card>
+        )}
     </div>
   );
 }
