@@ -1,11 +1,11 @@
 'use client';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
-import { useAuth } from '@/firebase/auth-provider';
+import { useUser } from '@/firebase';
 import CustomLoader from '@/components/CustomLoader';
 
 function RedirectingPage() {
-  const { user, loading } = useAuth();
+  const { user, loading } = useUser();
   const router = useRouter();
 
   useEffect(() => {
