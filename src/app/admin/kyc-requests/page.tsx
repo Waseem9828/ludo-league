@@ -5,7 +5,7 @@ import { useState, useEffect, useCallback } from 'react';
 import Image from 'next/image';
 import { useUser } from '@/firebase/auth/use-user';
 import { useFirestore } from "@/firebase";
-import { collection, query, onSnapshot, orderBy, doc, writeBatch } from "firebase/firestore";
+import { collection, query, onSnapshot, orderBy, doc, writeBatch, getDoc } from "firebase/firestore";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -119,7 +119,7 @@ export default function KycRequestsPage() {
         return () => unsubscribe();
     }, [firestore, toast]);
 
-    const handleUpdateStatus = useCallback(async (application: KycApplication, status: 'approved' | 'rejected', rejectionReason?: string) => {
+    const handleUpdateStatus = useCallback(async (applicationId: string, status: 'approved' | 'rejected', rejectionReason?: string) => {
         if (!firestore || !adminUser || !canManageKyc) {
             toast({ title: "Permission Denied", description: "You don't have rights to perform this action.", variant: "destructive" });
             return;
@@ -130,12 +130,21 @@ export default function KycRequestsPage() {
             return;
         }
 
-        setActionLoading(prev => ({ ...prev, [application.id]: true }));
+        setActionLoading(prev => ({ ...prev, [applicationId]: true }));
 
-        const appRef = doc(firestore, "kycApplications", application.id);
-        const userRef = doc(firestore, "users", application.userId);
+        const appRef = doc(firestore, "kycApplications", applicationId);
 
         try {
+            const appSnapshot = await getDoc(appRef);
+            if (!appSnapshot.exists() || appSnapshot.data().status !== 'pending') {
+                toast({ title: "Action Failed", description: "This application has already been processed or does not exist.", variant: "destructive" });
+                setActionLoading(prev => ({ ...prev, [applicationId]: false }));
+                return;
+            }
+            
+            const application = appSnapshot.data() as KycApplication;
+            const userRef = doc(firestore, "users", application.userId);
+
             const batch = writeBatch(firestore);
             
             batch.update(appRef, {
@@ -163,7 +172,7 @@ export default function KycRequestsPage() {
             console.error("Error updating status: ", error);
             toast({ title: "Error", description: error.message, variant: "destructive" });
         } finally {
-            setActionLoading(prev => ({ ...prev, [application.id]: false }));
+            setActionLoading(prev => ({ ...prev, [applicationId]: false }));
         }
     }, [firestore, adminUser, canManageKyc, toast]);
     
@@ -206,14 +215,14 @@ export default function KycRequestsPage() {
                          <Button 
                             size={isMobile ? 'sm' : 'icon'} 
                             className={cn("h-8 w-8 bg-green-500 hover:bg-green-600 text-white", {"flex-1": isMobile})}
-                            onClick={() => handleUpdateStatus(application, 'approved')}
+                            onClick={() => handleUpdateStatus(application.id, 'approved')}
                             disabled={actionLoading[application.id]}
                         >
                             {actionLoading[application.id] ? <Loader2 className="h-4 w-4 animate-spin" /> : isMobile ? <><CheckCircle className="h-4 w-4 mr-2"/>Approve</> : <CheckCircle className="h-4 w-4" />}
                         </Button>
                         <RejectionDialog 
                             loading={actionLoading[application.id]} 
-                            onConfirm={(reason) => handleUpdateStatus(application, 'rejected', reason)} 
+                            onConfirm={(reason) => handleUpdateStatus(application.id, 'rejected', reason)} 
                         />
                     </div>
                 )}
