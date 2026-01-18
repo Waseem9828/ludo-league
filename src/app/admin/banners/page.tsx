@@ -1,3 +1,4 @@
+
 'use client';
 import { useState, useEffect, useCallback } from 'react';
 import Image from 'next/image';
@@ -34,7 +35,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useFirestore, useStorage } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
-import { collection, addDoc, onSnapshot, doc, deleteDoc, updateDoc, serverTimestamp, query, orderBy } from 'firebase/firestore';
+import { collection, addDoc, onSnapshot, doc, deleteDoc, updateDoc, serverTimestamp, query, orderBy, QueryDocumentSnapshot } from 'firebase/firestore';
 import { Loader2, PlusCircle, Trash2, Upload, Link as LinkIcon, Image as ImageIcon } from 'lucide-react';
 import { useAdminOnly } from '@/hooks/useAdminOnly';
 import type { Banner } from '@/lib/types';
@@ -61,7 +62,7 @@ export default function BannerManager() {
     setLoading(true);
     const q = query(collection(firestore, 'banners'), orderBy('createdAt', 'desc'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const bannerList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Banner));
+      const bannerList = snapshot.docs.map((doc: QueryDocumentSnapshot) => ({ id: doc.id, ...doc.data() } as Banner));
       setBanners(bannerList);
       setLoading(false);
     });

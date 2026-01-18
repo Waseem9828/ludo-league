@@ -1,5 +1,5 @@
-
 import { Timestamp } from "firebase/firestore";
+import type { User as FirebaseUser } from 'firebase/auth';
 
 export enum MatchStatus {
     PENDING = 'pending',
@@ -173,6 +173,22 @@ export type UserProfile = {
       authorName: string;
       createdAt: Timestamp;
   }
+
+  export type NavItem = {
+    title: string;
+    href: string;
+    icon: React.ComponentType<{ className?: string }>;
+    // Using React.ComponentType for broader compatibility with icon libraries
+    // It allows for both functional and class components.
+  };
+  
+  export type AdminNavItem = {
+    title: string;
+    href: string;
+    icon: React.ComponentType<{ className?: string }>;
+    children?: AdminNavItem[];
+    role?: string[];
+  };
   
   export const getTournamentStatus = (tournament: Tournament): Tournament['status'] => {
     // If the status is already settled, don't recalculate.
@@ -258,4 +274,11 @@ export interface KycApplication {
     text: string;
     isActive: boolean;
     createdAt: Timestamp;
+  };
+
+  export type UserContextType = {
+    user: FirebaseUser | null;
+    loading: boolean;
+    userProfile: UserProfile | null;
+    isAdmin: boolean;
   };

@@ -54,8 +54,9 @@ const adminNavItems: AdminNavItem[] = [
     {
         title: "Requests",
         icon: ShieldCheck,
+        href:"#",
         role: ["superAdmin", "kycAdmin", "depositAdmin", "withdrawalAdmin"],
-        subItems: [
+        children: [
             {
                 title: "KYC Requests",
                 icon: ShieldCheck,
@@ -79,8 +80,9 @@ const adminNavItems: AdminNavItem[] = [
     {
         title: "Content",
         icon: FileImage,
+        href:"#",
         role: ["superAdmin"],
-        subItems: [
+        children: [
             {
                 title: "Banners",
                 href: "/admin/banners",
@@ -104,8 +106,9 @@ const adminNavItems: AdminNavItem[] = [
     {
         title: "Game Management",
         icon: Trophy,
+        href:"#",
         role: ["superAdmin", "matchAdmin"],
-        subItems: [
+        children: [
             {
                 title: "Matches",
                 icon: Swords,
@@ -135,8 +138,9 @@ const adminNavItems: AdminNavItem[] = [
     {
         title: "Promotions",
         icon: Percent,
+        href:"#",
         role: ["superAdmin"],
-        subItems: [
+        children: [
             {
                 title: "Referral",
                 icon: UserPlus,
@@ -154,8 +158,9 @@ const adminNavItems: AdminNavItem[] = [
     {
         title: "Configuration",
         icon: Settings,
+        href:"#",
         role: ["superAdmin"],
-        subItems: [
+        children: [
             {
                 title: "Manage Admins",
                 icon: Shield,
@@ -282,14 +287,14 @@ const NavItemGroup = ({ item, isCollapsed }: NavItemProps) => {
         }, []);
     }, [role]);
 
-    const subItems = useMemo(() => {
-        return 'subItems' in item && item.subItems ? getFilteredItems(item.subItems) : [];
+    const children = useMemo(() => {
+        return 'children' in item && item.children ? getFilteredItems(item.children) : [];
     }, [item, getFilteredItems]);
     
-    const hasVisibleSubItems = useMemo(() => {
-         if (!('subItems' in item && item.subItems)) return false;
+    const hasVisiblechildren = useMemo(() => {
+         if (!('children' in item && item.children)) return false;
          if (role === 'superAdmin') return true;
-         return item.subItems.some(sub => sub.role && role && sub.role.includes(role));
+         return item.children.some(sub => sub.role && role && sub.role.includes(role));
     }, [item, role]);
 
     const [isOpen, setIsOpen] = useState(false);
@@ -299,13 +304,13 @@ const NavItemGroup = ({ item, isCollapsed }: NavItemProps) => {
             setIsOpen(false);
             return;
         }
-        const isActive = subItems.some(sub => sub.href && pathname.includes(sub.href));
+        const isActive = children.some(sub => sub.href && pathname && pathname.includes(sub.href));
         setIsOpen(isActive);
-    }, [pathname, subItems, isCollapsed]);
+    }, [pathname, children, isCollapsed]);
 
 
     const Icon = item.icon;
-    if (!Icon || !hasVisibleSubItems) return null;
+    if (!Icon || !hasVisiblechildren) return null;
 
 
     return (
@@ -323,7 +328,7 @@ const NavItemGroup = ({ item, isCollapsed }: NavItemProps) => {
             </CollapsibleTrigger>
             {!isCollapsed && (
                 <CollapsibleContent className="pl-6 space-y-1 mt-1">
-                    {subItems.map((subItem) => (
+                    {children.map((subItem) => (
                         <NavItemLink key={subItem.title} item={subItem} isCollapsed={isCollapsed} />
                     ))}
                 </CollapsibleContent>
@@ -341,11 +346,11 @@ export function SidebarNav({ className, inSheet }: { className?: string, inSheet
         if (!role) return [];
 
         return items.reduce((acc: AdminNavItem[], item) => {
-            const hasVisibleSubItems = item.subItems && item.subItems.some(sub => sub.role && (role === 'superAdmin' || sub.role.includes(role)));
+            const hasVisiblechildren = item.children && item.children.some(sub => sub.role && (role === 'superAdmin' || sub.role.includes(role)));
 
-            if (hasVisibleSubItems) {
+            if (hasVisiblechildren) {
                  acc.push(item);
-            } else if (!item.subItems && item.role?.includes(role)) {
+            } else if (!item.children && item.role?.includes(role)) {
                 acc.push(item);
             }
             return acc;
@@ -357,7 +362,7 @@ export function SidebarNav({ className, inSheet }: { className?: string, inSheet
     return (
         <nav className={cn("flex flex-col gap-1 p-2", className)}>
             {filteredNav.map((item) => (
-                item.subItems
+                item.children
                     ? <NavItemGroup key={item.title} item={item} isCollapsed={isCollapsed && !inSheet} />
                     : <NavItemLink key={item.title} item={item} isCollapsed={isCollapsed && !inSheet} />
             ))}

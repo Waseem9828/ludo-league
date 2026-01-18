@@ -10,7 +10,7 @@ import {
 import { firebaseConfig } from "@/firebase/config"; 
 import { initializeApp, getApps } from "firebase/app";
 import { useFirestore } from "@/firebase";
-import { doc, onSnapshot } from "firebase/firestore";
+import { doc, onSnapshot, DocumentSnapshot } from "firebase/firestore";
 import type { UserProfile, UserContextType } from "@/lib/types";
 import { useRouter, usePathname } from 'next/navigation';
 
@@ -56,7 +56,7 @@ export const UserProvider = ({ children }: UserProviderProps) => {
 
   // Redirect non-admins from admin routes
   useEffect(() => {
-    if (!loading && pathname.startsWith("/admin") && !isAdmin) {
+    if (!loading && pathname && pathname.startsWith("/admin") && !isAdmin) {
       console.log("Redirecting: Not an admin.", {pathname, isAdmin});
       router.push("/dashboard");
     }
@@ -68,7 +68,7 @@ export const UserProvider = ({ children }: UserProviderProps) => {
       const userRef = doc(firestore, "users", user.uid);
       const unsubscribe = onSnapshot(
         userRef,
-        (doc) => {
+        (doc: DocumentSnapshot) => {
           if (doc.exists()) {
             setUserProfile(doc.data() as UserProfile);
           } else {
@@ -88,7 +88,7 @@ export const UserProvider = ({ children }: UserProviderProps) => {
 
   // Check for KYC status and redirect if needed
   useEffect(() => {
-    if (!loading && userProfile) {
+    if (!loading && userProfile && pathname) {
       const { kycStatus } = userProfile;
       const isKycPending = kycStatus === 'pending';
       const onKycPage = pathname.startsWith("/kyc");

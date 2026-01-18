@@ -1,6 +1,7 @@
+
 'use client';
 import { useState, useEffect, useMemo } from 'react';
-import { collection, query, orderBy, onSnapshot, limit } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, limit, QueryDocumentSnapshot } from 'firebase/firestore';
 import { useFirestore } from '@/firebase';
 import { Megaphone } from 'lucide-react';
 import type { News } from '@/lib/types';
@@ -20,7 +21,7 @@ export function NewsTicker() {
     const newsRef = collection(firestore, 'news');
     const q = query(newsRef, orderBy('createdAt', 'desc'), limit(10));
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as News));
+      const data = snapshot.docs.map((doc: QueryDocumentSnapshot) => ({ id: doc.id, ...doc.data() } as News));
       setNewsItems(data);
       setLoading(false);
     });

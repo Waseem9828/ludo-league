@@ -1,3 +1,4 @@
+
 'use client';
 
 import {
@@ -9,7 +10,7 @@ import {
 } from 'react';
 import type { User } from 'firebase/auth';
 import { useAuth, useFirestore } from '@/firebase/provider';
-import { doc, onSnapshot } from 'firebase/firestore';
+import { doc, onSnapshot, DocumentSnapshot } from 'firebase/firestore';
 import type { UserProfile } from '@/lib/types';
 import { getAuth, onAuthStateChanged } from 'firebase/auth';
 import { firebaseApp } from '@/firebase';
@@ -48,7 +49,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
       const userProfileRef = doc(firestore, 'users', user.uid);
       
       const unsubscribeProfile = onSnapshot(userProfileRef, 
-        (profileDoc) => {
+        (profileDoc: DocumentSnapshot) => {
           if (profileDoc.exists()) {
             const profileData = profileDoc.data() as UserProfile;
             setUserProfile({ ...profileData });

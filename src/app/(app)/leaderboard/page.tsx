@@ -10,7 +10,7 @@ import Image from "next/image";
 import { useFirestore } from "@/firebase";
 import { useEffect, useState }from "react";
 import type { UserProfile } from "@/lib/types";
-import { collection, query, orderBy, limit, onSnapshot } from "firebase/firestore";
+import { collection, query, orderBy, limit, onSnapshot, QueryDocumentSnapshot } from "firebase/firestore";
 import { PlaceHolderImages } from "@/lib/placeholder-images";
 
 const bannerImage = PlaceHolderImages.find(img => img.id === 'leaderboard-banner');
@@ -76,7 +76,7 @@ export default function LeaderboardPage() {
         const q = query(usersRef, orderBy('winnings', 'desc'), limit(50));
         
         const unsubscribe = onSnapshot(q, (snapshot) => {
-            const data = snapshot.docs.map(doc => ({ ...doc.data(), uid: doc.id } as Partial<UserProfile>));
+            const data = snapshot.docs.map((doc: QueryDocumentSnapshot) => ({ ...doc.data(), uid: doc.id } as Partial<UserProfile>));
             setLeaderboardData(data);
             setLoading(false);
         }, (error) => {

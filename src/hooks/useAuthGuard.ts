@@ -3,9 +3,8 @@
 
 import { useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { useAuth } from '@/firebase/auth-provider';
 import { useUser } from '@/firebase/auth/use-user';
-import { doc, onSnapshot } from 'firebase/firestore';
+import { doc, onSnapshot, DocumentSnapshot } from 'firebase/firestore';
 import { useFirestore } from '@/firebase';
 
 type AppSettings = {
@@ -13,8 +12,7 @@ type AppSettings = {
 };
 
 export const useAuthGuard = () => {
-  const { user, loading: authLoading } = useAuth();
-  const { isAdmin, userProfile, loading: profileLoading } = useUser();
+  const { user, isAdmin, userProfile, loading } = useUser();
   const firestore = useFirestore();
   const pathname = usePathname();
   const router = useRouter();
@@ -26,13 +24,13 @@ export const useAuthGuard = () => {
   const isAdminPage = pathname?.startsWith('/admin') ?? false;
   const isMaintenancePage = pathname === '/maintenance';
   
-  const isAuthenticating = authLoading || settingsLoading || (user && profileLoading);
+  const isAuthenticating = loading || settingsLoading;
   
   useEffect(() => {
     if (!firestore) return;
 
     const settingsRef = doc(firestore, 'settings', 'global');
-    const unsubscribe = onSnapshot(settingsRef, (docSnap) => {
+    const unsubscribe = onSnapshot(settingsRef, (docSnap: DocumentSnapshot) => {
         if (docSnap.exists()) {
             setSettings(docSnap.data() as AppSettings);
         } else {

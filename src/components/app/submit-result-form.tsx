@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useCallback, useEffect } from "react";
@@ -7,6 +8,7 @@ import {
   setDoc,
   serverTimestamp,
   onSnapshot,
+  DocumentSnapshot,
 } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { Button } from "@/components/ui/button";
@@ -38,7 +40,7 @@ export function SubmitResultForm({ matchId }: SubmitResultFormProps) {
     if (!user || !firestore) return;
     setIsLoading(true);
     const resultDocRef = doc(firestore, `matches/${matchId}/results`, user.uid);
-    const unsubscribe = onSnapshot(resultDocRef, (doc) => {
+    const unsubscribe = onSnapshot(resultDocRef, (doc: DocumentSnapshot) => {
         setHasSubmitted(doc.exists());
         setIsLoading(false);
     });

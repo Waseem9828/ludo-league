@@ -1,3 +1,4 @@
+
 'use client';
 import Image from 'next/image';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -40,6 +41,7 @@ import {
   arrayRemove,
   updateDoc,
   arrayUnion,
+  DocumentSnapshot,
 } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
 import type { Match, MatchPlayer, UserProfile } from '@/lib/types';
@@ -404,7 +406,7 @@ export default function MatchPage() {
     if (!firestore || !id) return;
     setLoading(true);
     const matchRef = doc(firestore, 'matches', id);
-    const unsubscribe = onSnapshot(matchRef, (doc) => {
+    const unsubscribe = onSnapshot(matchRef, (doc: DocumentSnapshot) => {
         if (doc.exists()) setMatch({ id: doc.id, ...doc.data() } as Match);
         else {
           toast({ title: "Match not found", variant: "destructive" });

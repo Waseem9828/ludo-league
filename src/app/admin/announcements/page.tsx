@@ -21,7 +21,8 @@ import {
   updateDoc,
   deleteDoc,
   query,
-  orderBy
+  orderBy,
+  QueryDocumentSnapshot,
 } from 'firebase/firestore';
 import { useFirestore } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
@@ -63,7 +64,7 @@ export default function AnnouncementsPage() {
     const q = query(collection(firestore, 'announcements'), orderBy('createdAt', 'desc'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const data = snapshot.docs.map(
-        (doc) => ({ id: doc.id, ...doc.data() } as Announcement)
+        (doc: QueryDocumentSnapshot) => ({ id: doc.id, ...doc.data() } as Announcement)
       );
       setAnnouncements(data);
       setLoading(false);

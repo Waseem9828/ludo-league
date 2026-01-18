@@ -4,7 +4,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useUser } from '@/firebase/auth/use-user';
 import { useFirestore } from "@/firebase";
-import { collection, query, onSnapshot, orderBy, doc, writeBatch, runTransaction, getDoc } from "firebase/firestore";
+import { collection, query, onSnapshot, orderBy, doc, writeBatch, runTransaction, getDoc, QueryDocumentSnapshot } from "firebase/firestore";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -104,7 +104,7 @@ export default function DepositsPage() {
 
         const unsubscribe = onSnapshot(q, (querySnapshot) => {
             const depositRequests: DepositRequest[] = [];
-            querySnapshot.forEach((doc) => {
+            querySnapshot.forEach((doc: QueryDocumentSnapshot) => {
                 depositRequests.push({ id: doc.id, ...doc.data() } as DepositRequest);
             });
             setRequests(depositRequests);

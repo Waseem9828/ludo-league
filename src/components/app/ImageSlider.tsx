@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -6,7 +7,7 @@ import Link from 'next/link';
 import useEmblaCarousel from 'embla-carousel-react';
 import Autoplay from 'embla-carousel-autoplay';
 import { useFirestore } from '@/firebase';
-import { collection, query, where, onSnapshot, orderBy } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, orderBy, QueryDocumentSnapshot } from 'firebase/firestore';
 import { Banner } from '@/lib/types';
 import { Skeleton } from '../ui/skeleton';
 
@@ -31,7 +32,7 @@ export const ImageSlider = () => {
     );
     
     const unsubscribe = onSnapshot(bannersQuery, (snapshot) => {
-        const activeBanners = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Banner));
+        const activeBanners = snapshot.docs.map((doc: QueryDocumentSnapshot) => ({ id: doc.id, ...doc.data() } as Banner));
         setBanners(activeBanners);
         setLoading(false);
     });
