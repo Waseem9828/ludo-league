@@ -61,7 +61,7 @@ export default function AppHeader() {
                 <Link href="/dashboard" className="flex items-center gap-2 flex-shrink-0">
                     <Image src="/icon-192x192.png" alt="Ludo League Logo" width={32} height={32} />
                     <motion.h1 
-                        className="text-xl font-bold text-white tracking-wider hidden md:flex overflow-hidden"
+                        className="text-lg md:text-xl font-bold text-white tracking-wider flex overflow-hidden"
                         variants={sentence}
                         initial="hidden"
                         animate="visible"
