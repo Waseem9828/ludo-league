@@ -36,12 +36,12 @@ function AppLayoutContent({ children }: { children: React.ReactNode }) {
               <SidebarNav />
           </SidebarSheet>
 
-          <div className="md:pl-64 flex flex-col min-h-screen">
+          <div className="md:pl-64 flex flex-col h-screen">
             <PromotionBanner />
-            <header className="sticky top-0 z-40 flex h-16 items-center justify-between gap-4 bg-gradient-primary px-6 text-primary-foreground shadow-sm w-full">
+            <header className="sticky top-0 z-40 flex h-16 items-center justify-between gap-4 bg-gradient-primary px-6 text-primary-foreground shadow-sm w-full flex-shrink-0">
                 <AppHeader/>
             </header>
-            <main className={"flex-1 flex flex-col " + (useDefaultLayout ? "p-4 sm:p-6 md:pb-6 pb-24" : "pb-24")}>
+            <main className={"flex-1 flex flex-col overflow-y-auto " + (useDefaultLayout ? "p-4 sm:p-6 md:pb-6 pb-24" : "pb-24")}>
                 {children}
             </main>
             {/* Mobile Bottom Navigation */}
