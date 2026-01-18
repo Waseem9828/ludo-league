@@ -266,21 +266,31 @@ const NavItemLink = ({ item, isCollapsed }: NavItemProps) => {
 
 const NavItemGroup = ({ item, isCollapsed }: NavItemProps) => {
     const pathname = usePathname();
-    const subItems = 'subItems' in item && item.subItems ? item.subItems : [];
-    
-    const [isOpen, setIsOpen] = useState(() => 
-        subItems.some(sub => sub.href && pathname.includes(sub.href))
-    );
+    const { role } = useRole();
+
+    const subItems = useMemo(() => {
+        const getFiltered = (items: AdminNavItem[]): AdminNavItem[] => {
+            return items.reduce((acc: AdminNavItem[], subItem) => {
+                if (!subItem.role || !role) return acc;
+                if (subItem.role.includes(role)) {
+                    acc.push(subItem);
+                }
+                return acc;
+            }, []);
+        };
+        return 'subItems' in item && item.subItems ? getFiltered(item.subItems) : [];
+    }, [item, role]);
+
+    const [isOpen, setIsOpen] = useState(false);
 
     useEffect(() => {
         const isActive = subItems.some(sub => sub.href && pathname.includes(sub.href));
-        if (isActive !== isOpen) {
-            setIsOpen(isActive);
-        }
-    }, [pathname, subItems, isOpen]);
+        setIsOpen(isActive);
+    }, [pathname, subItems]);
+
 
     const Icon = item.icon;
-    if (!Icon) return null;
+    if (!Icon || subItems.length === 0) return null;
 
 
     return (
@@ -313,19 +323,16 @@ export function SidebarNav({ className, inSheet }: { className?: string, inSheet
     const { role } = useRole();
 
     const getFilteredAdminItems = useCallback((items: AdminNavItem[]): AdminNavItem[] => {
-        return items.reduce((acc: AdminNavItem[], item) => {
-            if (!item.role || !role) return acc;
-            const hasAccess = item.role.includes(role);
+        if (!role) return [];
 
-            if (hasAccess) {
-                if (item.subItems) {
-                    const filteredSubItems = getFilteredAdminItems(item.subItems);
-                    if (filteredSubItems.length > 0) {
-                        acc.push({ ...item, subItems: filteredSubItems });
-                    }
-                } else {
-                    acc.push(item);
+        return items.reduce((acc: AdminNavItem[], item) => {
+            if (item.subItems) {
+                const filteredSubItems = getFilteredAdminItems(item.subItems);
+                if (filteredSubItems.length > 0) {
+                    acc.push({ ...item, subItems: filteredSubItems });
                 }
+            } else if (item.role?.includes(role)) {
+                acc.push(item);
             }
             return acc;
         }, []);
