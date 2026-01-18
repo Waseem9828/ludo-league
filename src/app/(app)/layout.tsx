@@ -10,7 +10,6 @@ import { FirebaseErrorListener } from '@/components/FirebaseErrorListener';
 import { BottomNav } from '@/components/app/bottom-nav';
 import { FcmInitializer } from '@/components/app/fcm-initializer';
 import { usePathname } from 'next/navigation';
-import { FirebaseClientProvider } from '@/firebase/client-provider';
 import { PromotionBanner } from '@/components/app/PromotionBanner';
 
 
@@ -56,10 +55,8 @@ function AppLayoutContent({ children }: { children: React.ReactNode }) {
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
-      <FirebaseClientProvider>
-        <SidebarProvider>
-          <AppLayoutContent>{children}</AppLayoutContent>
-        </SidebarProvider>
-      </FirebaseClientProvider>
+      <SidebarProvider>
+        <AppLayoutContent>{children}</AppLayoutContent>
+      </SidebarProvider>
   )
 }

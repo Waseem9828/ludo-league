@@ -1,7 +1,7 @@
 'use client';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
-import { AuthProvider, useAuth } from '@/firebase/auth-provider';
+import { useAuth } from '@/firebase/auth-provider';
 import CustomLoader from '@/components/CustomLoader';
 
 function RedirectingPage() {
@@ -24,8 +24,6 @@ function RedirectingPage() {
 
 export default function LandingPage() {
     return (
-        <AuthProvider>
-            <RedirectingPage />
-        </AuthProvider>
+        <RedirectingPage />
     )
 }
