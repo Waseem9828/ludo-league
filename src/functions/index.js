@@ -41,27 +41,6 @@ const sendNotification = async (userId, title, body, link) => {
     }
 };
 
-exports.claimSuperAdminRole = functions.https.onCall(async (data, context) => {
-    if (!context.auth) {
-        throw new functions.https.HttpsError("unauthenticated", "You must be authenticated to call this function.");
-    }
-
-    const targetUid = '8VHy30yW04XgFsRlnPo1ZzQPCch1';
-
-    if (context.auth.uid !== targetUid) {
-        throw new functions.https.HttpsError("permission-denied", "You are not authorized to perform this action.");
-    }
-
-    try {
-        await admin.auth().setCustomUserClaims(targetUid, { role: 'superAdmin', admin: true });
-        await db.collection('users').doc(targetUid).update({ isAdmin: true, role: 'superAdmin' }); // Also update firestore doc for consistency in UI
-        return { message: `Success! You (${targetUid}) have been granted Super Admin privileges. Please sign out and sign back in to apply the changes.` };
-    } catch (error) {
-        console.error("Error setting custom claims:", error);
-        throw new functions.https.HttpsError("internal", "Unable to set custom claims.");
-    }
-});
-
 
 exports.setRole = functions.https.onCall(async (data, context) => {
   // 1. Authentication and Authorization Check
@@ -886,5 +865,3 @@ exports.distributeTournamentWinnings = functions.https.onCall(async (data, conte
         throw new HttpsError('internal', 'An unexpected error occurred.', error);
     }
 });
-
-    
