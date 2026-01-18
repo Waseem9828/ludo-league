@@ -1,3 +1,4 @@
+
 {
   "compilerOptions": {
     "target": "ES2017",
@@ -38,6 +39,7 @@
     "node_modules",
     "src/firebase/functions",
     "functions",
-    "workspace"
+    "workspace",
+    "android"
   ]
 }
