@@ -36,8 +36,6 @@ import { usePathname } from "next/navigation";
 import { buttonVariants, Button } from "./button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./tooltip";
 import { useState, useMemo, useCallback, createContext, useContext } from "react";
-import { Sheet, SheetContent, SheetTrigger } from "./sheet";
-import { Menu } from "lucide-react";
 import { AppLogo } from "@/components/icons/AppLogo";
 
 const adminNavItems: AdminNavItem[] = [
@@ -345,11 +343,3 @@ export const Sidebar = () => (
         <SidebarNav className="flex-1 overflow-y-auto" />
     </div>
 );
-
-// This component is no longer used directly in the layout, but is kept to avoid breaking imports.
-// The Sheet/SheetContent is now handled directly in the root app layout.
-export const SidebarSheet = ({ children }: { children: React.ReactNode }) => {
-    return null;
-};
-
-export { Sheet, SheetContent };

@@ -1,7 +1,8 @@
 'use client';
 
 import { Toaster } from '@/components/ui/toaster';
-import { Sidebar, SidebarProvider, SidebarNav, Sheet, SheetContent } from "@/components/ui/sidebar"
+import { Sidebar, SidebarProvider, SidebarNav } from "@/components/ui/sidebar"
+import { Sheet, SheetContent } from "@/components/ui/sheet";
 import AppHeader from '@/components/AppHeader';
 import { useAuthGuard } from '@/hooks/useAuthGuard';
 import CustomLoader from '@/components/CustomLoader';
