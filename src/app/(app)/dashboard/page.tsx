@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -13,6 +12,7 @@ import { TrendingUp, Zap, Users, Trophy, ChevronRight, Swords } from 'lucide-rea
 import Link from 'next/link';
 import Image from 'next/image';
 import { Skeleton } from '@/components/ui/skeleton';
+import { PlaceHolderImages } from '@/lib/placeholder-images';
 
 const StatCard = ({ title, value, icon: Icon, link, loading }: { title: string, value: string | number, icon: React.ElementType, link?: string, loading: boolean }) => (
     <Card className="hover:shadow-lg transition-shadow">
@@ -30,6 +30,8 @@ const StatCard = ({ title, value, icon: Icon, link, loading }: { title: string, 
         </CardContent>
     </Card>
 );
+
+const bannerImage = PlaceHolderImages.find(img => img.id === 'dashboard-banner');
 
 export default function DashboardPage() {
     const { user, userProfile, loading: userLoading } = useUser();
@@ -120,6 +122,18 @@ export default function DashboardPage() {
 
     return (
         <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
+            {bannerImage && (
+                <div className="relative w-full aspect-video rounded-lg overflow-hidden mb-6 shadow-lg">
+                    <Image 
+                        src={bannerImage.imageUrl} 
+                        alt={bannerImage.description} 
+                        fill 
+                        className="object-cover" 
+                        priority 
+                        data-ai-hint={bannerImage.imageHint}
+                    />
+                </div>
+            )}
             <div className="flex items-center justify-between space-y-2">
                 <h2 className="text-3xl font-bold tracking-tight">Welcome back, {userProfile?.displayName || 'User'}!</h2>
             </div>
