@@ -28,7 +28,7 @@ import {
     FileText,
     Percent,
     Gift,
-    ArrowUpToDot,
+    ArrowUpFromDot,
     Megaphone
 } from "lucide-react";
 import Link from "next/link";
@@ -70,7 +70,7 @@ const adminNavItems: AdminNavItem[] = [
             },
             {
                 title: "Withdrawals",
-                icon: ArrowUpToDot,
+                icon: ArrowUpFromDot,
                 href: "/admin/withdrawals",
                 role: ["superAdmin", "withdrawalAdmin"],
             },
@@ -268,29 +268,44 @@ const NavItemGroup = ({ item, isCollapsed }: NavItemProps) => {
     const pathname = usePathname();
     const { role } = useRole();
 
-    const subItems = useMemo(() => {
-        const getFiltered = (items: AdminNavItem[]): AdminNavItem[] => {
-            return items.reduce((acc: AdminNavItem[], subItem) => {
-                if (!subItem.role || !role) return acc;
-                if (subItem.role.includes(role)) {
-                    acc.push(subItem);
-                }
+    const getFilteredItems = useCallback((items: AdminNavItem[]): AdminNavItem[] => {
+        if (!role) return [];
+        return items.reduce((acc: AdminNavItem[], subItem) => {
+            if (!subItem.role || role === 'superAdmin') {
+                acc.push(subItem);
                 return acc;
-            }, []);
-        };
-        return 'subItems' in item && item.subItems ? getFiltered(item.subItems) : [];
+            }
+            if (subItem.role.includes(role)) {
+                acc.push(subItem);
+            }
+            return acc;
+        }, []);
+    }, [role]);
+
+    const subItems = useMemo(() => {
+        return 'subItems' in item && item.subItems ? getFilteredItems(item.subItems) : [];
+    }, [item, getFilteredItems]);
+    
+    const hasVisibleSubItems = useMemo(() => {
+         if (!('subItems' in item && item.subItems)) return false;
+         if (role === 'superAdmin') return true;
+         return item.subItems.some(sub => sub.role && role && sub.role.includes(role));
     }, [item, role]);
 
     const [isOpen, setIsOpen] = useState(false);
 
     useEffect(() => {
+        if (isCollapsed) {
+            setIsOpen(false);
+            return;
+        }
         const isActive = subItems.some(sub => sub.href && pathname.includes(sub.href));
         setIsOpen(isActive);
-    }, [pathname, subItems]);
+    }, [pathname, subItems, isCollapsed]);
 
 
     const Icon = item.icon;
-    if (!Icon || subItems.length === 0) return null;
+    if (!Icon || !hasVisibleSubItems) return null;
 
 
     return (
@@ -326,12 +341,11 @@ export function SidebarNav({ className, inSheet }: { className?: string, inSheet
         if (!role) return [];
 
         return items.reduce((acc: AdminNavItem[], item) => {
-            if (item.subItems) {
-                const filteredSubItems = getFilteredAdminItems(item.subItems);
-                if (filteredSubItems.length > 0) {
-                    acc.push({ ...item, subItems: filteredSubItems });
-                }
-            } else if (item.role?.includes(role)) {
+            const hasVisibleSubItems = item.subItems && item.subItems.some(sub => sub.role && (role === 'superAdmin' || sub.role.includes(role)));
+
+            if (hasVisibleSubItems) {
+                 acc.push(item);
+            } else if (!item.subItems && item.role?.includes(role)) {
                 acc.push(item);
             }
             return acc;

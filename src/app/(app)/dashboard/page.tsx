@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -93,7 +94,7 @@ export default function DashboardPage() {
 
                 setLoadingMatches(true);
                 try {
-                    const matchPromises = activeMatchIds.map(id => getDoc(doc(firestore, 'matches', id)));
+                    const matchPromises = activeMatchIds.map((id: string) => getDoc(doc(firestore, 'matches', id)));
                     const matchDocs = await Promise.all(matchPromises);
                     const matches = matchDocs
                         .filter(docSnap => docSnap.exists())
