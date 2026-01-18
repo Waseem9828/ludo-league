@@ -40,12 +40,10 @@ const EntryFeeCard = ({
     fee,
     onPlay,
     isLocked = false,
-    playerCount = 0,
 }: {
     fee: number;
     onPlay: (fee: number) => void;
     isLocked: boolean;
-    playerCount: number;
 }) => {
 
     const cardContent = (
@@ -67,12 +65,6 @@ const EntryFeeCard = ({
                     {isLocked ? <Lock className="mr-2 h-4 w-4" /> : <Swords className="mr-2 h-4 w-4" />}
                     Play
                 </Button>
-                {playerCount > 0 && !isLocked && (
-                    <div className="flex items-center justify-center gap-1.5 text-xs text-primary-foreground/80 animate-pulse mt-1.5">
-                        <Users className="h-3 w-3" />
-                        <span>{playerCount} Searching...</span>
-                    </div>
-                )}
             </div>
         </div>
       </div>
@@ -300,7 +292,6 @@ export default function LobbyPage() {
   const [hasRoomCode, setHasRoomCode] = useState(false);
   const [roomCode, setRoomCode] = useState('');
   const [selectedFee, setSelectedFee] = useState(0);
-  const [queueCounts, setQueueCounts] = useState<{ [key: number]: number }>({});
   
   const activeMatchIds = userProfile?.activeMatchIds || [];
   
@@ -338,7 +329,7 @@ export default function LobbyPage() {
         searchTimeoutRef.current = setTimeout(() => {
             toast({
                 title: "No Match Found",
-                description: "We couldn&apos;t find an opponent for you at this time. Please try another entry fee or try again later.",
+                description: "We couldn't find an opponent for you at this time. Please try another entry fee or try again later.",
                 variant: "destructive",
                 duration: 5000,
             });
@@ -380,36 +371,6 @@ export default function LobbyPage() {
          }
     }
   }, [userProfile, isSearching, router, toast]);
-
-  useEffect(() => {
-    if (!firestore) return;
-    const creatorsQuery = query(collection(firestore, 'roomCodeCreators'));
-    const seekersQuery = query(collection(firestore, 'roomCodeSeekers'));
-
-    const unsubCreators = onSnapshot(creatorsQuery, (snapshot) => {
-        const counts: { [key: number]: number } = {};
-        snapshot.forEach((doc) => {
-            const fee = doc.data().entryFee;
-            counts[fee] = (counts[fee] || 0) + 1;
-        });
-        setQueueCounts(prev => ({...prev, ...counts}));
-    });
-
-    const unsubSeekers = onSnapshot(seekersQuery, (snapshot) => {
-        const counts: { [key: number]: number } = {};
-        snapshot.forEach((doc) => {
-            const fee = doc.data().entryFee;
-            counts[fee] = (counts[fee] || 0) + 1;
-        });
-        setQueueCounts(prev => ({...prev, ...counts}));
-    });
-
-    return () => {
-        unsubCreators();
-        unsubSeekers();
-    };
-}, [firestore]);
-
 
   useEffect(() => {
     if (userProfile && isSearching) {
@@ -525,7 +486,6 @@ export default function LobbyPage() {
             fee={fee}
             onPlay={handlePlayClick}
             isLocked={isLocked}
-            playerCount={queueCounts[fee] || 0}
           />
         )
       })}
@@ -535,7 +495,7 @@ export default function LobbyPage() {
   return (
     <div className="space-y-6">
         <div className="relative w-full aspect-video rounded-lg overflow-hidden mb-6">
-            <Image src="/lobby.banner.png" alt="Lobby Banner" fill className="object-cover" />
+            <Image src="/lobby.banner.png" alt="Lobby Banner" fill className="object-cover" priority />
         </div>
         {checkedLocalStorage && isSearching && user && userProfile && <SearchingOverlay user={user} userProfile={userProfile} onCancel={handleCancelSearch} />}
 

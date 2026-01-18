@@ -1,3 +1,4 @@
+
 'use client';
 import Image from "next/image"
 import Link from "next/link";
@@ -312,7 +313,7 @@ export default function WalletPage() {
   return (
     <div className="container mx-auto max-w-2xl p-4 md:p-6 space-y-6">
         <div className="relative w-full aspect-video md:aspect-[21/9] rounded-lg overflow-hidden mb-6 shadow-lg">
-            <Image src="/wallet-banner.png" alt="Wallet Banner" fill className="object-cover" />
+            <Image src="/wallet-banner.png" alt="Wallet Banner" fill className="object-cover" priority />
         </div>
         <Card className="shadow-md">
             <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">

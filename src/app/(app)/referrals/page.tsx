@@ -81,7 +81,7 @@ export default function ReferralsPage() {
         <div className="space-y-6">
             {bannerImage && (
                 <div className="relative w-full aspect-video rounded-lg overflow-hidden mb-6">
-                    <Image src={bannerImage.imageUrl} alt={bannerImage.description} fill className="object-cover" />
+                    <Image src={bannerImage.imageUrl} alt={bannerImage.description} fill className="object-cover" priority />
                 </div>
             )}
             <div className="flex items-center gap-3">

@@ -290,7 +290,7 @@ exports.onDepositRequestUpdate = functions.firestore
 
                 if (newReceivedAmount >= upiConfigData.paymentLimit) {
                     // Limit reached, find a new UPI to activate
-                    const nextUpiQuery = db.collection('upiConfiguration').where('isActive', '==', false).where('id', '!=', activeUpiData.activeUpiRef).limit(1);
+                    const nextUpiQuery = db.collection('upiConfiguration').where('isActive', '==', false).limit(1);
                     const nextUpiSnapshot = await nextUpiQuery.get();
                     
                     if(!nextUpiSnapshot.empty) {

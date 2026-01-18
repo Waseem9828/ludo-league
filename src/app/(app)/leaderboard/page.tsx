@@ -93,7 +93,7 @@ export default function LeaderboardPage() {
         <div className="space-y-6">
             {bannerImage &&
                 <div className="relative w-full aspect-video rounded-lg overflow-hidden mb-6">
-                    <Image src={bannerImage.imageUrl} alt={bannerImage.description} fill className="object-cover" />
+                    <Image src={bannerImage.imageUrl} alt={bannerImage.description} fill className="object-cover" priority />
                 </div>
             }
             <Card className="overflow-hidden shadow-lg">

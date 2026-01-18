@@ -109,7 +109,7 @@ export default function SupportPage() {
   return (
     <div className="space-y-6">
         <div className="relative w-full aspect-video rounded-lg overflow-hidden mb-6">
-            <Image src="/support.banner.png" alt="Support Banner" fill className="object-cover" />
+            <Image src="/support.banner.png" alt="Support Banner" fill className="object-cover" priority />
         </div>
         <h1 className="text-3xl font-bold tracking-tight">Support Center</h1>
      
