@@ -11,6 +11,7 @@ const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 export const metadata: Metadata = {
   title: 'Ludo League',
   description: 'A platform for competitive Ludo matches.',
+  manifest: '/manifest.json',
 };
 
 export default function RootLayout({

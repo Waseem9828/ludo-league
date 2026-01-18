@@ -1,36 +1,32 @@
-// This file must be in the public folder.
+// This file needs to be in the public directory.
+// It is used by the browser to handle background push notifications.
+import { initializeApp } from "firebase/app";
+import { getMessaging } from "firebase/messaging/sw";
+import { onBackgroundMessage } from "firebase/messaging/sw";
 
-importScripts("https://www.gstatic.com/firebasejs/10.9.0/firebase-app-compat.js");
-importScripts("https://www.gstatic.com/firebasejs/10.9.0/firebase-messaging-compat.js");
-
-// Initialize the Firebase app in the service worker by passing in
-// your app's Firebase config object.
-// You can get this from the Firebase console.
 const firebaseConfig = {
-    apiKey: "AIzaSyAHRqi6FiM0jjMIqX0j7Jwj91s0JLyAKak",
-    authDomain: "studio-4431476254-c1156.firebaseapp.com",
-    projectId: "studio-4431476254-c1156",
-    storageBucket: "studio-4431476254-c1156.appspot.com",
-    messagingSenderId: "23513776021",
-    appId: "1:23513776021:web:3e5b6870112641c0fac09c"
+  apiKey: "AIzaSyAHRqi6FiM0jjMIqX0j7Jwj91s0JLyAKak",
+  authDomain: "studio-4431476254-c1156.firebaseapp.com",
+  projectId: "studio-4431476254-c1156",
+  storageBucket: "studio-4431476254-c1156.firebasestorage.app",
+  messagingSenderId: "23513776021",
+  appId: "1:23513776021:web:3e5b6870112641c0fac09c",
 };
 
-firebase.initializeApp(firebaseConfig);
+const app = initializeApp(firebaseConfig);
+const messaging = getMessaging(app);
 
-// Retrieve an instance of Firebase Messaging so that it can handle background
-// messages.
-const messaging = firebase.messaging();
-
-messaging.onBackgroundMessage((payload) => {
+// Optional: Handle background messages
+onBackgroundMessage(messaging, (payload) => {
   console.log(
     "[firebase-messaging-sw.js] Received background message ",
     payload
   );
-  // Customize notification here
-  const notificationTitle = payload.notification.title;
+  
+  const notificationTitle = payload.notification?.title || "New Message";
   const notificationOptions = {
-    body: payload.notification.body,
-    icon: "/icon-192x192.png", // Or your app's icon
+    body: payload.notification?.body || "",
+    icon: "/icon-192x192.png",
   };
 
   self.registration.showNotification(notificationTitle, notificationOptions);
