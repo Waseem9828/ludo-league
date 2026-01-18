@@ -11,12 +11,10 @@ import { motion } from 'framer-motion';
 import { SheetTrigger } from "./ui/sheet";
 import { Button } from "./ui/button";
 import { Menu } from "lucide-react";
-import { PromotionBanner } from "./app/PromotionBanner";
 
 const WalletBalance = () => {
     const { userProfile, loading } = useUser();
     
-    // Do not render anything if loading, or if the user/balance is unavailable
     if (loading || !userProfile || typeof userProfile.walletBalance === 'undefined') {
       return null;
     }
@@ -54,17 +52,16 @@ export default function AppHeader() {
     const appName = "Ludo League";
     return (
         <div className="flex w-full items-center justify-between gap-2">
-            <div className="flex items-center gap-2 flex-1 min-w-0">
+            <div className="flex items-center gap-2">
                 <SheetTrigger asChild>
                     <Button variant="ghost" size="icon" className="md:hidden text-primary-foreground hover:bg-white/20 flex-shrink-0">
                         <Menu />
                     </Button>
                 </SheetTrigger>
-                
-                <Link href="/dashboard" className="hidden md:flex items-center gap-2 flex-shrink-0">
+                <Link href="/dashboard" className="flex items-center gap-2 flex-shrink-0">
                     <Image src="/icon-192x192.png" alt="Ludo League Logo" width={32} height={32} />
                     <motion.h1 
-                        className="text-xl font-bold text-white tracking-wider flex overflow-hidden"
+                        className="text-xl font-bold text-white tracking-wider hidden md:flex overflow-hidden"
                         variants={sentence}
                         initial="hidden"
                         animate="visible"
@@ -76,11 +73,6 @@ export default function AppHeader() {
                         ))}
                     </motion.h1>
                 </Link>
-                
-                {/* Promotion Banner takes up the available space */}
-                <div className="flex-1 min-w-0">
-                  <PromotionBanner />
-                </div>
             </div>
             
             <div className="flex items-center justify-end gap-2 flex-shrink-0">

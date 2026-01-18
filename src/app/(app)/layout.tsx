@@ -1,4 +1,3 @@
-
 'use client';
 
 import { Toaster } from '@/components/ui/toaster';
@@ -10,6 +9,7 @@ import { FirebaseErrorListener } from '@/components/FirebaseErrorListener';
 import { BottomNav } from '@/components/app/bottom-nav';
 import { FcmInitializer } from '@/components/app/fcm-initializer';
 import { usePathname } from 'next/navigation';
+import { PromotionBanner } from '@/components/app/PromotionBanner';
 
 
 function AppLayoutContent({ children }: { children: React.ReactNode }) {
@@ -36,9 +36,13 @@ function AppLayoutContent({ children }: { children: React.ReactNode }) {
           </SheetContent>
 
           <div className="md:pl-64 flex flex-col h-screen">
-            <header className="sticky top-0 z-40 flex h-16 items-center justify-between gap-4 bg-gradient-primary px-4 md:px-6 text-primary-foreground shadow-sm w-full flex-shrink-0">
-                <AppHeader/>
-            </header>
+            <div className='sticky top-0 z-40 w-full flex-shrink-0'>
+              <PromotionBanner/>
+              <header className="flex h-16 items-center justify-between gap-4 bg-gradient-primary px-4 md:px-6 text-primary-foreground shadow-sm">
+                  <AppHeader/>
+              </header>
+            </div>
+            
             <main className={"flex-1 flex flex-col overflow-y-auto " + (useDefaultLayout ? "p-4 sm:p-6 md:pb-6 pb-24" : "pb-24")}>
                 {children}
             </main>
