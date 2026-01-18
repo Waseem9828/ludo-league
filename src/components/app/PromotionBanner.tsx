@@ -23,7 +23,7 @@ export function PromotionBanner() {
   }, []);
 
   return (
-    <div className="h-8 flex items-center justify-center overflow-hidden bg-muted/50 w-full px-4">
+    <div className="h-6 flex items-center justify-center overflow-hidden bg-muted/50 w-full px-4">
       <div className="relative h-full w-full">
         <AnimatePresence initial={false} mode="wait">
           <motion.div
