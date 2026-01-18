@@ -118,9 +118,7 @@ export default function DashboardPage() {
 
     return (
         <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
-            <div className="relative w-full aspect-video rounded-lg overflow-hidden mb-6 shadow-lg">
-                <Image src="https://picsum.photos/seed/dashboard-banner/1200/400" alt="Dashboard Banner" fill className="object-cover" priority data-ai-hint="gaming dashboard" />
-            </div>
+            <ImageSlider />
             <div className="flex items-center justify-between space-y-2">
                 <h2 className="text-3xl font-bold tracking-tight text-gradient-primary">Welcome back, {userProfile?.displayName || 'User'}!</h2>
             </div>
