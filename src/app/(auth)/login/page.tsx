@@ -11,7 +11,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { sendPasswordReset, signInWithEmail, signInWithGoogle } from '@/firebase/auth/client';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog";
-import { AppLogo } from '@/components/icons/AppLogo';
+import Image from 'next/image';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -76,7 +76,7 @@ export default function LoginPage() {
             {/* Header */}
             <div className="text-center mb-8">
                 <div className="inline-block p-3 bg-primary/10 rounded-full mb-4 border border-primary/20">
-                    <AppLogo className="h-10 w-10 text-primary" />
+                    <Image src="/icon-192x192.png" alt="Ludo League Logo" width={40} height={40} />
                 </div>
                 <h1 className="text-3xl font-bold tracking-tighter">Welcome Back</h1>
                 <p className="text-muted-foreground mt-1">Log in to continue your streak.</p>

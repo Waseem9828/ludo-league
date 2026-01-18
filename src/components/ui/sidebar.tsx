@@ -24,7 +24,6 @@ import {
 } from "@/components/ui/tooltip"
 import { useUser } from "@/firebase"
 import { signOut } from "@/firebase/auth/client"
-import { AppLogo } from "../icons/AppLogo";
 import { useRole } from "@/hooks/useRole";
 
 
@@ -413,7 +412,7 @@ const Sidebar = React.forwardRef<
     >
         <SidebarHeader>
             <Link href={isAdminPage ? "/admin/dashboard" : "/dashboard"} className="flex items-center gap-2">
-                <AppLogo className="h-8 w-8 text-primary" />
+                <Image src="/icon-192x192.png" alt="Ludo League Logo" width={32} height={32} />
                 <span className="font-bold text-lg">Ludo League</span>
             </Link>
         </SidebarHeader>
@@ -456,7 +455,7 @@ const SidebarSheet = ({ children }: { children: React.ReactNode }) => {
               <SheetTitle>
                 <SheetClose asChild>
                     <Link href={isAdminPage ? "/admin/dashboard" : "/dashboard"} className="flex items-center gap-2">
-                        <AppLogo className="h-8 w-8 text-primary" />
+                        <Image src="/icon-192x192.png" alt="Ludo League Logo" width={32} height={32} />
                         <span className="font-bold text-lg">Ludo League</span>
                     </Link>
                 </SheetClose>

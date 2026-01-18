@@ -9,7 +9,7 @@ import { GoogleIcon } from "@/components/icons/GoogleIcon";
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { signUpWithEmail, signInWithGoogle } from '@/firebase/auth/client';
-import { AppLogo } from '@/components/icons/AppLogo';
+import Image from 'next/image';
 
 export default function SignUpPage() {
   const router = useRouter();
@@ -67,7 +67,7 @@ export default function SignUpPage() {
         {/* Header */}
         <div className="text-center mb-8">
             <div className="inline-block p-3 bg-primary/10 rounded-full mb-4 border border-primary/20">
-                <AppLogo className="h-10 w-10 text-primary" />
+                <Image src="/icon-192x192.png" alt="Ludo League Logo" width={40} height={40} />
             </div>
             <h1 className="text-3xl font-bold tracking-tighter">Create Your Account</h1>
             <p className="text-muted-foreground mt-1">Join the ultimate Ludo arena.</p>

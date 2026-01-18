@@ -9,7 +9,6 @@ import { SidebarTrigger } from "@/components/ui/sidebar";
 import { useUser } from "@/firebase";
 import { Wallet2 } from "lucide-react";
 import { motion } from 'framer-motion';
-import { AppLogo } from "./icons/AppLogo";
 
 const WalletBalance = () => {
     const { userProfile, loading } = useUser();
@@ -55,7 +54,7 @@ export default function AppHeader() {
             <div className="flex items-center gap-2">
                 <SidebarTrigger className="md:hidden text-primary-foreground hover:text-primary-foreground/80 hover:bg-white/20"/>
                 <Link href="/dashboard" className="flex items-center gap-2">
-                    <AppLogo className="h-8 w-8" />
+                    <Image src="/icon-192x192.png" alt="Ludo League Logo" width={32} height={32} />
                     <motion.h1 
                         className="text-xl font-bold text-white tracking-wider flex overflow-hidden"
                         variants={sentence}
