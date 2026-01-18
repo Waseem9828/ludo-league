@@ -35,7 +35,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { buttonVariants, Button } from "./button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./tooltip";
-import { useState, useMemo, useCallback, createContext, useContext } from "react";
+import { useState, useMemo, useCallback, createContext, useContext, useEffect } from "react";
 import { AppLogo } from "@/components/icons/AppLogo";
 
 const adminNavItems: AdminNavItem[] = [
@@ -231,9 +231,14 @@ const NavItemLink = ({ item, isCollapsed }: NavItemProps) => {
         pathname === item.href && "bg-muted text-primary hover:bg-muted hover:text-primary",
     );
 
+    const Icon = item.icon;
+    if (!Icon) {
+        return null;
+    }
+
     const linkContent = (
         <>
-            <item.icon className={cn("h-5 w-5", !isCollapsed && "mr-2")} />
+            <Icon className={cn("h-5 w-5", !isCollapsed && "mr-2")} />
             {!isCollapsed && <span className="truncate">{item.title}</span>}
         </>
     );
@@ -261,21 +266,28 @@ const NavItemLink = ({ item, isCollapsed }: NavItemProps) => {
 
 const NavItemGroup = ({ item, isCollapsed }: NavItemProps) => {
     const pathname = usePathname();
-    const [isOpen, setIsOpen] = useState(false);
-
     const subItems = 'subItems' in item && item.subItems ? item.subItems : [];
+    
+    const [isOpen, setIsOpen] = useState(() => 
+        subItems.some(sub => sub.href && pathname.includes(sub.href))
+    );
 
-    useState(() => {
-        if (subItems.some(sub => sub.href && pathname.includes(sub.href))) {
-            setIsOpen(true);
+    useEffect(() => {
+        const isActive = subItems.some(sub => sub.href && pathname.includes(sub.href));
+        if (isActive !== isOpen) {
+            setIsOpen(isActive);
         }
-    });
+    }, [pathname, subItems, isOpen]);
+
+    const Icon = item.icon;
+    if (!Icon) return null;
+
 
     return (
-        <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+        <Collapsible open={!isCollapsed && isOpen} onOpenChange={setIsOpen}>
             <CollapsibleTrigger asChild>
                 <div className={cn(buttonVariants({ variant: "ghost" }), "w-full justify-start cursor-pointer")}>
-                    <item.icon className={cn("h-5 w-5", !isCollapsed && "mr-2")} />
+                    <Icon className={cn("h-5 w-5", !isCollapsed && "mr-2")} />
                     {!isCollapsed && (
                         <>
                             <span className="truncate flex-1 text-left">{item.title}</span>
@@ -302,7 +314,7 @@ export function SidebarNav({ className, inSheet }: { className?: string, inSheet
 
     const getFilteredAdminItems = useCallback((items: AdminNavItem[]): AdminNavItem[] => {
         return items.reduce((acc: AdminNavItem[], item) => {
-            if (!item.role) return acc;
+            if (!item.role || !role) return acc;
             const hasAccess = item.role.includes(role);
 
             if (hasAccess) {
