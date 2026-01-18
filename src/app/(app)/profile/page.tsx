@@ -4,7 +4,7 @@
 import { useState } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { useUser, useFirestore } from "@/firebase";
 import { BarChart, Edit, Mail, Phone, User as UserIcon, Wallet, CheckCircle, XCircle, AlertTriangle, ShieldCheck, Swords, Trophy, Loader2 } from "lucide-react";
 import Link from "next/link";
@@ -76,6 +76,31 @@ export default function ProfilePage() {
   const firestore = useFirestore();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isClaimingAdmin, setIsClaimingAdmin] = useState(false);
+
+  const handleClaimSuperAdmin = async () => {
+    if (!user) return;
+    setIsClaimingAdmin(true);
+    try {
+        const functions = getFunctions();
+        const claimRole = httpsCallable(functions, 'claimSuperAdminRole');
+        const result = await claimRole();
+        toast({
+            title: "Privileges Synced",
+            description: (result.data as { message: string }).message,
+            duration: 10000, // Make it last longer so user can read it
+        });
+    } catch (error: any) {
+        toast({
+            title: "Error Syncing Role",
+            description: error.message,
+            variant: "destructive",
+        });
+    } finally {
+        setIsClaimingAdmin(false);
+    }
+  };
+
 
   if (!user || !userProfile) {
     return <div className="flex items-center justify-center h-full"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
@@ -141,7 +166,22 @@ export default function ProfilePage() {
                     </div>
                  </div>
             </CardContent>
+
+            {user.uid === '8VHy30yW04XgFsRlnPo1ZzQPCch1' && (
+                <CardFooter className="p-4 bg-muted/30 border-t">
+                    <div className="w-full text-center space-y-2">
+                        <p className="text-sm font-semibold text-primary flex items-center justify-center gap-2"><ShieldCheck/> Special Admin Action</p>
+                        <p className="text-xs text-muted-foreground">If you are facing permission issues, click here to re-sync your Super Admin role. You must log out and log back in afterwards for it to take effect.</p>
+                         <Button onClick={handleClaimSuperAdmin} disabled={isClaimingAdmin} size="sm">
+                            {isClaimingAdmin ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                            Sync Super Admin Role
+                        </Button>
+                    </div>
+                </CardFooter>
+            )}
         </Card>
     </div>
   );
 }
+
+    

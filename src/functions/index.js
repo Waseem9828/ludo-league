@@ -41,6 +41,27 @@ const sendNotification = async (userId, title, body, link) => {
     }
 };
 
+exports.claimSuperAdminRole = functions.https.onCall(async (data, context) => {
+    if (!context.auth) {
+        throw new functions.https.HttpsError("unauthenticated", "You must be authenticated to call this function.");
+    }
+
+    const targetUid = '8VHy30yW04XgFsRlnPo1ZzQPCch1';
+
+    if (context.auth.uid !== targetUid) {
+        throw new functions.https.HttpsError("permission-denied", "You are not authorized to perform this action.");
+    }
+
+    try {
+        await admin.auth().setCustomUserClaims(targetUid, { role: 'superAdmin', admin: true });
+        await db.collection('users').doc(targetUid).update({ isAdmin: true, role: 'superAdmin' }); // Also update firestore doc for consistency in UI
+        return { message: `Success! You (${targetUid}) have been granted Super Admin privileges. Please sign out and sign back in to apply the changes.` };
+    } catch (error) {
+        console.error("Error setting custom claims:", error);
+        throw new functions.https.HttpsError("internal", "Unable to set custom claims.");
+    }
+});
+
 
 exports.setRole = functions.https.onCall(async (data, context) => {
   // 1. Authentication and Authorization Check
@@ -68,7 +89,7 @@ exports.setRole = functions.https.onCall(async (data, context) => {
     );
   }
 
-  const allowedRoles = ["depositAdmin", "withdrawalAdmin", "matchAdmin", "superAdmin", "none"];
+  const allowedRoles = ["kycAdmin", "depositAdmin", "withdrawalAdmin", "matchAdmin", "superAdmin", "none"];
   if (!allowedRoles.includes(role)) {
     throw new functions.https.HttpsError(
       "invalid-argument",
@@ -76,17 +97,19 @@ exports.setRole = functions.https.onCall(async (data, context) => {
     );
   }
 
-  // 3. Set Custom Claim
+  // 3. Set Custom Claim & Firestore field
   try {
-    if (role === 'none') {
-        // Remove all admin-related claims
-        await admin.auth().setCustomUserClaims(uid, { role: null, admin: null });
-        return { message: `Success! User ${uid} has had their roles removed.` };
+    const isNowAdmin = role !== 'none';
+    
+    await admin.auth().setCustomUserClaims(uid, { role: isNowAdmin ? role : null, admin: isNowAdmin ? true : null });
+    await db.collection('users').doc(uid).update({ isAdmin: isNowAdmin });
+
+    if (isNowAdmin) {
+      return { message: `Success! User ${uid} has been made a ${role}.` };
     } else {
-        // Set the specific role and the general admin flag
-        await admin.auth().setCustomUserClaims(uid, { role: role, admin: true });
-        return { message: `Success! User ${uid} has been made a ${role}.` };
+      return { message: `Success! User ${uid} has had their roles removed.` };
     }
+
   } catch (error) {
     console.error("Error setting custom claims:", error);
     throw new functions.https.HttpsError(
@@ -95,6 +118,7 @@ exports.setRole = functions.https.onCall(async (data, context) => {
     );
   }
 });
+
 
 exports.listUsers = functions.https.onCall(async (data, context) => {
   if (!context.auth || context.auth.token.role !== 'superAdmin') {
