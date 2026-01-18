@@ -14,9 +14,15 @@ service firebase.storage {
       // Rely solely on the custom claim set on the auth token.
       return request.auth != null && request.auth.token.admin == true;
     }
+
+    // --- Global Admin Access ---
+    // Admins have full read, write, and list access to everything.
+    match /{allPaths=**} {
+      allow read, write, list: if isAdmin();
+    }
     
     // ===================================
-    //      Storage Rules by Path
+    //      Storage Rules by Path for non-admins
     // ===================================
 
     // --- User Profile Pictures ---
@@ -24,45 +30,37 @@ service firebase.storage {
     // Any authenticated user can view them.
     match /profile-pictures/{userId}/{allPaths=**} {
         allow read: if request.auth != null;
-        allow write: if isOwner(userId) || isAdmin();
+        allow write: if isOwner(userId);
     }
 
     // --- KYC Documents ---
     // A user can create files in their own KYC folder.
-    // Only the user or an admin can read, update, or delete those specific files afterward.
+    // Only the user can read, update, or delete those specific files afterward.
     match /kyc/{userId}/{allPaths=**} {
-      allow read, write: if isOwner(userId) || isAdmin();
+      allow read, write: if isOwner(userId);
     }
     
     // --- Deposit Screenshots ---
     // A user can create screenshots in their own deposits folder.
-    // Only the user or an admin can read, update, or delete them later.
+    // Only the user can read, update, or delete them later.
     match /deposits/{userId}/{allPaths=**} {
-      allow read, write: if isOwner(userId) || isAdmin();
+      allow read, write: if isOwner(userId);
     }
 
     // --- Match Result Screenshots ---
     // A user can upload a result for their own user ID.
-    // Only the user or an admin can read, update, or delete them.
+    // Only the user can read, update, or delete them.
     match /match-results/{matchId}/{userId}/{fileName} {
-      allow read, write: if isOwner(userId) || isAdmin();
+      allow read, write: if isOwner(userId);
     }
     
     // --- Publicly Accessible Files & Banners ---
-    // Anyone can read these, but only admins can write.
+    // Anyone can read these.
     match /public/{allPaths=**} {
       allow read: if true;
-      allow write: if isAdmin();
     }
      match /banners/{allPaths=**} {
       allow read: if true;
-      allow write: if isAdmin();
-    }
-
-    // --- Default Deny as a security best practice ---
-    // This rule MUST be last.
-    match /{allPaths=**} {
-      allow read, write: if false;
     }
   }
 }
