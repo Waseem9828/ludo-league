@@ -26,8 +26,8 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { useRole } from '@/hooks/useRole';
 
-// ... (WithdrawalStats component remains the same)
 const RejectionDialog = ({ onConfirm, loading }: { onConfirm: (reason: string) => void, loading: boolean }) => {
     const [reason, setReason] = useState('');
 
@@ -59,13 +59,16 @@ const RejectionDialog = ({ onConfirm, loading }: { onConfirm: (reason: string) =
 export default function WithdrawalsPage() {
     useAdminOnly();
     const firestore = useFirestore();
-    const { user: adminUser, isAdmin: canManageWithdrawals } = useUser();
+    const { user: adminUser } = useUser();
+    const { role } = useRole();
 
     const [requests, setRequests] = useState<WithdrawalRequest[]>([]);
     const [loading, setLoading] = useState(true);
     const [actionLoading, setActionLoading] = useState<Record<string, boolean>>({});
     const [filter, setFilter] = useState('pending');
     const { toast } = useToast();
+
+    const canManageWithdrawals = role === 'superAdmin' || role === 'withdrawalAdmin';
 
     useEffect(() => {
         if (!firestore) return;
@@ -150,7 +153,6 @@ export default function WithdrawalsPage() {
     return (
         <div className="space-y-6">
             <h2 className="text-3xl font-bold tracking-tight">Withdrawal Management</h2>
-            {/* <WithdrawalStats /> */}
             <Card>
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2"><DollarSign /> Withdrawal Requests</CardTitle>
@@ -251,5 +253,3 @@ export default function WithdrawalsPage() {
         </div>
     );
 }
-
-    

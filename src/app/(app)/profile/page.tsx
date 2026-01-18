@@ -81,22 +81,6 @@ export default function ProfilePage() {
     return <div className="flex items-center justify-center h-full"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
   }
   
-  const handleClaimAdmin = async () => {
-    if (!user || !firestore) return;
-    setIsSubmitting(true);
-    try {
-        const userRef = doc(firestore, 'users', user.uid);
-        await updateDoc(userRef, { isAdmin: true });
-        toast({ title: 'Success!', description: 'You have been granted Admin privileges. The page will now refresh.', className: 'bg-green-100 text-green-800'});
-        // Refresh the page to ensure all user states are updated
-        window.location.reload();
-    } catch (error: any) {
-        toast({ title: 'Error', description: error.message, variant: 'destructive'});
-    } finally {
-        setIsSubmitting(false);
-    }
-  }
-
   return (
     <div className="space-y-6">
         <Card className="overflow-hidden shadow-lg">
@@ -158,21 +142,6 @@ export default function ProfilePage() {
                  </div>
             </CardContent>
         </Card>
-        
-        {user.uid === '8VHy30yW04XgFsRlnPo1ZzQPCch1' && !userProfile.isAdmin && (
-            <Card>
-                <CardHeader>
-                    <CardTitle>Special Action</CardTitle>
-                    <CardDescription>Click the button below to claim your Admin role. This is a one-time action.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <Button onClick={handleClaimAdmin} disabled={isSubmitting}>
-                        {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null}
-                        Claim Admin Privileges
-                    </Button>
-                </CardContent>
-            </Card>
-        )}
     </div>
   );
 }

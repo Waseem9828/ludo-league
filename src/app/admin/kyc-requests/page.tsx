@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { useRole } from '@/hooks/useRole';
 
 const KycStats = ({ applications, loading }: { applications: KycApplication[], loading: boolean }) => {
     const stats = applications.reduce((acc, req) => {
@@ -87,13 +88,16 @@ const RejectionDialog = ({ onConfirm, loading }: { onConfirm: (reason: string) =
 export default function KycRequestsPage() {
     useAdminOnly();
     const firestore = useFirestore();
-    const { user: adminUser, isAdmin: canManageKyc } = useUser();
+    const { user: adminUser } = useUser();
+    const { role } = useRole();
 
     const [applications, setApplications] = useState<KycApplication[]>([]);
     const [loading, setLoading] = useState(true);
     const [actionLoading, setActionLoading] = useState<Record<string, boolean>>({});
     const [filter, setFilter] = useState('pending');
     const { toast } = useToast();
+
+    const canManageKyc = role === 'superAdmin' || role === 'kycAdmin';
 
     useEffect(() => {
         if (!firestore) return;
@@ -141,7 +145,10 @@ export default function KycRequestsPage() {
                 rejectionReason: status === 'rejected' ? rejectionReason : null,
             });
 
-            batch.update(userRef, { kycStatus: status });
+            batch.update(userRef, { 
+                kycStatus: status,
+                kycRejectionReason: status === 'rejected' ? rejectionReason : null,
+            });
 
             await batch.commit();
 

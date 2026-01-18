@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { useRole } from '@/hooks/useRole';
 
 const DepositStats = ({ requests, loading }: { requests: DepositRequest[], loading: boolean }) => {
     const stats = requests.reduce((acc, req) => {
@@ -86,13 +87,16 @@ const RejectionDialog = ({ onConfirm, loading }: { onConfirm: (reason: string) =
 export default function DepositsPage() {
     useAdminOnly();
     const firestore = useFirestore();
-    const { user: adminUser, isAdmin: canManageDeposits } = useUser();
+    const { user: adminUser } = useUser();
+    const { role } = useRole();
 
     const [requests, setRequests] = useState<DepositRequest[]>([]);
     const [loading, setLoading] = useState(true);
     const [actionLoading, setActionLoading] = useState<Record<string, boolean>>({});
     const [filter, setFilter] = useState('pending');
     const { toast } = useToast();
+
+    const canManageDeposits = role === 'superAdmin' || role === 'depositAdmin';
 
     useEffect(() => {
         if (!firestore) return;
