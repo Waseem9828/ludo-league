@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<full-backup-content>
+    <!-- TODO Remove the following file path from BOTH sections if you define backup rules.
+         The domain_specific_backup_rules section should be used for backing up file-based login
+         credentials and other sensitive data. For more info, see:
+         https://developer.android.com/guide/topics/data/autobackup#DefineRules -->
+    <include domain="sharedpref" path="."/>
+    <exclude domain="sharedpref" path="device.xml"/>
+</full-backup-content>
