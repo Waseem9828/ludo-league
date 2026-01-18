@@ -4,7 +4,7 @@
 import { useState, useEffect } from 'react';
 import { useUser } from '@/firebase/auth/use-user';
 import { useFirestore } from '@/firebase';
-import { doc, getDoc, collection, query, where, getDocs, orderBy, limit } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, getDocs, orderBy, limit, DocumentSnapshot } from 'firebase/firestore';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Match, Tournament, UserProfile } from '@/lib/types';
 import { TrendingUp, Zap, Users, Trophy, ChevronRight, Swords } from 'lucide-react';
@@ -97,8 +97,8 @@ export default function DashboardPage() {
                     const matchPromises = activeMatchIds.map((id: string) => getDoc(doc(firestore, 'matches', id)));
                     const matchDocs = await Promise.all(matchPromises);
                     const matches = matchDocs
-                        .filter(docSnap => docSnap.exists())
-                        .map(docSnap => ({ id: docSnap.id, ...docSnap.data() } as Match));
+                        .filter((docSnap: DocumentSnapshot) => docSnap.exists())
+                        .map((docSnap: DocumentSnapshot) => ({ id: docSnap.id, ...docSnap.data() } as Match));
                     setActiveMatches(matches);
                 } catch(error) {
                     console.error("Error fetching active matches:", error);
