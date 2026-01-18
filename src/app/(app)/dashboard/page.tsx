@@ -118,25 +118,6 @@ function DashboardClientContent() {
     }>({ activeMatches: [], recentActivity: [] });
     const [dataLoading, setDataLoading] = useState(true);
 
-    const handleClaimSuperAdmin = async () => {
-        try {
-            const functions = getFunctions();
-            const claimSuperAdminRole = httpsCallable(functions, 'claimSuperAdminRole');
-            const result = await claimSuperAdminRole();
-            toast({
-                title: "Success",
-                description: (result.data as any).message,
-                className: 'bg-green-100 text-green-800'
-            });
-        } catch (error: any) {
-            toast({
-                title: "Error",
-                description: error.message,
-                variant: 'destructive'
-            });
-        }
-    };
-
      useEffect(() => {
         if (!user || !firestore) return;
 
@@ -230,17 +211,6 @@ function DashboardClientContent() {
 
     return (
         <div className="container mx-auto max-w-lg space-y-6">
-            {user.uid === '8VHy30yW04XgFsRlnPo1ZzQPCch1' && (
-                <Card className="bg-yellow-100 border-yellow-400">
-                    <CardHeader>
-                        <CardTitle>Super Admin Claim</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <p>Click the button below to claim your super admin role.</p>
-                        <Button onClick={handleClaimSuperAdmin} className="mt-4">Claim Role</Button>
-                    </CardContent>
-                </Card>
-            )}
             { (userProfile.kycStatus === 'not_submitted' || userProfile.kycStatus === 'rejected') &&
                 <Alert variant="default" className="border-amber-500/50 bg-amber-500/10 text-amber-900 dark:text-amber-200 dark:bg-amber-900/20 dark:border-amber-700">
                     <ShieldCheck className="h-4 w-4 !text-amber-600 dark:!text-amber-400" />

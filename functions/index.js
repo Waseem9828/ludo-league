@@ -206,6 +206,11 @@ exports.onTransactionCreate = functions.firestore
         return null;
     }
     
+    if (userId === 'platform') {
+        // This is a platform transaction, like commission. No user balance to update.
+        return null;
+    }
+    
     const userRef = db.collection('users').doc(userId);
 
     try {
@@ -850,11 +855,26 @@ exports.distributeTournamentWinnings = functions.https.onCall(async (data, conte
             }
         });
 
-        // Changed from TypeScript to JavaScript for sorting
-
         const sortedPlayers = Object.entries(playerWins).sort(([, winsA], [, winsB]) => winsB - winsA);
 
         const batch = db.batch();
+        
+        const totalCollected = tournamentData.entryFee * tournamentData.filledSlots;
+        const commission = totalCollected - tournamentData.prizePool;
+
+        if (commission > 0) {
+            const commissionTransactionRef = db.collection('transactions').doc();
+            batch.set(commissionTransactionRef, {
+                userId: 'platform',
+                type: 'tournament_commission',
+                amount: commission,
+                status: 'completed',
+                createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                relatedTournamentId: tournamentId,
+                description: `Commission from ${tournamentData.name}`,
+            });
+        }
+        
         let rank = 1;
         for (const [playerId, wins] of sortedPlayers) {
             const prizeAmount = prizeDistribution[String(rank)];

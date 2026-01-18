@@ -219,7 +219,36 @@ const SidebarNav = ({ inSheet = false }: { inSheet?: boolean }) => {
             { href: "/admin/security", label: "Security", icon: ShieldAlert },
           ],
         },
-    ]
+    ];
+
+    const getFilteredAdminItems = React.useCallback(() => {
+        if (role === 'superAdmin') return adminNavItems;
+        if (!role) return [];
+
+        const rolePermissions: Record<string, string[]> = {
+            depositAdmin: ['/admin/deposits'],
+            withdrawalAdmin: ['/admin/withdrawals'],
+            kycAdmin: ['/admin/kyc-requests'],
+            matchAdmin: ['/admin/matches'],
+        };
+        const allowedPaths = rolePermissions[role] || [];
+        if (allowedPaths.length > 0) {
+            allowedPaths.unshift('/admin/dashboard');
+        }
+
+        const filtered = adminNavItems.map(item => {
+            if (!("isGroup" in item)) {
+                return allowedPaths.includes(item.href!) ? item : null;
+            }
+            const filteredGroupItems = item.items?.filter(subItem => allowedPaths.includes(subItem.href));
+            if (filteredGroupItems && filteredGroupItems.length > 0) {
+                return { ...item, items: filteredGroupItems };
+            }
+            return null;
+        }).filter(Boolean);
+        
+        return filtered as typeof adminNavItems;
+    }, [role]);
 
     const legalItems = [
       { href: "/terms-and-conditions", label: "Terms & Conditions", icon: Gavel },
@@ -231,7 +260,7 @@ const SidebarNav = ({ inSheet = false }: { inSheet?: boolean }) => {
       { href: "/support", label: "Support", icon: LifeBuoy },
     ]
 
-    const navItems = isAdminPage ? adminNavItems : appNavItems;
+    const navItems = isAdminPage ? getFilteredAdminItems() : appNavItems;
   
     const NavLink = ({ href, children }: { href: string; children: React.ReactNode }) => 
     inSheet ? (

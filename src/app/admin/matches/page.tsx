@@ -113,19 +113,19 @@ export default function MatchesDashboardPage() {
                                         <TableRow key={match.id} onClick={() => handleMatchClick(match.id)} className="cursor-pointer">
                                             <TableCell className="flex items-center gap-4">
                                                 <div className="flex items-center -space-x-2">
-                                                    {Object.values(match.players)?.map((p: MatchPlayer) => (
+                                                    {Object.values(match.players || {})?.map((p: MatchPlayer) => (
                                                         <Avatar key={`${match.id}-${p.id}`} className="h-8 w-8 border-2 border-background">
                                                             <AvatarImage src={p.avatarUrl} />
                                                             <AvatarFallback>{p.name?.charAt(0)}</AvatarFallback>
                                                         </Avatar>
                                                     ))}
                                                 </div>
-                                                <span className="font-medium">{Object.values(match.players)?.map((p: MatchPlayer) => p.name).join(' vs ')}</span>
+                                                <span className="font-medium">{Object.values(match.players || {})?.map((p: MatchPlayer) => p.name).join(' vs ')}</span>
                                             </TableCell>
                                             <TableCell className="font-semibold">₹{match.prizePool.toLocaleString('en-IN')}</TableCell>
                                             <TableCell>
                                                 {match.winnerId ? 
-                                                    Object.values(match.players)?.find((p: MatchPlayer) => p.id === match.winnerId)?.name : 'N/A'}
+                                                    Object.values(match.players || {})?.find((p: MatchPlayer) => p.id === match.winnerId)?.name : 'N/A'}
                                             </TableCell>
                                             <TableCell>
                                                 <Badge variant={match.status === 'completed' ? 'default' : match.status === 'disputed' ? 'destructive' : 'secondary'} className={cn({'bg-green-100 text-green-800': match.status === 'completed', 'bg-yellow-100 text-yellow-800': match.status === 'in-progress' || match.status === 'waiting'})}>{match.status}</Badge>
@@ -147,7 +147,7 @@ export default function MatchesDashboardPage() {
                                     <p className="text-sm text-muted-foreground mb-3">{match.createdAt?.toDate ? match.createdAt.toDate().toLocaleString() : new Date().toLocaleString()}</p>
                                     
                                     <div className="space-y-3">
-                                        {Object.values(match.players)?.map((p: MatchPlayer) => (
+                                        {Object.values(match.players || {})?.map((p: MatchPlayer) => (
                                             <div key={`${match.id}-${p.id}`} className="flex items-center justify-between p-2 rounded-md bg-muted/50">
                                                 <div className="flex items-center gap-2">
                                                     <Avatar className="h-8 w-8">
@@ -169,5 +169,3 @@ export default function MatchesDashboardPage() {
         </div>
     );
 }
-
-    

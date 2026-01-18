@@ -1,6 +1,5 @@
-
 'use client';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Card,
   CardContent,
@@ -34,6 +33,8 @@ import { useAdminOnly } from '@/hooks/useAdminOnly';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import type { Match, Tournament } from '@/lib/types';
+import { useRole } from '@/hooks/useRole';
+import { useRouter } from 'next/navigation';
 
 
 interface StatCardProps {
@@ -74,7 +75,9 @@ const StatCard = ({ title, value, description, icon: Icon, href, loading, classN
 
 
 export default function AdminDashboardPage() {
-    const { isAdmin, loading: adminLoading } = useAdminOnly();
+    useAdminOnly();
+    const { role, loading: roleLoading } = useRole();
+    const router = useRouter();
     const firestore = useFirestore();
     const [stats, setStats] = useState({
         totalUsers: 0,
@@ -98,9 +101,25 @@ export default function AdminDashboardPage() {
     });
     const [revenueData, setRevenueData] = useState<any[]>([]);
     const [loadingFinancials, setLoadingFinancials] = useState(true);
+
+    useEffect(() => {
+        if (roleLoading) return;
+        if (role && role !== 'superAdmin') {
+            const roleRedirects: { [key: string]: string } = {
+                depositAdmin: '/admin/deposits',
+                withdrawalAdmin: '/admin/withdrawals',
+                kycAdmin: '/admin/kyc-requests',
+                matchAdmin: '/admin/matches',
+            };
+            const redirectPath = roleRedirects[role];
+            if (redirectPath) {
+                router.replace(redirectPath);
+            }
+        }
+    }, [role, roleLoading, router]);
     
     useEffect(() => {
-        if (adminLoading || !isAdmin || !firestore) return;
+        if (!firestore || role !== 'superAdmin') return;
 
         setStatsLoading(true);
 
@@ -125,10 +144,10 @@ export default function AdminDashboardPage() {
         return () => {
             unsubscribes.forEach(unsub => unsub());
         };
-    }, [isAdmin, adminLoading, firestore]);
+    }, [role, firestore]);
 
     useEffect(() => {
-        if (!firestore) return;
+        if (!firestore || role !== 'superAdmin') return;
         
         setLoadingFinancials(true);
         
@@ -163,18 +182,17 @@ export default function AdminDashboardPage() {
                     dailyData[date] = { revenue: 0, expenses: 0 };
                 }
 
-                if (data.type === 'match_commission') {
-                    totalRevenue += data.amount;
-                    matchCommission += data.amount;
-                    dailyData[date].revenue += data.amount;
-                } else if (data.type === 'tournament_commission') {
-                    totalRevenue += data.amount;
-                    tournamentCommission += data.amount;
-                    dailyData[date].revenue += data.amount;
+                if (data.type === 'match_commission' || data.type === 'tournament_commission') {
+                    const revenueAmount = data.amount || 0;
+                    totalRevenue += revenueAmount;
+                    dailyData[date].revenue += revenueAmount;
+                    if (data.type === 'match_commission') matchCommission += revenueAmount;
+                    if (data.type === 'tournament_commission') tournamentCommission += revenueAmount;
                 } else if (data.type === 'referral-bonus' || data.type === 'daily_bonus') {
-                    totalExpenses += data.amount;
-                    totalBonus += data.amount;
-                    dailyData[date].expenses += data.amount;
+                    const expenseAmount = data.amount || 0;
+                    totalExpenses += expenseAmount;
+                    totalBonus += expenseAmount;
+                    dailyData[date].expenses += expenseAmount;
                 }
             });
 
@@ -195,10 +213,14 @@ export default function AdminDashboardPage() {
 
         return () => unsub();
 
-    }, [firestore, dateRange]);
+    }, [firestore, dateRange, role]);
     
-    if (adminLoading) {
+    if (roleLoading) {
         return <Loader2 className="h-10 w-10 animate-spin text-primary mx-auto my-10" />;
+    }
+
+    if (role !== 'superAdmin') {
+         return <div className="flex justify-center items-center h-full"><Loader2 className="h-10 w-10 animate-spin text-primary mx-auto my-10" /></div>;
     }
 
   return (

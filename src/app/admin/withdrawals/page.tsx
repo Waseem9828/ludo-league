@@ -1,32 +1,24 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useFirestore, useUser } from "@/firebase";
-import { collection, query, onSnapshot, orderBy, doc, writeBatch, serverTimestamp } from "firebase/firestore";
+import { collection, query, onSnapshot, orderBy, doc, writeBatch, serverTimestamp, getDoc } from "firebase/firestore";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { CheckCircle, XCircle, DollarSign, Loader2, Hourglass, Landmark } from "lucide-react";
+import { CheckCircle, XCircle, DollarSign, Loader2, Eye } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import type { WithdrawalRequest } from '@/lib/types';
+import type { WithdrawalRequest, UserProfile } from '@/lib/types';
 import { useAdminOnly } from '@/hooks/useAdminOnly';
 import { cn } from '@/lib/utils';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-  DialogFooter,
-  DialogClose
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useRole } from '@/hooks/useRole';
+import QRCode from 'qrcode.react';
 
 const RejectionDialog = ({ onConfirm, loading }: { onConfirm: (reason: string) => void, loading: boolean }) => {
     const [reason, setReason] = useState('');
@@ -43,7 +35,7 @@ const RejectionDialog = ({ onConfirm, loading }: { onConfirm: (reason: string) =
                 </DialogHeader>
                 <div className="py-4">
                     <Label htmlFor="rejection-reason">Rejection Reason</Label>
-                    <Input id="rejection-reason" value={reason} onChange={e => setReason(e.target.value)} placeholder="e.g., Bank details incorrect"/>
+                    <Input id="rejection-reason" value={reason} onChange={e => setReason(e.target.value)} placeholder="e.g., Bank details incorrect" />
                 </div>
                 <DialogFooter>
                     <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
@@ -54,6 +46,69 @@ const RejectionDialog = ({ onConfirm, loading }: { onConfirm: (reason: string) =
             </DialogContent>
         </Dialog>
     );
+}
+
+const ViewDetailsDialog = ({ request }: { request: WithdrawalRequest }) => {
+    const firestore = useFirestore();
+    const [userData, setUserData] = useState<UserProfile | null>(null);
+    const [loading, setLoading] = useState(false);
+    const { toast } = useToast();
+
+    const fetchUserData = async () => {
+        if (!firestore) return;
+        setLoading(true);
+        try {
+            const userRef = doc(firestore, 'users', request.userId);
+            const userDoc = await getDoc(userRef);
+            if (userDoc.exists()) {
+                setUserData(userDoc.data() as UserProfile);
+            } else {
+                toast({ title: "Error", description: "User profile not found.", variant: "destructive" });
+            }
+        } catch (error) {
+            toast({ title: "Error", description: "Could not fetch user details.", variant: "destructive" });
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const upiId = userData?.upiId || request.upiId;
+    const upiUrl = upiId ? `upi://pay?pa=${upiId}&pn=${request.userName || 'User'}&am=${request.amount}&cu=INR` : '';
+
+    return (
+        <Dialog onOpenChange={(open) => open && fetchUserData()}>
+            <DialogTrigger asChild>
+                <Button size="icon" variant="outline" className="h-8 w-8"><Eye className="h-4 w-4" /></Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-md">
+                <DialogHeader>
+                    <DialogTitle>Withdrawal for {request.userName}</DialogTitle>
+                    <DialogDescription>Amount: <span className='font-bold text-lg'>₹{request.amount.toLocaleString('en-IN')}</span></DialogDescription>
+                </DialogHeader>
+                {loading ? <div className='flex justify-center items-center h-40'><Loader2 className='h-8 w-8 animate-spin' /></div> :
+                    <div className="py-4 space-y-4">
+                        {upiUrl && (
+                            <div className='flex flex-col items-center gap-4 p-4 border rounded-lg bg-muted/40'>
+                                <h3 className='font-semibold'>Scan to Pay with UPI</h3>
+                                <div className='p-2 bg-white rounded-md shadow-md'>
+                                    <QRCode value={upiUrl} size={180} />
+                                </div>
+                                <p className='text-sm text-muted-foreground'>UPI ID: <span className='font-mono text-primary'>{upiId}</span></p>
+                            </div>
+                        )}
+                        <div className='space-y-2'>
+                             <h3 className='font-semibold'>Payment Details</h3>
+                            {userData?.bankDetails && <p className="text-sm">Bank: {userData.bankDetails}</p>}
+                            {!upiUrl && !userData?.bankDetails && <p className='text-sm text-destructive'>No payment details found for this user.</p>}
+                        </div>
+                    </div>
+                }
+                <DialogFooter>
+                    <DialogClose asChild><Button variant="outline">Close</Button></DialogClose>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    )
 }
 
 export default function WithdrawalsPage() {
@@ -73,12 +128,8 @@ export default function WithdrawalsPage() {
     useEffect(() => {
         if (!firestore) return;
         const q = query(collection(firestore, "withdrawalRequests"), orderBy("createdAt", "desc"));
-
-        const unsubscribe = onSnapshot(q, (querySnapshot) => {
-            const withdrawalRequests: WithdrawalRequest[] = [];
-            querySnapshot.forEach((doc) => {
-                withdrawalRequests.push({ id: doc.id, ...doc.data() } as WithdrawalRequest);
-            });
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            const withdrawalRequests = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as WithdrawalRequest));
             setRequests(withdrawalRequests);
             setLoading(false);
         }, (error) => {
@@ -86,69 +137,120 @@ export default function WithdrawalsPage() {
             toast({ title: "Error", description: "Could not fetch withdrawal requests.", variant: "destructive" });
             setLoading(false);
         });
-
         return () => unsubscribe();
     }, [firestore, toast]);
 
-    const handleUpdateStatus = async (request: WithdrawalRequest, status: 'approved' | 'rejected', rejectionReason?: string) => {
+    const handleUpdateStatus = useCallback(async (request: WithdrawalRequest, status: 'approved' | 'rejected', rejectionReason?: string) => {
         if (!firestore || !canManageWithdrawals || !adminUser) {
             toast({ title: "Permission Denied", description: "You don't have permission to perform this action.", variant: "destructive" });
             return;
         }
-
         if (status === 'rejected' && !rejectionReason) {
             toast({ title: "Rejection reason is required", variant: "destructive" });
             return;
         }
 
-        setActionLoading(prev => ({...prev, [request.id]: true}));
+        setActionLoading(prev => ({ ...prev, [request.id]: true }));
         const withdrawalRef = doc(firestore, "withdrawalRequests", request.id);
-        
+
         try {
-             const batch = writeBatch(firestore);
-            
-            batch.update(withdrawalRef, { 
-                status, 
+            const batch = writeBatch(firestore);
+            batch.update(withdrawalRef, {
+                status,
                 processedAt: serverTimestamp(),
                 processedBy: adminUser.uid,
                 rejectionReason: status === 'rejected' ? rejectionReason : null,
             });
 
             const transactionRef = doc(collection(firestore, 'transactions'));
-            
-            if (status === 'approved') {
-                 batch.set(transactionRef, {
-                    userId: request.userId,
-                    type: 'withdrawal',
-                    amount: -request.amount, // Negative amount for debit
-                    status: 'completed',
-                    createdAt: serverTimestamp(),
-                    description: `Withdrawal to ${request.upiId || request.bankDetails}`,
-                    relatedMatchId: request.id,
-                });
-            } else if (status === 'rejected') {
-                 batch.set(transactionRef, {
-                    userId: request.userId,
-                    type: 'withdrawal_refund',
-                    amount: request.amount, // Positive to refund
-                    status: 'completed',
-                    createdAt: serverTimestamp(),
-                    description: `Refund for rejected withdrawal request`,
-                    relatedMatchId: request.id,
-                });
-            }
+            const transactionType = status === 'approved' ? 'withdrawal' : 'withdrawal_refund';
+            const amount = status === 'approved' ? -request.amount : request.amount;
+            const description = status === 'approved'
+                ? `Withdrawal to ${request.upiId || request.bankDetails || 'user account'}`
+                : `Refund for rejected withdrawal. Reason: ${rejectionReason}`;
+
+            batch.set(transactionRef, {
+                userId: request.userId,
+                type: transactionType,
+                amount,
+                status: 'completed',
+                createdAt: serverTimestamp(),
+                description,
+                relatedId: request.id,
+            });
 
             await batch.commit();
-            toast({ title: "Success", description: `Withdrawal has been ${status}.` });
+            toast({ title: "Success", description: `Withdrawal has been ${status}.`, variant: status === 'rejected' ? 'destructive' : 'default' });
         } catch (error: any) {
             console.error("Error updating status: ", error);
             toast({ title: "Error", description: "Failed to update status: " + error.message, variant: "destructive" });
         } finally {
-            setActionLoading(prev => ({...prev, [request.id]: false}));
+            setActionLoading(prev => ({ ...prev, [request.id]: false }));
         }
-    };
-    
+    }, [firestore, canManageWithdrawals, adminUser, toast]);
+
     const filteredRequests = requests.filter(req => filter === 'all' || req.status === filter);
+
+    const renderRow = (request: WithdrawalRequest, isMobile = false) => {
+
+        const actionButtons = (
+            <div className={cn("flex gap-2", isMobile ? "justify-end" : "justify-end")}>
+                <ViewDetailsDialog request={request} />
+                {request.status === 'pending' && canManageWithdrawals && (
+                    <>
+                        <Button size="icon" className="h-8 w-8 bg-green-500 hover:bg-green-600 text-white" onClick={() => handleUpdateStatus(request, 'approved')} disabled={actionLoading[request.id]}>
+                           {actionLoading[request.id] ? <Loader2 className='h-4 w-4 animate-spin'/> : <CheckCircle className="h-4 w-4" />}
+                        </Button>
+                        <RejectionDialog onConfirm={(reason) => handleUpdateStatus(request, 'rejected', reason)} loading={actionLoading[request.id]} />
+                    </>
+                )}
+            </div>
+        );
+
+        if (isMobile) {
+            return (
+                <Card key={request.id} className="p-4">
+                    <div className="flex items-start justify-between">
+                        <div className="flex items-center gap-3 mb-3">
+                            <Avatar>
+                                <AvatarImage src={request.userAvatar} />
+                                <AvatarFallback>{request.userName?.charAt(0)}</AvatarFallback>
+                            </Avatar>
+                            <div>
+                                <p className="font-bold">{request.userName || 'Unknown'}</p>
+                                <p className="text-sm text-muted-foreground">{request.createdAt?.toDate().toLocaleDateString()}</p>
+                            </div>
+                        </div>
+                        <Badge variant={request.status === 'pending' ? 'secondary' : request.status === 'approved' ? 'default' : 'destructive'} >{request.status}</Badge>
+                    </div>
+                    <div className="mt-2 space-y-2 text-sm">
+                        <div className="flex justify-between"><span>Amount:</span> <span className="font-bold">₹{request.amount.toLocaleString('en-IN')}</span></div>
+                    </div>
+                    <div className='mt-4'>{actionButtons}</div>
+                </Card>
+            )
+        }
+
+        return (
+            <TableRow key={request.id}>
+                <TableCell>
+                    <div className="flex items-center gap-3">
+                        <Avatar>
+                            <AvatarImage src={request.userAvatar} />
+                            <AvatarFallback>{request.userName?.charAt(0)}</AvatarFallback>
+                        </Avatar>
+                        <span className="font-medium whitespace-nowrap">{request.userName || 'Unknown'}</span>
+                    </div>
+                </TableCell>
+                <TableCell className="font-semibold">₹{request.amount.toLocaleString('en-IN')}</TableCell>
+                <TableCell>{request.createdAt?.toDate().toLocaleString()}</TableCell>
+                <TableCell>
+                    <Badge variant={request.status === 'pending' ? 'secondary' : request.status === 'approved' ? 'default' : 'destructive'}>{request.status}</Badge>
+                </TableCell>
+                <TableCell className="text-right">{actionButtons}</TableCell>
+            </TableRow>
+        )
+    }
 
     return (
         <div className="space-y-6">
@@ -165,89 +267,26 @@ export default function WithdrawalsPage() {
                     </div>
                 </CardHeader>
                 <CardContent>
-                    <div className="hidden md:block">
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>User</TableHead>
-                                <TableHead>Amount</TableHead>
-                                <TableHead>Details</TableHead>
-                                <TableHead>Date</TableHead>
-                                <TableHead>Status</TableHead>
-                                {canManageWithdrawals && <TableHead className="text-right">Actions</TableHead>}
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {filteredRequests.map((request) => (
-                                <TableRow key={request.id}>
-                                    <TableCell>
-                                        <div className="flex items-center gap-3">
-                                            <Avatar>
-                                                <AvatarImage src={request.userAvatar} />
-                                                <AvatarFallback>{request.userName?.charAt(0)}</AvatarFallback>
-                                            </Avatar>
-                                            <span className="font-medium whitespace-nowrap">{request.userName || 'Unknown'}</span>
-                                        </div>
-                                    </TableCell>
-                                    <TableCell className="font-semibold">₹{request.amount.toLocaleString('en-IN')}</TableCell>
-                                    <TableCell className="font-mono text-xs">{request.upiId || request.bankDetails}</TableCell>
-                                    <TableCell>{request.createdAt?.toDate().toLocaleString()}</TableCell>
-                                    <TableCell>
-                                        <Badge variant={request.status === 'pending' ? 'secondary' : request.status === 'approved' ? 'default' : 'destructive'} className={cn({'bg-green-100 text-green-800': request.status === 'approved', 'bg-yellow-100 text-yellow-800': request.status === 'pending'})}>{request.status}</Badge>
-                                    </TableCell>
-                                    {canManageWithdrawals && <TableCell className="text-right">
-                                        {request.status === 'pending' && (
-                                            <div className="flex gap-2 justify-end">
-                                                <Button size="icon" className="h-8 w-8 bg-green-500 hover:bg-green-600 text-white" onClick={() => handleUpdateStatus(request, 'approved')} disabled={actionLoading[request.id]}><CheckCircle className="h-4 w-4" /></Button>
-                                                <RejectionDialog onConfirm={(reason) => handleUpdateStatus(request, 'rejected', reason)} loading={actionLoading[request.id]}/>
-                                            </div>
-                                        )}
-                                    </TableCell>}
-                                </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
-                </div>
-
-                <div className="grid gap-4 md:hidden">
-                    {filteredRequests.map((request) => (
-                        <Card key={request.id} className="p-4">
-                            <div className="flex items-start justify-between">
-                               <div className="flex items-center gap-3 mb-3">
-                                    <Avatar>
-                                        <AvatarImage src={request.userAvatar} />
-                                        <AvatarFallback>{request.userName?.charAt(0)}</AvatarFallback>
-                                    </Avatar>
-                                    <div>
-                                        <p className="font-bold">{request.userName || 'Unknown'}</p>
-                                        <p className="text-sm text-muted-foreground">{request.createdAt?.toDate().toLocaleDateString()}</p>
-                                    </div>
-                                </div>
-                                <Badge variant={request.status === 'pending' ? 'secondary' : request.status === 'approved' ? 'default' : 'destructive'} className={cn({'bg-green-100 text-green-800': request.status === 'approved', 'bg-yellow-100 text-yellow-800': request.status === 'pending'})}>{request.status}</Badge>
+                    {loading ? <div className='flex justify-center items-center h-64'><Loader2 className='h-8 w-8 animate-spin text-primary'/></div>
+                     : filteredRequests.length === 0 
+                        ? <div className="text-center py-10 text-muted-foreground"><p>No {filter} requests found.</p></div>
+                        : <>
+                            <div className="hidden md:block">
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>User</TableHead>
+                                            <TableHead>Amount</TableHead>
+                                            <TableHead>Date</TableHead>
+                                            <TableHead>Status</TableHead>
+                                            <TableHead className="text-right">Actions</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>{filteredRequests.map(req => renderRow(req, false))}</TableBody>
+                                </Table>
                             </div>
-                             <div className="mt-2 space-y-2 text-sm">
-                                <div className="flex justify-between"><span>Amount:</span> <span className="font-bold">₹{request.amount.toLocaleString('en-IN')}</span></div>
-                                <div className="w-full">
-                                    <p>Details:</p>
-                                    <p className="font-mono text-xs bg-muted p-2 rounded mt-1 break-words">{request.upiId || request.bankDetails}</p>
-                                </div>
-                            </div>
-                            {canManageWithdrawals && <div className="flex justify-end mt-4">
-                                {request.status === 'pending' && (
-                                    <div className="flex gap-2">
-                                        <Button size="sm" className="bg-green-500 hover:bg-green-600 text-white" onClick={() => handleUpdateStatus(request, 'approved')} disabled={actionLoading[request.id]}><CheckCircle className="h-4 w-4 mr-1"/> Process</Button>
-                                        <RejectionDialog onConfirm={(reason) => handleUpdateStatus(request, 'rejected', reason)} loading={actionLoading[request.id]}/>
-                                    </div>
-                                )}
-                            </div>}
-                        </Card>
-                    ))}
-                </div>
-                 {filteredRequests.length === 0 && (
-                    <div className="text-center py-10 text-muted-foreground">
-                        <p>No {filter} requests found.</p>
-                    </div>
-                )}
+                            <div className="grid gap-4 md:hidden">{filteredRequests.map(req => renderRow(req, true))}</div>
+                        </>}
                 </CardContent>
             </Card>
         </div>

@@ -11,7 +11,7 @@ import type { User } from 'firebase/auth';
 import { useAuth, useFirestore } from '../provider';
 import { doc, onSnapshot } from 'firebase/firestore';
 import type { UserProfile } from '@/lib/types';
-import { getAuth, onAuthStateChanged } from 'firebase/auth';
+import { getAuth, onIdTokenChanged } from 'firebase/auth';
 import { firebaseApp } from '@/firebase';
 
 
@@ -35,8 +35,19 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const auth = getAuth(firebaseApp);
-    const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
-        setUser(user);
+    const unsubscribeAuth = onIdTokenChanged(auth, async (user) => {
+        if (user) {
+            await user.getIdToken(true); // Force refresh of the token
+            const tokenResult = await user.getIdTokenResult();
+            const newIsAdmin = tokenResult.claims.admin === true;
+            if (!isAdmin || user.uid !== user?.uid) {
+                 setUser(user);
+                 setIsAdmin(newIsAdmin);
+            }
+        } else {
+            setUser(null);
+            setIsAdmin(false);
+        }
         setAuthLoading(false);
     });
 
@@ -52,7 +63,9 @@ export function UserProvider({ children }: { children: ReactNode }) {
           if (profileDoc.exists()) {
             const profileData = profileDoc.data() as UserProfile;
             setUserProfile({ ...profileData });
-            setIsAdmin(profileData.isAdmin === true);
+             if (profileData.isAdmin !== isAdmin) {
+                 setIsAdmin(profileData.isAdmin === true);
+            }
           } else {
             setUserProfile(null);
             setIsAdmin(false);
