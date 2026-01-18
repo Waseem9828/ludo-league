@@ -28,7 +28,8 @@ import {
     FileText,
     Percent,
     Gift,
-    ArrowUpToDot
+    ArrowUpToDot,
+    Megaphone
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -92,6 +93,12 @@ const adminNavItems: AdminNavItem[] = [
                 title: "News",
                 href: "/admin/news-management",
                 icon: Newspaper,
+                role: ["superAdmin"],
+            },
+            {
+                title: "Announcements",
+                href: "/admin/announcements",
+                icon: Megaphone,
                 role: ["superAdmin"],
             },
         ]
@@ -166,8 +173,8 @@ const adminNavItems: AdminNavItem[] = [
 
             },
             {
-                title: "Documents",
-                icon: FileText,
+                title: "Global Settings",
+                icon: Settings,
                 href: "/admin/settings",
                 role: ["superAdmin"],
             },

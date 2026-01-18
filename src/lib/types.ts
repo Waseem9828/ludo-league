@@ -1,3 +1,4 @@
+
 import { Timestamp } from "firebase/firestore";
 
 export enum MatchStatus {
@@ -248,6 +249,13 @@ export interface KycApplication {
     name: string;
     imageUrl: string;
     targetPage: string;
+    isActive: boolean;
+    createdAt: Timestamp;
+  };
+
+  export type Announcement = {
+    id: string;
+    text: string;
     isActive: boolean;
     createdAt: Timestamp;
   };

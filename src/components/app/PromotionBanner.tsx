@@ -1,26 +1,57 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-
-const promoMessages = [
-  "Diwali Dhamaka! Get 50% bonus on all deposits.",
-  "New high-stakes tournaments every weekend. Join now!",
-  "Refer your friends and earn instant cash rewards.",
-  "Lightning fast withdrawals now active. Get your winnings in minutes!",
-  "Complete daily missions for exciting bonuses."
-];
+import { useFirestore } from '@/firebase';
+import { collection, query, where, onSnapshot, orderBy } from 'firebase/firestore';
+import type { Announcement } from '@/lib/types';
+import { Skeleton } from '../ui/skeleton';
 
 export function PromotionBanner() {
+  const [messages, setMessages] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
   const [currentIndex, setCurrentIndex] = useState(0);
+  const firestore = useFirestore();
 
   useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentIndex((prevIndex) => (prevIndex + 1) % promoMessages.length);
-    }, 4000); // Change message every 4 seconds
+    if (!firestore) return;
+    setLoading(true);
+    const q = query(
+      collection(firestore, 'announcements'), 
+      where('isActive', '==', true),
+      orderBy('createdAt', 'desc')
+    );
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const activeMessages = snapshot.docs.map(doc => doc.data().text as string);
+      setMessages(activeMessages);
+      setLoading(false);
+    });
 
-    return () => clearInterval(timer);
-  }, []);
+    return () => unsubscribe();
+  }, [firestore]);
+
+  useEffect(() => {
+    if (messages.length > 1) {
+      const timer = setInterval(() => {
+        setCurrentIndex((prevIndex) => (prevIndex + 1) % messages.length);
+      }, 4000); // Change message every 4 seconds
+
+      return () => clearInterval(timer);
+    }
+  }, [messages.length]);
+
+  if (loading) {
+    return (
+        <div className="h-6 w-full bg-white flex items-center justify-center overflow-hidden">
+            <Skeleton className="h-4 w-1/2" />
+        </div>
+    );
+  }
+
+  if (messages.length === 0) {
+      return null; // Don't render the banner if there are no active messages
+  }
 
   return (
     <div className="h-6 flex items-center justify-center overflow-hidden w-full bg-white">
@@ -35,7 +66,7 @@ export function PromotionBanner() {
             className="absolute inset-0 flex items-center justify-center w-full h-full"
           >
             <p className="text-sm font-semibold text-destructive truncate">
-              {promoMessages[currentIndex]}
+              {messages[currentIndex]}
             </p>
           </motion.div>
         </AnimatePresence>

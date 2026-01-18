@@ -488,6 +488,17 @@
             "createdAt": { "type": "string", "format": "date-time" }
         },
         "required": ["name", "imageUrl", "targetPage", "isActive", "createdAt"]
+    },
+    "Announcement": {
+        "title": "Announcement",
+        "description": "A promotional message for the top banner ticker.",
+        "type": "object",
+        "properties": {
+            "text": { "type": "string" },
+            "isActive": { "type": "boolean" },
+            "createdAt": { "type": "string", "format": "date-time" }
+        },
+        "required": ["text", "isActive", "createdAt"]
     }
   },
   "auth": {
@@ -621,6 +632,12 @@
             "$ref": "#/backend/entities/Banner"
         },
         "description": "Stores promotional banners for the app."
+    },
+    "/announcements/{announcementId}": {
+        "schema": {
+            "$ref": "#/backend/entities/Announcement"
+        },
+        "description": "Stores promotional text for the top banner ticker."
     }
   }
 }
