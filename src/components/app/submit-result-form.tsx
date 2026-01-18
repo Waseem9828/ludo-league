@@ -80,7 +80,7 @@ export function SubmitResultForm({ matchId }: SubmitResultFormProps) {
 
       const storageRef = ref(
         storage,
-        `match-results/${matchId}/${user.uid}-${compressedFile.name}`
+        `match-results/${matchId}/${user.uid}/${compressedFile.name}`
       );
       
       const uploadResult = await uploadBytes(storageRef, compressedFile);
