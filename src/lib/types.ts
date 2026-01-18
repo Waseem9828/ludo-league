@@ -75,6 +75,7 @@ export type UserProfile = {
     tournamentId?: string;
     resolvedBy?: string;
     resolvedAt?: Timestamp;
+    game?: any;
   };
   
   export type Transaction = {

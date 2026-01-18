@@ -1,279 +1,251 @@
-'use client';
 
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, Banknote, ArrowUpRight, ArrowDownRight, User, BarChart, Swords, Gamepad2, ShieldCheck } from "lucide-react";
-import Link from "next/link";
-import { useUser, useFirestore } from "@/firebase";
-import { useEffect, useState } from "react";
-import { collection, query, where, orderBy, limit, getDocs, doc, getDoc } from "firebase/firestore";
-import type { Match, Transaction, UserProfile } from "@/lib/types";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { cn, formatTimestamp } from "@/lib/utils";
-import { Badge } from "@/components/ui/badge";
-import Image from "next/image";
-import { ImageSlider } from "@/components/app/ImageSlider";
-import { PlaceHolderImages } from "@/lib/placeholder-images";
-import { formatDistanceToNow } from 'date-fns';
-import { getFunctions, httpsCallable } from "firebase/functions";
-import { useToast } from "@/hooks/use-toast";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+"use client";
 
-const bannerImages = PlaceHolderImages.filter(img => img.id.includes('-banner'));
-
-const ActiveMatchesList = ({ matches, loading }: { matches: Match[], loading: boolean }) => {
-    if (matches.length === 0 && !loading) {
-        return null; // Don't render anything if there are no active matches
-    }
-
-    if (loading) {
-        return (
-            <div className="p-4 pt-4">
-                <h2 className="text-lg font-semibold mb-4 px-2">Active Matches</h2>
-                <div className="flex justify-center p-8"><Loader2 className="animate-spin"/></div>
-            </div>
-        );
-    }
-
-    return (
-         <div className="p-4 pt-4">
-            <h2 className="text-lg font-semibold mb-4 px-2">Active Matches ({matches.length})</h2>
-            <div className="space-y-3">
-                {matches.map(match => (
-                    <Link key={match.id} href={`/match/${match.id}`}>
-                        <Card className="p-3 flex items-center justify-between text-sm shadow-sm hover:shadow-md transition-shadow cursor-pointer">
-                            <div className="flex items-center gap-3">
-                                <Gamepad2 className="h-6 w-6 text-primary"/>
-                                <div>
-                                    <p className="font-semibold">Prize: ₹{match.prizePool}</p>
-                                    <p className="text-xs text-muted-foreground">
-                                        Started {formatDistanceToNow(match.createdAt.toDate())} ago
-                                    </p>
-                                </div>
-                            </div>
-                            <Button size="sm" variant="outline">View Match</Button>
-                        </Card>
-                    </Link>
-                ))}
-            </div>
-        </div>
-    )
-}
+import { useState, useEffect } from 'react';
+import { useUser } from '@/firebase/auth/use-user';
+import { useFirestore } from '@/firebase';
+import { doc, getDoc, collection, query, where, getDocs, orderBy, limit, DocumentSnapshot } from 'firebase/firestore';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Separator } from '@/components/ui/separator';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Match, Tournament, UserProfile } from '@/lib/types';
+import { TrendingUp, Zap, Users, Trophy, ChevronRight } from 'lucide-react';
+import Link from 'next/link';
+import Image from 'next/image';
+import { Skeleton } from '@/components/ui/skeleton';
 
 
-const ActivityFeed = ({ activities, loading, userId }: { activities: (Match | Transaction)[], loading: boolean, userId: string | undefined }) => {
-    if (loading) return <div className="flex justify-center p-8"><Loader2 className="animate-spin"/></div>;
-
-    return (
-        <div className="p-4 pt-4">
-            <h2 className="text-lg font-semibold mb-4 px-2">Recent Activity</h2>
-            {activities.length > 0 ? (
-                <div className="space-y-3">
-                    {activities.map((act : any) => {
-                        if (act._type === 'match') {
-                            const opponent = act.players ? Object.values(act.players).find((p: any) => p.id !== userId) : null;
-                            const won = act.winnerId === userId;
-                            return (
-                                <Card key={act.id} className="p-3 flex items-center justify-between text-sm shadow-sm hover:shadow-md transition-shadow">
-                                    <div className="flex items-center gap-3"><User className="h-5 w-5 text-muted-foreground"/>
-                                        <div>
-                                            <p className="font-semibold">vs {(opponent as any)?.name || 'player'}</p>
-                                            <p className="text-xs text-muted-foreground">Prize: ₹{act.prizePool}</p>
-                                        </div>
-                                    </div>
-                                    <Badge className={cn(won ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800', 'text-white')}>{won ? 'Win' : 'Loss'}</Badge>
-                                </Card>
-                            );
-                        } else {
-                            const isCredit = act.amount > 0;
-                            return (
-                                <Card key={act.id} className="p-3 flex items-center justify-between text-sm shadow-sm hover:shadow-md transition-shadow">
-                                    <div className="flex items-center gap-3">
-                                        {isCredit ? <ArrowUpRight className="h-5 w-5 text-green-500"/> : <ArrowDownRight className="h-5 w-5 text-red-500"/>}
-                                        <div>
-                                            <p className="font-semibold capitalize">{act.description}</p>
-                                            <p className="text-xs text-muted-foreground">{formatTimestamp(act.createdAt)}</p>
-                                        </div>
-                                    </div>
-                                    <p className={cn("font-bold text-base", isCredit ? 'text-green-500' : 'text-red-500')}>{isCredit ? '+' : '-'}₹{Math.abs(act.amount)}</p>
-                                </Card>
-                            );
-                        }
-                    })}
-                </div>
-            ) : (
-                <p className="text-center text-muted-foreground py-4">No recent activity.</p>
+const StatCard = ({ title, value, icon: Icon, link, loading }: { title: string, value: string | number, icon: React.ElementType, link?: string, loading: boolean }) => (
+    <Card className="hover:shadow-lg transition-shadow">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">{title}</CardTitle>
+            <Icon className="h-4 w-4 text-muted-foreground" />
+        </CardHeader>
+        <CardContent>
+            {loading ? <Skeleton className="h-8 w-1/2" /> : <div className="text-2xl font-bold">{value}</div>}
+            {link && !loading && (
+                <Link href={link} className="text-xs text-muted-foreground hover:text-primary transition-colors">
+                    View all
+                </Link>
             )}
-        </div>
-    );
-};
+        </CardContent>
+    </Card>
+);
 
-function DashboardClientContent() {
-    const { user, userProfile, loading: userLoading } = useUser();
-    const firestore = useFirestore();
-    const { toast } = useToast();
-    const [dashboardData, setDashboardData] = useState<{
-        activeMatches: Match[],
-        recentActivity: (Match | Transaction)[]
-    }>({ activeMatches: [], recentActivity: [] });
-    const [dataLoading, setDataLoading] = useState(true);
-
-     useEffect(() => {
-        if (!user || !firestore) return;
-
-        const claimBonus = async () => {
-            try {
-                const functions = getFunctions();
-                const dailyLoginBonus = httpsCallable(functions, 'dailyLoginBonus');
-                const result = await dailyLoginBonus();
-                const data = result.data as { success: boolean, message: string };
-                if (data.success && data.message !== "Daily bonus already claimed for today.") {
-                    toast({
-                        title: "Daily Login Bonus!",
-                        description: data.message,
-                        className: 'bg-green-100 text-green-800'
-                    });
-                }
-            } catch (error: any) {
-                // Don't show toast for errors like already claimed, it's not a user-facing issue.
-                console.error("Error claiming daily bonus:", error.message);
-            }
-        };
-
-        claimBonus();
-
-    }, [user, firestore, toast]);
-
-    useEffect(() => {
-        if (!user || !firestore || !userProfile) {
-            setDataLoading(userLoading);
-            return;
-        };
-
-        const fetchDashboardData = async () => {
-            setDataLoading(true);
-            try {
-                // 1. Fetch Active Matches
-                const activeMatchIds = userProfile.activeMatchIds || [];
-                let activeMatches: Match[] = [];
-                if (activeMatchIds.length > 0) {
-                    const matchPromises = activeMatchIds.map(id => getDoc(doc(firestore, 'matches', id)));
-                    const matchDocs = await Promise.all(matchPromises);
-                    activeMatches = matchDocs
-                        .filter(docSnap => docSnap.exists())
-                        .map(docSnap => ({ id: docSnap.id, ...docSnap.data() } as Match))
-                        .sort((a,b) => b.createdAt.seconds - a.createdAt.seconds);
-                }
-
-                // 2. Fetch Recent Activity
-                const matchesQuery = query(
-                    collection(firestore, 'matches'), 
-                    where('playerIds', 'array-contains', user.uid), 
-                    orderBy('createdAt', 'desc'), 
-                    limit(3)
-                );
-                const transQuery = query(
-                    collection(firestore, 'transactions'), 
-                    where('userId', '==', user.uid), 
-                    orderBy('createdAt', 'desc'), 
-                    limit(5)
-                );
-
-                const [matchesSnap, transSnap] = await Promise.all([
-                    getDocs(matchesQuery),
-                    getDocs(transQuery)
-                ]);
-                
-                const fetchedMatches = matchesSnap.docs.map(d => ({ ...d.data(), _type: 'match', id: d.id } as Match & { _type: 'match' }));
-                const fetchedTransactions = transSnap.docs.map(d => ({ ...d.data(), _type: 'transaction', id: d.id } as Transaction & { _type: 'transaction' }));
-
-                const recentActivity = [...fetchedMatches, ...fetchedTransactions].sort((a, b) => {
-                    if (!b.createdAt || !a.createdAt) return 0;
-                    return b.createdAt.seconds - a.createdAt.seconds;
-                }).slice(0, 5);
-
-                setDashboardData({ activeMatches, recentActivity });
-
-            } catch (error) {
-                console.error("Error fetching dashboard data:", error);
-            } finally {
-                setDataLoading(false);
-            }
-        };
-
-        fetchDashboardData();
-
-    }, [user, userProfile, firestore, userLoading]);
-
-    if (userLoading || !user || !userProfile) {
-        return <div className="flex h-screen items-center justify-center bg-background"><Loader2 className="h-10 w-10 animate-spin text-primary" /></div>;
-    }
-
-    return (
-        <div className="container mx-auto max-w-lg space-y-4 p-4 md:p-6">
-            { (userProfile.kycStatus === 'not_submitted' || userProfile.kycStatus === 'rejected') &&
-                <Alert variant="default" className="border-amber-500/50 bg-amber-500/10 text-amber-900 dark:text-amber-200 dark:bg-amber-900/20 dark:border-amber-700">
-                    <ShieldCheck className="h-4 w-4 !text-amber-600 dark:!text-amber-400" />
-                    <AlertTitle className="font-bold text-amber-900 dark:text-amber-200">KYC Verification Required</AlertTitle>
-                    <AlertDescription className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 mt-2 text-amber-800 dark:text-amber-300">
-                        <span>Complete your KYC to enable withdrawals.</span>
-                        <Button asChild size="sm" className="bg-amber-500 hover:bg-amber-600 text-white rounded-full self-start sm:self-center">
-                        <Link href="/kyc">
-                            {userProfile.kycStatus === 'rejected' ? 'Resubmit KYC' : 'Complete KYC'}
-                        </Link>
-                        </Button>
-                    </AlertDescription>
-                </Alert>
-            }
-            <Card>
-                <CardHeader>
-                    <div className="flex flex-wrap items-center justify-between gap-4">
-                        <div className="flex items-center gap-3">
-                             <Avatar className="h-12 w-12 border-2 border-primary/20">
-                                <AvatarImage src={userProfile.photoURL ?? undefined} />
-                                <AvatarFallback className="bg-primary/20">{userProfile.displayName?.charAt(0)}</AvatarFallback>
-                            </Avatar>
-                            <div>
-                                <p className="text-sm text-muted-foreground">Welcome Back,</p>
-                                <h1 className="text-xl font-bold">{userProfile.displayName}</h1>
-                            </div>
-                        </div>
-                        <div className="text-right">
-                             <p className="text-sm font-medium text-primary">Balance</p>
-                             <p className="text-2xl font-bold tracking-tight">₹{userProfile.walletBalance?.toLocaleString('en-IN') || 0}</p>
-                        </div>
-                    </div>
-                </CardHeader>
-                <CardContent className="flex flex-col sm:flex-row gap-3">
-                    <Button asChild className="bg-gradient-primary rounded-full w-full">
-                        <Link href="/wallet/deposit"> <Banknote className="mr-2 h-4 w-4"/>Deposit </Link>
-                    </Button>
-                    <Button asChild variant="outline" className="rounded-full w-full">
-                         <Link href="/wallet/withdraw">Withdraw</Link>
-                    </Button>
-                </CardContent>
-            </Card>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <Button asChild size="lg" className="h-20 shadow-lg rounded-xl flex-col gap-1 bg-gradient-primary">
-                    <Link href="/lobby" className="text-lg"><Swords className="h-6 w-6"/> Play Now</Link>
-                </Button>
-                <Button asChild variant="secondary" size="lg" className="h-20 shadow-lg rounded-xl flex-col gap-1">
-                    <Link href="/leaderboard"><BarChart className="mr-2 h-6 w-6"/> Leaderboard</Link>
-                </Button>
-            </div>
-            
-            <ActiveMatchesList matches={dashboardData.activeMatches} loading={dataLoading} />
-            <ActivityFeed activities={dashboardData.recentActivity} loading={dataLoading} userId={user.uid} />
-        </div>
-    );
-}
+const RecentActivityItem = ({ text, time, loading }: { text: string, time: string, loading: boolean }) => (
+    <div className="flex items-center">
+        {loading ? (
+            <>
+                <Skeleton className="h-10 w-10 rounded-full mr-4" />
+                <div className="space-y-2">
+                    <Skeleton className="h-4 w-48" />
+                    <Skeleton className="h-3 w-32" />
+                </div>
+            </>
+        ) : (
+            <>
+                <Avatar className="h-9 w-9 mr-4">
+                    <AvatarImage src="/placeholder-user.jpg" />
+                    <AvatarFallback>U</AvatarFallback>
+                </Avatar>
+                <div className="grid gap-1">
+                    <p className="text-sm font-medium leading-none">{text}</p>
+                    <p className="text-sm text-muted-foreground">{time}</p>
+                </div>
+            </>
+        )}
+    </div>
+);
 
 export default function DashboardPage() {
+    const { user, userProfile, loading: userLoading } = useUser();
+    const firestore = useFirestore();
+    const [walletStats, setWalletStats] = useState({ balance: 0, winnings: 0 });
+    const [gameStats, setGameStats] = useState({ matchesPlayed: 0, tournamentsWon: 0 });
+    const [loadingStats, setLoadingStats] = useState(true);
+    const [liveMatches, setLiveMatches] = useState<Match[]>([]);
+    const [featuredTournaments, setFeaturedTournaments] = useState<Tournament[]>([]);
+    const [loadingMatches, setLoadingMatches] = useState(true);
+    const [loadingTournaments, setLoadingTournaments] = useState(true);
+
+
+    useEffect(() => {
+        async function fetchStats() {
+            if (user && userProfile && firestore) {
+                setLoadingStats(true);
+                // Fetch wallet stats from the specific user document
+                setWalletStats({
+                    balance: userProfile.wallet?.balance || 0,
+                    winnings: userProfile.wallet?.winnings || 0,
+                });
+
+                // Fetch game stats from user document
+                setGameStats({
+                    matchesPlayed: userProfile.stats?.matchesPlayed || 0,
+                    tournamentsWon: userProfile.stats?.tournamentsWon || 0,
+                });
+                setLoadingStats(false);
+            }
+        }
+
+        fetchStats();
+    }, [user, userProfile, firestore]);
+
+    useEffect(() => {
+        async function fetchGameData() {
+            if (!firestore) return;
+
+            // Fetch Live Matches
+            setLoadingMatches(true);
+            try {
+                const matchesQuery = query(
+                    collection(firestore, 'matches'),
+                    where('status', '==', 'live'),
+                    limit(5)
+                );
+                const matchSnapshots = await getDocs(matchesQuery);
+                const matches = matchSnapshots.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Match[];
+                setLiveMatches(matches);
+            } catch (error) {
+                console.error("Error fetching live matches: ", error);
+            } finally {
+                setLoadingMatches(false);
+            }
+
+            // Fetch Featured Tournaments
+            setLoadingTournaments(true);
+            try {
+                const tournamentsQuery = query(
+                    collection(firestore, 'tournaments'),
+                    where('isFeatured', '==', true),
+                    limit(3)
+                );
+                const tournamentSnapshots = await getDocs(tournamentsQuery);
+                const tournaments = tournamentSnapshots.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Tournament[];
+                setFeaturedTournaments(tournaments);
+            } catch (error) {
+                console.error("Error fetching featured tournaments: ", error);
+            } finally {
+                setLoadingTournaments(false);
+            }
+        }
+
+        fetchGameData();
+    }, [firestore]);
+
+     useEffect(() => {
+        if (user && firestore) {
+            const fetchActiveMatches = async () => {
+                 if (!userProfile?.activeMatches || userProfile.activeMatches.length === 0) {
+                    setLiveMatches([]);
+                    setLoadingMatches(false);
+                    return;
+                }
+
+                setLoadingMatches(true);
+                const activeMatchIds = userProfile.activeMatches;
+                let activeMatches: Match[] = [];
+                if (activeMatchIds.length > 0) {
+                    const matchPromises = activeMatchIds.map((id: any) => getDoc(doc(firestore, 'matches', id)));
+                    const matchDocs = await Promise.all(matchPromises);
+                    activeMatches = matchDocs
+                        .filter((docSnap: DocumentSnapshot) => docSnap.exists())
+                        .map((docSnap: DocumentSnapshot) => ({ id: docSnap.id, ...docSnap.data() } as Match));
+                }
+                setLiveMatches(activeMatches);
+                setLoadingMatches(false);
+            };
+
+            fetchActiveMatches();
+        }
+    }, [user, firestore, userProfile?.activeMatches]);
+
+    const loading = userLoading || loadingStats;
+
     return (
-        <div className="bg-background min-h-screen">
-             <ImageSlider />
-             <DashboardClientContent />
+        <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
+            <div className="flex items-center justify-between space-y-2">
+                <h2 className="text-3xl font-bold tracking-tight">Welcome back, {userProfile?.name || 'User'}!</h2>
+            </div>
+
+            {/* Stat Cards */}
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                <StatCard title="Wallet Balance" value={`₹${walletStats.balance.toFixed(2)}`} icon={Zap} link="/wallet" loading={loading} />
+                <StatCard title="Winnings" value={`₹${walletStats.winnings.toFixed(2)}`} icon={Trophy} loading={loading} />
+                <StatCard title="Matches Played" value={gameStats.matchesPlayed} icon={Users} loading={loading} />
+                <StatCard title="Tournaments Won" value={gameStats.tournamentsWon} icon={TrendingUp} loading={loading} />
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
+                {/* Live Matches */}
+                <Card className="col-span-12 lg:col-span-4">
+                    <CardHeader>
+                        <CardTitle className="flex items-center justify-between">
+                            <span>Live Matches</span>
+                            <Link href="/lobby" className="text-sm font-normal text-primary hover:underline">View All</Link>
+                        </CardTitle>
+                        <CardDescription>Join ongoing matches and start playing.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        {loadingMatches ? (
+                            Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-20 w-full" />)
+                        ) : liveMatches.length > 0 ? (
+                            liveMatches.map((match) => (
+                                <Link key={match.id} href={`/match/${match.id}`} className="block hover:bg-muted/50 p-3 rounded-lg transition-colors">
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-4">
+                                             <Image src={match.game.cover_image_url} alt={match.game.title} width={64} height={64} className="rounded-md w-16 h-16 object-cover" />
+                                            <div>
+                                                <p className="font-semibold">{match.game.title}</p>
+                                                <p className="text-sm text-muted-foreground">Entry: ₹{match.entryFee}</p>
+                                            </div>
+                                        </div>
+                                        <div className="text-right">
+                                            <p className="font-semibold text-green-500">Prize: ₹{match.prize_pool}</p>
+                                            <p className="text-sm text-muted-foreground">Live Now</p>
+                                        </div>
+                                    </div>
+                                </Link>
+                            ))
+                        ) : (
+                            <p className="text-center text-muted-foreground py-8">No live matches currently.</p>
+                        )}
+                    </CardContent>
+                </Card>
+
+                {/* Featured Tournaments */}
+                <Card className="col-span-12 lg:col-span-3">
+                    <CardHeader>
+                        <CardTitle className="flex items-center justify-between">
+                            <span>Featured Tournaments</span>
+                            <Link href="/tournaments" className="text-sm font-normal text-primary hover:underline">View All</Link>
+                        </CardTitle>
+                        <CardDescription>Compete in special events for bigger prizes.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                         {loadingTournaments ? (
+                             Array.from({ length: 2 }).map((_, i) => <Skeleton key={i} className="h-24 w-full" />)
+                        ) : featuredTournaments.length > 0 ? (
+                            featuredTournaments.map((tournament) => (
+                                <Link key={tournament.id} href={`/tournaments/${tournament.id}`} className="block hover:bg-muted/50 p-3 rounded-lg transition-colors">
+                                    <div className="flex items-start gap-4">
+                                        <Image src={tournament.game.cover_image_url} alt={tournament.game.title} width={80} height={80} className="rounded-md w-20 h-20 object-cover" />
+                                        <div className="flex-1">
+                                            <p className="font-semibold">{tournament.name}</p>
+                                            <p className="text-sm text-muted-foreground">Game: {tournament.game.title}</p>
+                                            <p className="text-sm text-muted-foreground">Prize: <span className="font-bold text-green-500">₹{tournament.prize_pool}</span></p>
+                                        </div>
+                                         <ChevronRight className="h-5 w-5 text-muted-foreground self-center" />
+                                    </div>
+                                </Link>
+                            ))
+                        ) : (
+                            <p className="text-center text-muted-foreground py-8">No featured tournaments.</p>
+                        )}
+                    </CardContent>
+                </Card>
+            </div>
         </div>
     );
 }
