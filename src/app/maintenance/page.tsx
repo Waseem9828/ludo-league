@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -7,7 +6,7 @@ import { signOut } from '@/firebase/auth/client';
 import { Button } from '@/components/ui/button';
 import { LogOut, ShieldCheck } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { motion, Variants, Easing } from 'framer-motion';
+import { motion, Variants } from 'framer-motion';
 import Image from 'next/image';
 import { useAuthGuard } from '@/hooks/useAuthGuard';
 import CustomLoader from '@/components/CustomLoader';
@@ -30,7 +29,7 @@ const itemVariants: Variants = {
     opacity: 1,
     transition: {
       duration: 0.5,
-      ease: 'easeOut' as Easing,
+      ease: 'easeOut',
     },
   },
 };
@@ -42,7 +41,7 @@ const pulseVariants: Variants = {
         transition: {
             duration: 2,
             repeat: Infinity,
-            ease: "easeInOut" as Easing
+            ease: "easeInOut"
         }
     }
 }

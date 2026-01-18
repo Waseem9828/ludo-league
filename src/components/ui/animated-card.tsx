@@ -1,7 +1,7 @@
 'use client';
 
 import { Card } from './card';
-import { motion, Easing } from 'framer-motion';
+import { motion } from 'framer-motion';
 import Link from 'next/link';
 import React from 'react';
 
@@ -12,7 +12,7 @@ export const AnimatedCard = React.forwardRef<HTMLDivElement, AnimatedCardProps>(
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5, ease: 'easeOut' as Easing }}
+      transition={{ duration: 0.5, ease: 'easeOut' }}
       ref={ref}
     >
       <Card {...rest} />

@@ -1,6 +1,5 @@
-
 'use client';
-import { motion, Variants, Easing } from 'framer-motion';
+import { motion, Variants } from 'framer-motion';
 import { NewsTicker } from './app/news-ticker';
 import Image from 'next/image';
 
@@ -22,7 +21,7 @@ const itemVariants: Variants = {
     opacity: 1,
     transition: {
       duration: 0.5,
-      ease: 'easeOut' as Easing,
+      ease: 'easeOut',
     },
   },
 };
@@ -34,7 +33,7 @@ const pulseVariants: Variants = {
         transition: {
             duration: 2,
             repeat: Infinity,
-            ease: "easeInOut" as Easing
+            ease: "easeInOut"
         }
     }
 }
@@ -77,5 +76,3 @@ export const CustomLoader = () => {
 };
 
 export default CustomLoader;
-
-    
