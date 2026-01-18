@@ -210,14 +210,14 @@ function DashboardClientContent() {
     }
 
     return (
-        <div className="container mx-auto max-w-lg space-y-6">
+        <div className="container mx-auto max-w-lg space-y-4 p-4 md:p-6">
             { (userProfile.kycStatus === 'not_submitted' || userProfile.kycStatus === 'rejected') &&
                 <Alert variant="default" className="border-amber-500/50 bg-amber-500/10 text-amber-900 dark:text-amber-200 dark:bg-amber-900/20 dark:border-amber-700">
                     <ShieldCheck className="h-4 w-4 !text-amber-600 dark:!text-amber-400" />
                     <AlertTitle className="font-bold text-amber-900 dark:text-amber-200">KYC Verification Required</AlertTitle>
-                    <AlertDescription className="flex justify-between items-center text-amber-800 dark:text-amber-300">
+                    <AlertDescription className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 mt-2 text-amber-800 dark:text-amber-300">
                         <span>Complete your KYC to enable withdrawals.</span>
-                        <Button asChild size="sm" className="bg-amber-500 hover:bg-amber-600 text-white rounded-full">
+                        <Button asChild size="sm" className="bg-amber-500 hover:bg-amber-600 text-white rounded-full self-start sm:self-center">
                         <Link href="/kyc">
                             {userProfile.kycStatus === 'rejected' ? 'Resubmit KYC' : 'Complete KYC'}
                         </Link>
@@ -227,8 +227,7 @@ function DashboardClientContent() {
             }
             <Card>
                 <CardHeader>
-                    {/* User Welcome */}
-                    <div className="flex items-center justify-between">
+                    <div className="flex flex-wrap items-center justify-between gap-4">
                         <div className="flex items-center gap-3">
                              <Avatar className="h-12 w-12 border-2 border-primary/20">
                                 <AvatarImage src={userProfile.photoURL ?? undefined} />
@@ -239,25 +238,23 @@ function DashboardClientContent() {
                                 <h1 className="text-xl font-bold">{userProfile.displayName}</h1>
                             </div>
                         </div>
-                        {/* Wallet Balance as a chip */}
                         <div className="text-right">
                              <p className="text-sm font-medium text-primary">Balance</p>
                              <p className="text-2xl font-bold tracking-tight">₹{userProfile.walletBalance?.toLocaleString('en-IN') || 0}</p>
                         </div>
                     </div>
                 </CardHeader>
-                <CardContent className="grid grid-cols-2 gap-3">
-                     {/* Wallet Actions */}
-                    <Button asChild className="bg-gradient-primary rounded-full">
-                        <Link href="/wallet"> <Banknote className="mr-2 h-4 w-4"/>Deposit </Link>
+                <CardContent className="flex flex-col sm:flex-row gap-3">
+                    <Button asChild className="bg-gradient-primary rounded-full w-full">
+                        <Link href="/wallet/deposit"> <Banknote className="mr-2 h-4 w-4"/>Deposit </Link>
                     </Button>
-                    <Button asChild variant="outline" className="rounded-full">
-                         <Link href="/wallet">Withdraw</Link>
+                    <Button asChild variant="outline" className="rounded-full w-full">
+                         <Link href="/wallet/withdraw">Withdraw</Link>
                     </Button>
                 </CardContent>
             </Card>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Button asChild size="lg" className="h-20 shadow-lg rounded-xl flex-col gap-1 bg-gradient-primary">
                     <Link href="/lobby" className="text-lg"><Swords className="h-6 w-6"/> Play Now</Link>
                 </Button>
@@ -272,10 +269,9 @@ function DashboardClientContent() {
     );
 }
 
-// The main page is a Server Component that renders the client part
 export default function DashboardPage() {
     return (
-        <div className="bg-background min-h-screen space-y-6">
+        <div className="bg-background min-h-screen">
              <ImageSlider />
              <DashboardClientContent />
         </div>

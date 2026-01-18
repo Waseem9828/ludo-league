@@ -310,27 +310,27 @@ export default function WalletPage() {
   }
 
   return (
-    <div className="space-y-6">
-        <div className="relative w-full aspect-video rounded-lg overflow-hidden mb-6">
-            <Image src="/wallet.banner.png" alt="Wallet Banner" fill className="object-cover" />
+    <div className="container mx-auto max-w-2xl p-4 md:p-6 space-y-6">
+        <div className="relative w-full aspect-video md:aspect-[21/9] rounded-lg overflow-hidden mb-6 shadow-lg">
+            <Image src="/wallet-banner.png" alt="Wallet Banner" fill className="object-cover" />
         </div>
         <Card className="shadow-md">
-            <CardHeader className="flex flex-row items-center justify-between">
-                <div className="grid gap-2">
+            <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div className="grid gap-1.5">
                     <CardTitle>Current Balance</CardTitle>
                     <CardDescription>Total funds available for matches.</CardDescription>
                 </div>
-                <div className="text-4xl font-bold text-primary">
-                    ₹{balance.toFixed(2)}
+                <div className="text-3xl sm:text-4xl font-bold text-primary">
+                    ₹{balance.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </div>
             </CardHeader>
         </Card>
 
         <Tabs defaultValue="deposit" className="w-full">
             <TabsList className="grid w-full grid-cols-3">
-                <TabsTrigger value="deposit"><UploadCloud className="mr-2 h-4 w-4"/>Deposit</TabsTrigger>
-                <TabsTrigger value="withdraw"><DownloadCloud className="mr-2 h-4 w-4"/>Withdraw</TabsTrigger>
-                <TabsTrigger value="history"><History className="mr-2 h-4 w-4"/>History</TabsTrigger>
+                <TabsTrigger value="deposit"><UploadCloud className="mr-1.5 h-4 w-4"/>Deposit</TabsTrigger>
+                <TabsTrigger value="withdraw"><DownloadCloud className="mr-1.5 h-4 w-4"/>Withdraw</TabsTrigger>
+                <TabsTrigger value="history"><History className="mr-1.5 h-4 w-4"/>History</TabsTrigger>
             </TabsList>
             <TabsContent value="deposit">
                 <Card>
@@ -340,32 +340,30 @@ export default function WalletPage() {
                                 <CardTitle>Deposit Funds</CardTitle>
                                 <CardDescription>Step 1: Enter amount and complete the payment.</CardDescription>
                             </CardHeader>
-                            <CardContent className="grid gap-6">
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div className="space-y-4">
-                                        <Alert variant="destructive">
-                                            <AlertCircle className="h-4 w-4" />
-                                            <AlertTitle>Important: Name Match Required</AlertTitle>
-                                            <AlertDescription>
-                                                Please deposit from a bank account or UPI ID where the name matches your KYC documents. Mismatched names will result in rejection.
-                                            </AlertDescription>
-                                        </Alert>
-                                        <div className="grid gap-2">
-                                            <Label htmlFor="deposit-amount">Amount (Min. ₹100)</Label>
-                                            <Input name="deposit-amount" id="deposit-amount" value={depositAmount} onChange={(e) => setDepositAmount(Number(e.target.value))} placeholder="e.g., 500" type="number" required />
+                            <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="space-y-4">
+                                    <Alert variant="destructive">
+                                        <AlertCircle className="h-4 w-4" />
+                                        <AlertTitle>Important: Name Match Required</AlertTitle>
+                                        <AlertDescription>
+                                            Please deposit from a bank account or UPI ID where the name matches your KYC documents. Mismatched names will result in rejection.
+                                        </AlertDescription>
+                                    </Alert>
+                                    <div className="grid gap-2">
+                                        <Label htmlFor="deposit-amount">Amount (Min. ₹100)</Label>
+                                        <Input name="deposit-amount" id="deposit-amount" value={depositAmount} onChange={(e) => setDepositAmount(Number(e.target.value))} placeholder="e.g., 500" type="number" required />
+                                    </div>
+                                </div>
+                                
+                                <div className="flex flex-col gap-4">
+                                    {depositAmount >= 100 ? (
+                                        <DynamicQrCode upiId={activeUpiId} amount={depositAmount} />
+                                    ) : (
+                                        <div className="flex flex-col items-center justify-center gap-4 p-4 bg-muted rounded-lg h-full">
+                                            <ScanBarcode className="h-10 w-10 text-muted-foreground"/>
+                                            <p className="text-sm text-center text-muted-foreground">Enter an amount of ₹100 or more to generate QR code.</p>
                                         </div>
-                                    </div>
-                                    
-                                    <div className="flex flex-col gap-4">
-                                        {depositAmount >= 100 ? (
-                                            <DynamicQrCode upiId={activeUpiId} amount={depositAmount} />
-                                        ) : (
-                                            <div className="flex flex-col items-center justify-center gap-4 p-4 bg-muted rounded-lg h-full">
-                                                <ScanBarcode className="h-10 w-10 text-muted-foreground"/>
-                                                <p className="text-sm text-center text-muted-foreground">Enter an amount of ₹100 or more to generate QR code.</p>
-                                            </div>
-                                        )}
-                                    </div>
+                                    )}
                                 </div>
                             </CardContent>
                             <CardFooter>
@@ -463,7 +461,7 @@ export default function WalletPage() {
                                 const isDeposit = isDepositRequest(req);
                                 return (
                                 <Card key={req.id} className="p-3">
-                                    <div className="flex justify-between items-center">
+                                    <div className="flex flex-wrap gap-2 justify-between items-center">
                                         <div className="flex items-center gap-3">
                                             <div className={cn("p-2 rounded-full", isDeposit ? "bg-green-100" : "bg-red-100")}>
                                                 {isDeposit ? <ArrowUpRight className="h-4 w-4 text-green-600"/> : <ArrowDownLeft className="h-4 w-4 text-red-600"/>}
@@ -496,7 +494,7 @@ export default function WalletPage() {
                             {!transactionsLoading && transactions.length === 0 && <p className="text-center text-muted-foreground py-8">No transactions yet.</p>}
                             {!transactionsLoading && transactions.map((t) => (
                                 <Card key={t.id} className="p-3">
-                                    <div className="flex justify-between items-center">
+                                    <div className="flex flex-wrap gap-2 justify-between items-center">
                                         <div className="flex items-center gap-3">
                                             <div className={cn("p-2 rounded-full", t.amount >= 0 ? "bg-green-100" : "bg-red-100")}>
                                                 {t.amount >= 0 ? <ArrowUpRight className="h-4 w-4 text-green-600"/> : <ArrowDownLeft className="h-4 w-4 text-red-500"/>}
