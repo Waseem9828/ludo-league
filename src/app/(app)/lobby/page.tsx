@@ -199,7 +199,7 @@ const SearchingOverlay = ({ user, userProfile, onCancel }: { user: any, userProf
             >
                 <PlayerCard name={user.displayName} avatarUrl={user.photoURL} winRate={userProfile?.winRate || 0} />
                 <motion.div 
-                    className="text-6xl font-black text-foreground/50 mx-4"
+                    className="text-6xl font-black text-gradient-primary mx-4"
                     initial={{ scale: 0 }}
                     animate={{ scale: 1 }}
                     transition={{ type: 'spring', stiffness: 260, damping: 20, delay: 0.6 }}

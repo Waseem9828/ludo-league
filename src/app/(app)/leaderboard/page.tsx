@@ -18,9 +18,9 @@ const bannerImage = PlaceHolderImages.find(img => img.id === 'leaderboard-banner
 const PlayerCard = ({ user, rank, delay }: { user: Partial<UserProfile>, rank: number, delay: number }) => {
     const isTopThree = rank <= 3;
     const rankColors = {
-        1: { bg: 'bg-amber-400/20', border: 'border-amber-400', text: 'text-amber-400' },
-        2: { bg: 'bg-slate-400/20', border: 'border-slate-400', text: 'text-slate-400' },
-        3: { bg: 'bg-orange-400/20', border: 'border-orange-400', text: 'text-orange-400' }
+        1: { bg: 'bg-amber-400/20', border: 'border-amber-400', text: 'text-amber-400', gradient: 'bg-gradient-to-r from-amber-500 to-yellow-300' },
+        2: { bg: 'bg-slate-400/20', border: 'border-slate-400', text: 'text-slate-400', gradient: 'bg-gradient-to-r from-slate-500 to-gray-300' },
+        3: { bg: 'bg-orange-400/20', border: 'border-orange-400', text: 'text-orange-400', gradient: 'bg-gradient-to-r from-orange-500 to-amber-300' }
     };
     const colors = isTopThree ? rankColors[rank as keyof typeof rankColors] : null;
 
@@ -37,11 +37,10 @@ const PlayerCard = ({ user, rank, delay }: { user: Partial<UserProfile>, rank: n
                 {isTopThree && (
                     <Trophy className={cn("absolute -top-3 -left-3 h-7 w-7", colors?.text)} fill="currentColor" />
                 )}
-                 <div className={cn("flex items-center justify-center w-12 h-12 rounded-full font-black text-2xl flex-shrink-0",
-                    isTopThree ? 'text-white' : 'text-muted-foreground'
+                 <div className={cn("flex items-center justify-center w-12 h-12 rounded-full font-black text-2xl flex-shrink-0 text-white",
+                    isTopThree ? colors?.gradient : 'bg-muted-foreground'
                 )}>
-                    <span className={cn(isTopThree && "absolute text-5xl opacity-20")}>{rank}</span>
-                    <span className={cn(isTopThree && "relative")}>{rank}</span>
+                    {rank}
                 </div>
 
                 <div className="flex items-center gap-3 overflow-hidden">
@@ -57,7 +56,7 @@ const PlayerCard = ({ user, rank, delay }: { user: Partial<UserProfile>, rank: n
                 </div>
 
                 <div className="text-right flex-shrink-0">
-                    <p className="font-bold text-lg text-primary">₹{(user.winnings || 0).toLocaleString('en-IN')}</p>
+                    <p className="font-bold text-lg text-gradient-primary">₹{(user.winnings || 0).toLocaleString('en-IN')}</p>
                     <p className="text-xs text-muted-foreground">Winnings</p>
                 </div>
             </div>
@@ -97,10 +96,10 @@ export default function LeaderboardPage() {
                 </div>
             }
             <Card className="overflow-hidden shadow-lg">
-              <CardHeader className="bg-gradient-to-br from-primary-start to-primary-end text-primary-foreground p-6">
+              <CardHeader className="bg-gradient-primary text-primary-foreground p-6">
                 <div className="flex items-center gap-3">
                     <Trophy className="h-8 w-8"/>
-                    <CardTitle className="text-3xl tracking-tight">Hall of Fame</CardTitle>
+                    <CardTitle>Hall of Fame</CardTitle>
                 </div>
                 <CardDescription className="text-primary-foreground/80">
                     Check out the all-time rankings of the top Ludo League players.

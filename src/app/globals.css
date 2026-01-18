@@ -97,19 +97,3 @@
         z-index: -1;
     }
 }
-
-@layer utilities {
-  .animate-grid-glow {
-    animation: grid-glow 4s linear infinite;
-  }
-  @keyframes grid-glow {
-    0% {
-      transform: translate(-50%, -50%) scale(1);
-      opacity: 1;
-    }
-    100% {
-      transform: translate(-50%, -50%) scale(1.5);
-      opacity: 0;
-    }
-  }
-}

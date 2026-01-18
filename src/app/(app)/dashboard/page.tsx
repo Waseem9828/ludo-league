@@ -16,10 +16,10 @@ const StatCard = ({ title, value, icon: Icon, link, loading }: { title: string, 
     <Card className="hover:shadow-lg transition-shadow">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">{title}</CardTitle>
-            <Icon className="h-4 w-4 text-muted-foreground" />
+            <Icon className="h-4 w-4 text-primary" />
         </CardHeader>
         <CardContent>
-            {loading ? <Skeleton className="h-8 w-1/2" /> : <div className="text-2xl font-bold">{value}</div>}
+            {loading ? <Skeleton className="h-8 w-1/2" /> : <div className="text-2xl font-bold text-gradient-primary">{value}</div>}
             {link && !loading && (
                 <Link href={link} className="text-xs text-muted-foreground hover:text-primary transition-colors">
                     View all
@@ -118,9 +118,11 @@ export default function DashboardPage() {
 
     return (
         <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
-            <ImageSlider />
+            <div className="relative w-full aspect-video rounded-lg overflow-hidden mb-6 shadow-lg">
+                <Image src="https://picsum.photos/seed/dashboard-banner/1200/400" alt="Dashboard Banner" fill className="object-cover" priority data-ai-hint="gaming dashboard" />
+            </div>
             <div className="flex items-center justify-between space-y-2">
-                <h2 className="text-3xl font-bold tracking-tight">Welcome back, {userProfile?.displayName || 'User'}!</h2>
+                <h2 className="text-3xl font-bold tracking-tight text-gradient-primary">Welcome back, {userProfile?.displayName || 'User'}!</h2>
             </div>
 
             {/* Stat Cards */}
