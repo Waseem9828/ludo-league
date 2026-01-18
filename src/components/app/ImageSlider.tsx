@@ -6,7 +6,7 @@ import Link from 'next/link';
 import useEmblaCarousel from 'embla-carousel-react';
 import Autoplay from 'embla-carousel-autoplay';
 import { useFirestore } from '@/firebase';
-import { collection, query, where, onSnapshot } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, orderBy } from 'firebase/firestore';
 import { Banner } from '@/lib/types';
 import { Skeleton } from '../ui/skeleton';
 
@@ -24,7 +24,11 @@ export const ImageSlider = () => {
   useEffect(() => {
     if (!firestore) return;
     setLoading(true);
-    const bannersQuery = query(collection(firestore, 'banners'), where('isActive', '==', true));
+    const bannersQuery = query(
+        collection(firestore, 'banners'), 
+        where('isActive', '==', true),
+        orderBy('createdAt', 'desc')
+    );
     
     const unsubscribe = onSnapshot(bannersQuery, (snapshot) => {
         const activeBanners = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Banner));
@@ -39,7 +43,7 @@ export const ImageSlider = () => {
 
   if (loading) {
       return (
-          <div className="relative w-full aspect-video rounded-b-lg overflow-hidden shadow-lg">
+          <div className="relative w-full aspect-video rounded-lg overflow-hidden shadow-lg mb-6">
               <Skeleton className="h-full w-full" />
           </div>
       )
@@ -51,7 +55,7 @@ export const ImageSlider = () => {
 
 
   return (
-    <div className="relative w-full aspect-video rounded-b-lg overflow-hidden shadow-lg" ref={emblaRef}>
+    <div className="relative w-full aspect-video rounded-lg overflow-hidden shadow-lg mb-6" ref={emblaRef}>
         <div className="flex h-full">
             {banners.map((banner, index) => (
                 <div className="relative flex-[0_0_100%] h-full" key={banner.id}>

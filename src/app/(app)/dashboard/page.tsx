@@ -5,14 +5,12 @@ import { useUser } from '@/firebase/auth/use-user';
 import { useFirestore } from '@/firebase';
 import { doc, getDoc, collection, query, where, getDocs, orderBy, limit } from 'firebase/firestore';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Separator } from '@/components/ui/separator';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Match, Tournament, UserProfile } from '@/lib/types';
 import { TrendingUp, Zap, Users, Trophy, ChevronRight, Swords } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Skeleton } from '@/components/ui/skeleton';
-import { PlaceHolderImages } from '@/lib/placeholder-images';
+import { ImageSlider } from '@/components/app/ImageSlider';
 
 const StatCard = ({ title, value, icon: Icon, link, loading }: { title: string, value: string | number, icon: React.ElementType, link?: string, loading: boolean }) => (
     <Card className="hover:shadow-lg transition-shadow">
@@ -30,8 +28,6 @@ const StatCard = ({ title, value, icon: Icon, link, loading }: { title: string, 
         </CardContent>
     </Card>
 );
-
-const bannerImage = PlaceHolderImages.find(img => img.id === 'dashboard-banner');
 
 export default function DashboardPage() {
     const { user, userProfile, loading: userLoading } = useUser();
@@ -122,18 +118,7 @@ export default function DashboardPage() {
 
     return (
         <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
-            {bannerImage && (
-                <div className="relative w-full aspect-video rounded-lg overflow-hidden mb-6 shadow-lg">
-                    <Image 
-                        src={bannerImage.imageUrl} 
-                        alt={bannerImage.description} 
-                        fill 
-                        className="object-cover" 
-                        priority 
-                        data-ai-hint={bannerImage.imageHint}
-                    />
-                </div>
-            )}
+            <ImageSlider />
             <div className="flex items-center justify-between space-y-2">
                 <h2 className="text-3xl font-bold tracking-tight">Welcome back, {userProfile?.displayName || 'User'}!</h2>
             </div>
