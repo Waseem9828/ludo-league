@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
@@ -14,7 +15,6 @@ import { useToast } from "@/hooks/use-toast";
 import type { DepositRequest } from '@/lib/types';
 import { useAdminOnly } from '@/hooks/useAdminOnly';
 import { cn } from '@/lib/utils';
-import { useRole } from '@/hooks/useRole';
 import {
   Dialog,
   DialogContent,
@@ -86,9 +86,7 @@ const RejectionDialog = ({ onConfirm, loading }: { onConfirm: (reason: string) =
 export default function DepositsPage() {
     useAdminOnly();
     const firestore = useFirestore();
-    const { user: adminUser } = useUser();
-    const { role } = useRole(); 
-    const canManageDeposits = role === 'depositAdmin' || role === 'superAdmin';
+    const { user: adminUser, isAdmin: canManageDeposits } = useUser();
 
     const [requests, setRequests] = useState<DepositRequest[]>([]);
     const [loading, setLoading] = useState(true);

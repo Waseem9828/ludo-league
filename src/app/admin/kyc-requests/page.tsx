@@ -16,7 +16,6 @@ import { useToast } from "@/hooks/use-toast";
 import type { KycApplication } from '@/lib/types';
 import { useAdminOnly } from '@/hooks/useAdminOnly';
 import { cn } from '@/lib/utils';
-import { useRole } from '@/hooks/useRole';
 import {
   Dialog,
   DialogContent,
@@ -88,9 +87,7 @@ const RejectionDialog = ({ onConfirm, loading }: { onConfirm: (reason: string) =
 export default function KycRequestsPage() {
     useAdminOnly();
     const firestore = useFirestore();
-    const { user: adminUser } = useUser();
-    const { role } = useRole(); 
-    const canManageKyc = role === 'kycAdmin' || role === 'superAdmin';
+    const { user: adminUser, isAdmin: canManageKyc } = useUser();
 
     const [applications, setApplications] = useState<KycApplication[]>([]);
     const [loading, setLoading] = useState(true);

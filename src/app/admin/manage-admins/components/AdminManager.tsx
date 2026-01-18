@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
@@ -108,6 +109,7 @@ export function AdminManager() {
                     </DropdownMenuTrigger>
                     <DropdownMenuContent>
                       <DropdownMenuItem onClick={() => handleSetRole(user.uid, 'superAdmin')}>Make Super Admin</DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleSetRole(user.uid, 'kycAdmin')}>Make KYC Admin</DropdownMenuItem>
                       <DropdownMenuItem onClick={() => handleSetRole(user.uid, 'depositAdmin')}>Make Deposit Admin</DropdownMenuItem>
                       <DropdownMenuItem onClick={() => handleSetRole(user.uid, 'withdrawalAdmin')}>Make Withdrawal Admin</DropdownMenuItem>
                       <DropdownMenuItem onClick={() => handleSetRole(user.uid, 'matchAdmin')}>Make Match Admin</DropdownMenuItem>

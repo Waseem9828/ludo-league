@@ -14,7 +14,6 @@ import { useToast } from "@/hooks/use-toast";
 import type { WithdrawalRequest } from '@/lib/types';
 import { useAdminOnly } from '@/hooks/useAdminOnly';
 import { cn } from '@/lib/utils';
-import { useRole } from '@/hooks/useRole';
 import {
   Dialog,
   DialogContent,
@@ -60,9 +59,7 @@ const RejectionDialog = ({ onConfirm, loading }: { onConfirm: (reason: string) =
 export default function WithdrawalsPage() {
     useAdminOnly();
     const firestore = useFirestore();
-    const { user: adminUser } = useUser();
-    const { role } = useRole(); // Get the user role
-    const canManageWithdrawals = role === 'withdrawalAdmin' || role === 'superAdmin';
+    const { user: adminUser, isAdmin: canManageWithdrawals } = useUser();
 
     const [requests, setRequests] = useState<WithdrawalRequest[]>([]);
     const [loading, setLoading] = useState(true);

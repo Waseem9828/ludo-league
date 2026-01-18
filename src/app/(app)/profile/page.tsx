@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { getFunctions, httpsCallable } from "firebase/functions";
+import { doc, updateDoc } from 'firebase/firestore';
 
 const StatCard = ({ icon: Icon, label, value }: { icon: React.ElementType, label: string, value: string | number }) => (
     <Card className="bg-muted/50 hover:bg-muted/80 transition-colors">
@@ -72,6 +73,7 @@ const KycStatusBadge = ({ kycStatus, rejectionReason }: { kycStatus: string, rej
 
 export default function ProfilePage() {
   const { user, userProfile } = useUser();
+  const firestore = useFirestore();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -79,14 +81,15 @@ export default function ProfilePage() {
     return <div className="flex items-center justify-center h-full"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
   }
   
-  const handleMakeSuperAdmin = async () => {
-    if (!user) return;
+  const handleClaimAdmin = async () => {
+    if (!user || !firestore) return;
     setIsSubmitting(true);
     try {
-        const functions = getFunctions();
-        const setRole = httpsCallable(functions, 'setRole');
-        await setRole({ uid: user.uid, role: 'superAdmin' });
-        toast({ title: 'Success!', description: 'You have been granted Super Admin privileges. Please refresh the page.', className: 'bg-green-100 text-green-800'});
+        const userRef = doc(firestore, 'users', user.uid);
+        await updateDoc(userRef, { isAdmin: true });
+        toast({ title: 'Success!', description: 'You have been granted Admin privileges. The page will now refresh.', className: 'bg-green-100 text-green-800'});
+        // Refresh the page to ensure all user states are updated
+        window.location.reload();
     } catch (error: any) {
         toast({ title: 'Error', description: error.message, variant: 'destructive'});
     } finally {
@@ -160,12 +163,12 @@ export default function ProfilePage() {
             <Card>
                 <CardHeader>
                     <CardTitle>Special Action</CardTitle>
-                    <CardDescription>Click the button below to claim your Super Admin role.</CardDescription>
+                    <CardDescription>Click the button below to claim your Admin role. This is a one-time action.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <Button onClick={handleMakeSuperAdmin} disabled={isSubmitting}>
+                    <Button onClick={handleClaimAdmin} disabled={isSubmitting}>
                         {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null}
-                        Become Super Admin
+                        Claim Admin Privileges
                     </Button>
                 </CardContent>
             </Card>
