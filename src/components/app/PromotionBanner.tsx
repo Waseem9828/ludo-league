@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -23,7 +24,7 @@ export function PromotionBanner() {
   }, []);
 
   return (
-    <div className="h-6 flex items-center justify-center overflow-hidden bg-muted/50 w-full px-4">
+    <div className="h-6 flex items-center justify-center overflow-hidden w-full">
       <div className="relative h-full w-full">
         <AnimatePresence initial={false} mode="wait">
           <motion.div
@@ -34,7 +35,7 @@ export function PromotionBanner() {
             transition={{ duration: 0.5, ease: 'easeInOut' }}
             className="absolute inset-0 flex items-center justify-center w-full h-full"
           >
-            <p className="text-sm font-semibold text-destructive truncate">
+            <p className="text-sm font-semibold text-white truncate">
               {promoMessages[currentIndex]}
             </p>
           </motion.div>

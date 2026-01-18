@@ -297,6 +297,7 @@ export function SidebarNav({ className, inSheet }: { className?: string, inSheet
 
     const getFilteredAdminItems = useCallback((items: AdminNavItem[]): AdminNavItem[] => {
         return items.reduce((acc: AdminNavItem[], item) => {
+            if (!item.role) return acc;
             const hasAccess = item.role.includes(role);
 
             if (hasAccess) {
@@ -338,30 +339,10 @@ export const Sidebar = () => (
     </div>
 );
 
-export const SidebarSheet = ({ children }: { children: React.ReactNode }) => (
-    <Sheet>
-        <SheetTrigger asChild>
-            <Button variant="ghost" size="icon" className="md:hidden">
-                <Menu />
-            </Button>
-        </SheetTrigger>
-        <SheetContent side="left" className="p-0 w-64">
-            {children}
-        </SheetContent>
-    </Sheet>
-);
-
-export const SidebarTrigger = ({className}: {className?: string}) => {
-    const { isCollapsed, setIsCollapsed } = useSidebar();
-
-    return (
-        <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setIsCollapsed(!isCollapsed)}
-            className={cn("hidden md:flex", className)}
-        >
-            <Menu />
-        </Button>
-    );
+// This component is no longer used directly in the layout, but is kept to avoid breaking imports.
+// The Sheet/SheetContent is now handled directly in the root app layout.
+export const SidebarSheet = ({ children }: { children: React.ReactNode }) => {
+    return null;
 };
+
+export { Sheet, SheetContent };
