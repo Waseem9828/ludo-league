@@ -160,23 +160,24 @@ export default function DashboardPage() {
         if (!firestore) return;
 
         setLoadingTournaments(true);
-        try {
-            const tournamentsQuery = query(
-                collection(firestore, 'tournaments'),
-                where('status', 'in', ['upcoming', 'live']),
-                orderBy('startTime', 'desc'),
-                limit(5)
-            );
-            const unsubscribe = onSnapshot(tournamentsQuery, (snapshot: QuerySnapshot<DocumentData>) => {
+        const tournamentsQuery = query(
+            collection(firestore, 'tournaments'),
+            where('status', 'in', ['upcoming', 'live']),
+            orderBy('startTime', 'desc'),
+            limit(5)
+        );
+        const unsubscribe = onSnapshot(tournamentsQuery, 
+            (snapshot: QuerySnapshot<DocumentData>) => {
                 const fetchedTournaments = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Tournament));
                 setTournaments(fetchedTournaments);
                 setLoadingTournaments(false);
-            });
-            return () => unsubscribe();
-        } catch (error) {
-            console.error("Error fetching tournaments: ", error);
-            setLoadingTournaments(false);
-        }
+            },
+            (error) => {
+                console.error("Error fetching tournaments: ", error);
+                setLoadingTournaments(false);
+            }
+        );
+        return () => unsubscribe();
     }, [firestore]);
 
 
