@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -74,7 +73,7 @@ const TournamentSlider = ({ tournaments, loading }: { tournaments: Tournament[],
 
   if (loading) {
       return (
-          <div className="relative w-full aspect-video rounded-lg overflow-hidden shadow-lg">
+          <div className="relative w-full aspect-[21/9] rounded-lg overflow-hidden shadow-lg">
               <Skeleton className="h-full w-full" />
           </div>
       );
@@ -82,7 +81,7 @@ const TournamentSlider = ({ tournaments, loading }: { tournaments: Tournament[],
 
   if (tournaments.length === 0) {
     return (
-      <Card className="flex items-center justify-center h-48 bg-muted">
+      <Card className="flex items-center justify-center h-32 bg-muted">
         <p className="text-muted-foreground">No tournaments available right now.</p>
       </Card>
     );
@@ -95,7 +94,7 @@ const TournamentSlider = ({ tournaments, loading }: { tournaments: Tournament[],
           <div className="relative flex-[0_0_100%] pl-4" key={tournament.id}>
             <Link href={`/tournaments/${tournament.id}`}>
               <Card className="overflow-hidden">
-                <div className="relative aspect-video w-full">
+                <div className="relative aspect-[21/9] w-full">
                   <Image
                     src={tournament.bannerImageUrl || `https://picsum.photos/seed/${tournament.id}/800/400`}
                     alt={tournament.name}
