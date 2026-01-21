@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -119,17 +120,15 @@ const TournamentSlider = ({ tournaments, loading }: { tournaments: Tournament[],
 
 const ActionCard = ({ title, href, icon: Icon, badgeText }: { title: string, href: string, icon: React.ElementType, badgeText?: string }) => (
     <Link href={href} className="block hover:scale-[1.02] transition-transform duration-300">
-        <Card className="h-full bg-card shadow-lg hover:shadow-primary/20 border-border hover:border-primary/50">
-            <CardHeader>
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                        <div className="p-3 bg-primary/10 rounded-lg">
-                            <Icon className="h-6 w-6 text-primary"/>
-                        </div>
-                        <CardTitle className="text-md">{title}</CardTitle>
+        <Card className="h-full bg-card shadow-lg hover:shadow-primary/20 border-border hover:border-primary/50 text-center">
+            <CardHeader className="p-4 items-center">
+                <div className="relative mb-2">
+                    <div className="p-3 bg-primary/10 rounded-lg inline-block">
+                        <Icon className="h-6 w-6 text-primary"/>
                     </div>
-                    {badgeText && <Badge variant="destructive">{badgeText}</Badge>}
+                    {badgeText && <Badge variant="destructive" className="absolute -top-2 -right-2">{badgeText}</Badge>}
                 </div>
+                <CardTitle className="text-sm">{title}</CardTitle>
             </CardHeader>
         </Card>
     </Link>
@@ -199,7 +198,7 @@ export default function DashboardPage() {
             </div>
 
             {/* Action Cards */}
-            <div className="grid gap-4 md:grid-cols-3">
+            <div className="grid grid-cols-3 gap-4">
                  <ActionCard 
                     title="Active Matches"
                     href="/lobby"
