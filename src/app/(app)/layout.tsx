@@ -1,65 +1,73 @@
-'use client';
 
-import { Toaster } from '@/components/ui/toaster';
-import { Sidebar, SidebarProvider, SidebarNav } from "@/components/ui/sidebar"
-import { Sheet, SheetContent } from "@/components/ui/sheet";
-import AppHeader from '@/components/AppHeader';
-import { useAuthGuard } from '@/hooks/useAuthGuard';
-import CustomLoader from '@/components/CustomLoader';
-import { FirebaseErrorListener } from '@/components/FirebaseErrorListener';
-import { BottomNav } from '@/components/app/bottom-nav';
-import { FcmInitializer } from '@/components/app/fcm-initializer';
-import { usePathname } from 'next/navigation';
-import { PromotionBanner } from '@/components/app/PromotionBanner';
-
-
-function AppLayoutContent({ children }: { children: React.ReactNode }) {
-  const { isAuthenticating } = useAuthGuard();
-  const pathname = usePathname();
-
-  // The dashboard has special negative margin styling, so it needs different padding rules.
-  const useDefaultLayout = pathname !== '/dashboard';
-
-  if (isAuthenticating) {
-    return <CustomLoader />;
-  }
-  
-  return (
-    <Sheet>
-      <div className="bg-background font-sans overflow-x-hidden">
-          <FcmInitializer />
-          {process.env.NODE_ENV === 'development' && <FirebaseErrorListener/>}
-          <aside className="hidden md:block fixed left-0 top-0 h-full w-64 z-50">
-            <Sidebar />
-          </aside>
-          <SheetContent side="left" className="p-0 w-64">
-              <SidebarNav />
-          </SheetContent>
-
-          <div className="md:pl-64 flex flex-col h-screen">
-            <div className='sticky top-0 z-40 w-full flex-shrink-0'>
-              <PromotionBanner/>
-              <header className="flex h-16 items-center justify-between gap-4 bg-gradient-primary px-4 md:px-6 text-primary-foreground shadow-sm">
-                  <AppHeader/>
-              </header>
-            </div>
-            
-            <main className={"flex-1 flex flex-col overflow-y-auto " + (useDefaultLayout ? "p-4 sm:p-6 md:pb-6 pb-24" : "pb-24")}>
-                {children}
-            </main>
-            {/* Mobile Bottom Navigation */}
-            <BottomNav />
-            <Toaster />
-        </div>
-      </div>
-    </Sheet>
-  );
-}
-
-export default function AppLayout({ children }: { children: React.ReactNode }) {
-  return (
-      <SidebarProvider>
-        <AppLayoutContent>{children}</AppLayoutContent>
-      </SidebarProvider>
-  )
-}
+      'use client';
+      
+      import { Toaster } from '@/components/ui/toaster';
+      import { Sidebar, SidebarProvider, SidebarNav } from "@/components/ui/sidebar"
+      import { Sheet, SheetContent } from "@/components/ui/sheet";
+      import AppHeader from '@/components/AppHeader';
+      import { useAuthGuard } from '@/hooks/useAuthGuard';
+      import CustomLoader from '@/components/CustomLoader';
+      import { FirebaseErrorListener } from '@/components/FirebaseErrorListener';
+      import { BottomNav } from '@/components/app/bottom-nav';
+      import { FcmInitializer } from '@/components/app/fcm-initializer';
+      import { usePathname } from 'next/navigation';
+      import { PromotionBanner } from '@/components/app/PromotionBanner';
+      import { useSidebar } from '@/hooks/useSidebar';
+      
+      
+      function AppLayoutContent({ children }: { children: React.ReactNode }) {
+        const { isAuthenticating } = useAuthGuard();
+        const pathname = usePathname();
+        const { isOpen, setIsOpen } = useSidebar();
+      
+        // The dashboard has special negative margin styling, so it needs different padding rules.
+        const useDefaultLayout = pathname !== '/dashboard';
+      
+        return (
+          <>
+            {isAuthenticating ? (
+              <div className="h-screen w-full flex items-center justify-center">
+                <CustomLoader />
+              </div>
+            ) : (
+              <div className={useDefaultLayout ? 'lg:grid lg:grid-cols-12 min-h-screen' : ''}>
+                <div className="hidden lg:block lg:col-span-2">
+                  <Sidebar>
+                    <SidebarNav />
+                  </Sidebar>
+                </div>
+                {/* Mobile sidebar */}
+                <Sheet open={isOpen} onOpenChange={setIsOpen}>
+                  <SheetContent side="left" className="w-64 p-0">
+                    <Sidebar>
+                      <SidebarNav />
+                    </Sidebar>
+                  </SheetContent>
+                </Sheet>
+      
+                <main className={useDefaultLayout ? 'lg:col-span-10 px-4' : 'w-full'}>
+                  <AppHeader />
+                  <PromotionBanner />
+                  <div className={useDefaultLayout ? 'py-4' : ''}>{children}</div>
+                  <Toaster />
+                  <FirebaseErrorListener />
+                  <FcmInitializer />
+                </main>
+      
+                <div className="block lg:hidden">
+                  <BottomNav />
+                </div>
+              </div>
+            )}
+          </>
+        );
+      }
+      
+      export default function AppLayout({ children }: { children: React.ReactNode }) {
+        return (
+          <SidebarProvider>
+            <AppLayoutContent>{children}</AppLayoutContent>
+          </SidebarProvider>
+        );
+      }
+      
