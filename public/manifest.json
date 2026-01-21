@@ -1,23 +1,23 @@
-
 {
   "name": "Ludo League",
-  "short_name": "LudoLeague",
-  "start_url": "/",
-  "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#1F5FA8",
+  "short_name": "Ludo League",
   "description": "A platform for competitive Ludo matches.",
+  "start_url": "/dashboard",
+  "display": "standalone",
+  "background_color": "#E8EEF4",
+  "theme_color": "#1F5FA8",
   "icons": [
     {
       "src": "/icon-192x192.png",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     },
     {
       "src": "/icon-512x512.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     }
-  ],
-  "gcm_sender_id": "103953800507"
+  ]
 }

@@ -11,7 +11,17 @@ const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 export const metadata: Metadata = {
   title: 'Ludo League',
   description: 'A platform for competitive Ludo matches.',
-  manifest: '/manifest.json'
+  manifest: '/manifest.json',
+  themeColor: '#1F5FA8',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: 'Ludo League',
+  },
+  icons: {
+    icon: '/icon-192x192.png',
+    apple: '/icon-192x192.png',
+  },
 };
 
 export default function RootLayout({
