@@ -42,7 +42,7 @@ const AnimatedWelcome = ({ name }: { name: string }) => {
 
     return (
         <motion.h2 
-            className="text-2xl font-bold tracking-tight text-gradient-primary mb-4 text-center"
+            className="text-xl font-bold tracking-tight text-gradient-primary mb-3 text-center"
             variants={sentence}
             initial="hidden"
             animate="visible"
@@ -59,12 +59,12 @@ const AnimatedWelcome = ({ name }: { name: string }) => {
 
 const StatCard = ({ title, value, icon: Icon, loading }: { title: string, value: string | number, icon: React.ElementType, loading: boolean }) => (
     <Card className="hover:shadow-lg transition-shadow">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">{title}</CardTitle>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1">
+            <CardTitle className="text-xs font-medium">{title}</CardTitle>
             <Icon className="h-4 w-4 text-primary" />
         </CardHeader>
         <CardContent>
-            {loading ? <Skeleton className="h-8 w-1/2" /> : <div className="text-2xl font-bold text-gradient-primary">{value}</div>}
+            {loading ? <Skeleton className="h-7 w-1/2" /> : <div className="text-xl font-bold text-gradient-primary">{value}</div>}
         </CardContent>
     </Card>
 );
@@ -74,7 +74,7 @@ const TournamentSlider = ({ tournaments, loading }: { tournaments: Tournament[],
 
   if (loading) {
       return (
-          <div className="relative w-full aspect-[21/9] rounded-lg overflow-hidden shadow-lg">
+          <div className="relative w-full aspect-[3/1] rounded-lg overflow-hidden shadow-lg">
               <Skeleton className="h-full w-full" />
           </div>
       );
@@ -82,8 +82,8 @@ const TournamentSlider = ({ tournaments, loading }: { tournaments: Tournament[],
 
   if (tournaments.length === 0) {
     return (
-      <Card className="flex items-center justify-center h-32 bg-muted">
-        <p className="text-muted-foreground">No tournaments available right now.</p>
+      <Card className="flex items-center justify-center h-24 bg-muted">
+        <p className="text-muted-foreground text-sm">No tournaments available right now.</p>
       </Card>
     );
   }
@@ -95,7 +95,7 @@ const TournamentSlider = ({ tournaments, loading }: { tournaments: Tournament[],
           <div className="relative flex-[0_0_100%] pl-4" key={tournament.id}>
             <Link href={`/tournaments/${tournament.id}`}>
               <Card className="overflow-hidden">
-                <div className="relative aspect-[21/9] w-full">
+                <div className="relative aspect-[3/1] w-full">
                   <Image
                     src={tournament.bannerImageUrl || `https://picsum.photos/seed/${tournament.id}/800/400`}
                     alt={tournament.name}
@@ -103,10 +103,10 @@ const TournamentSlider = ({ tournaments, loading }: { tournaments: Tournament[],
                     className="object-cover"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
-                  <div className="absolute bottom-0 left-0 p-4 text-white">
-                    <Badge className="mb-2">{tournament.status.toUpperCase()}</Badge>
-                    <h3 className="text-lg font-bold">{tournament.name}</h3>
-                    <p className="text-sm">Prize Pool: <span className="font-bold text-green-400">₹{tournament.prizePool.toLocaleString()}</span></p>
+                  <div className="absolute bottom-0 left-0 p-2 text-white">
+                    <Badge className="mb-1 text-xs">{tournament.status.toUpperCase()}</Badge>
+                    <h3 className="text-base font-bold">{tournament.name}</h3>
+                    <p className="text-xs">Prize Pool: <span className="font-bold text-green-400">₹{tournament.prizePool.toLocaleString()}</span></p>
                   </div>
                 </div>
               </Card>
@@ -121,14 +121,14 @@ const TournamentSlider = ({ tournaments, loading }: { tournaments: Tournament[],
 const ActionCard = ({ title, href, icon: Icon, badgeText }: { title: string, href: string, icon: React.ElementType, badgeText?: string }) => (
     <Link href={href} className="block hover:scale-[1.02] transition-transform duration-300">
         <Card className="h-full bg-card shadow-lg hover:shadow-primary/20 border-border hover:border-primary/50 text-center">
-            <CardHeader className="p-4 items-center">
-                <div className="relative mb-2">
-                    <div className="p-3 bg-primary/10 rounded-lg inline-block">
-                        <Icon className="h-6 w-6 text-primary"/>
+            <CardHeader className="p-3 items-center">
+                <div className="relative mb-1.5">
+                    <div className="p-2 bg-primary/10 rounded-lg inline-block">
+                        <Icon className="h-5 w-5 text-primary"/>
                     </div>
-                    {badgeText && <Badge variant="destructive" className="absolute -top-2 -right-2">{badgeText}</Badge>}
+                    {badgeText && <Badge variant="destructive" className="absolute -top-2 -right-2 text-xs px-1.5 h-5">{badgeText}</Badge>}
                 </div>
-                <CardTitle className="text-sm">{title}</CardTitle>
+                <CardTitle className="text-xs">{title}</CardTitle>
             </CardHeader>
         </Card>
     </Link>
@@ -183,14 +183,14 @@ export default function DashboardPage() {
     const loading = userLoading || loadingStats;
 
     return (
-        <div className="flex-1 space-y-6">
+        <div className="flex-1 space-y-4">
             <ImageSlider />
             <AnimatedWelcome name={userProfile?.displayName || 'Champion'}/>
             
             <TournamentSlider tournaments={tournaments} loading={loadingTournaments} />
             
             {/* Stat Cards */}
-            <div className="grid gap-4 grid-cols-2 md:grid-cols-4">
+            <div className="grid gap-3 grid-cols-2 md:grid-cols-4">
                 <StatCard title="Wallet" value={`₹${stats.walletBalance.toFixed(2)}`} icon={Zap} loading={loading} />
                 <StatCard title="Winnings" value={`₹${stats.winnings.toFixed(2)}`} icon={Trophy} loading={loading} />
                 <StatCard title="Matches" value={stats.matchesPlayed} icon={Users} loading={loading} />
@@ -198,7 +198,7 @@ export default function DashboardPage() {
             </div>
 
             {/* Action Cards */}
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-3 gap-3">
                  <ActionCard 
                     title="Active Matches"
                     href="/lobby"

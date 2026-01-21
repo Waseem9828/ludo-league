@@ -44,7 +44,7 @@ export const ImageSlider = () => {
 
   if (loading) {
       return (
-          <div className="relative w-full aspect-video rounded-lg overflow-hidden shadow-lg mb-6">
+          <div className="relative w-full aspect-[21/9] rounded-lg overflow-hidden shadow-lg mb-4">
               <Skeleton className="h-full w-full" />
           </div>
       )
@@ -56,7 +56,7 @@ export const ImageSlider = () => {
 
 
   return (
-    <div className="relative w-full aspect-video rounded-lg overflow-hidden shadow-lg mb-6" ref={emblaRef}>
+    <div className="relative w-full aspect-[21/9] rounded-lg overflow-hidden shadow-lg mb-4" ref={emblaRef}>
         <div className="flex h-full">
             {banners.map((banner, index) => (
                 <div className="relative flex-[0_0_100%] h-full" key={banner.id}>
