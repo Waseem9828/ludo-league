@@ -100,7 +100,16 @@ const UpiCard = ({ upi, onSetActive, onDelete, onEdit, isSaving }: { upi: UpiDat
         <DialogTrigger asChild>
           <Button variant={upi.isActive ? 'secondary' : 'ghost'} size="sm" className={upi.isActive ? '' : 'text-muted-foreground'}><QrCode className="h-5 w-5 mr-1" /> QR</Button>
         </DialogTrigger>
-        <DialogContent className="max-w-xs"><div className="p-4 flex flex-col items-center justify-center"><QRCode value={`upi://pay?pa=${upi.upiId}`} size={200} /><p className="mt-4 font-mono text-sm">{upi.upiId}</p></div></DialogContent>
+        <DialogContent className="max-w-xs">
+            <DialogHeader>
+                <DialogTitle>UPI QR Code</DialogTitle>
+                <DialogDescription>Scan to pay with any UPI app.</DialogDescription>
+            </DialogHeader>
+            <div className="p-4 flex flex-col items-center justify-center">
+                <QRCode value={`upi://pay?pa=${upi.upiId}`} size={200} />
+                <p className="mt-4 font-mono text-sm">{upi.upiId}</p>
+            </div>
+        </DialogContent>
       </Dialog>
       <Button variant={upi.isActive ? 'secondary' : 'ghost'} size="icon" onClick={() => onEdit(upi)} className={upi.isActive ? '' : 'text-muted-foreground'}><Edit className="h-4 w-4" /></Button>
       <AlertDialog>
@@ -368,7 +377,21 @@ export default function UpiManagementPage() {
                                 </div>
                             </TableCell>
                             <TableCell className="text-center">
-                            <Dialog><DialogTrigger asChild><Button variant="ghost" size="sm"><QrCode className="h-5 w-5" /></Button></DialogTrigger><DialogContent className="max-w-xs"><div className="p-4 flex flex-col items-center justify-center"><QRCode value={`upi://pay?pa=${upi.upiId}`} size={200} /><p className="mt-4 font-mono text-sm">{upi.upiId}</p></div></DialogContent></Dialog>
+                                <Dialog>
+                                    <DialogTrigger asChild>
+                                        <Button variant="ghost" size="sm"><QrCode className="h-5 w-5" /></Button>
+                                    </DialogTrigger>
+                                    <DialogContent className="max-w-xs">
+                                        <DialogHeader>
+                                            <DialogTitle>UPI QR Code</DialogTitle>
+                                            <DialogDescription>Scan to pay with any UPI app.</DialogDescription>
+                                        </DialogHeader>
+                                        <div className="p-4 flex flex-col items-center justify-center">
+                                            <QRCode value={`upi://pay?pa=${upi.upiId}`} size={200} />
+                                            <p className="mt-4 font-mono text-sm">{upi.upiId}</p>
+                                        </div>
+                                    </DialogContent>
+                                </Dialog>
                             </TableCell>
                             <TableCell className="text-center"><Switch checked={upi.isActive} onCheckedChange={() => handleSetActive(upi.id)} disabled={isSaving || upi.isActive} aria-label="Set active UPI"/></TableCell>
                             <TableCell className="text-right space-x-2">
@@ -395,4 +418,3 @@ export default function UpiManagementPage() {
     </div>
   );
 }
-
