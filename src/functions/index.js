@@ -185,6 +185,11 @@ exports.onTransactionCreate = functions.firestore
         return null;
     }
     
+    if (userId === 'platform') {
+        // This is a platform transaction, like commission. No user balance to update.
+        return null;
+    }
+    
     const userRef = db.collection('users').doc(userId);
 
     try {
@@ -239,7 +244,19 @@ exports.onDepositRequestUpdate = functions.firestore
 
   // Check if the deposit just got approved
   if (after.status === 'approved' && before.status !== 'approved') {
-    const { userId, amount } = after;
+    const { userId, amount, utr } = after;
+
+    // --- Create Transaction First ---
+    // This will trigger onTransactionCreate to update the wallet balance.
+    const transactionRef = db.collection('transactions').doc();
+    await transactionRef.set({
+        userId: userId,
+        type: 'deposit',
+        amount: amount,
+        status: 'completed',
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        description: `Deposit approved via UTR: ${utr}`,
+    });
 
     // Send a notification to the user
     await sendNotification(
@@ -264,7 +281,7 @@ exports.onDepositRequestUpdate = functions.firestore
 
                 if (newReceivedAmount >= upiConfigData.paymentLimit) {
                     // Limit reached, find a new UPI to activate
-                    const nextUpiQuery = db.collection('upiConfiguration').where('isActive', '==', false).where('id', '!=', activeUpiData.activeUpiRef).limit(1);
+                    const nextUpiQuery = db.collection('upiConfiguration').where('isActive', '==', false).limit(1);
                     const nextUpiSnapshot = await nextUpiQuery.get();
                     
                     if(!nextUpiSnapshot.empty) {
@@ -829,11 +846,26 @@ exports.distributeTournamentWinnings = functions.https.onCall(async (data, conte
             }
         });
 
-        // Changed from TypeScript to JavaScript for sorting
-
         const sortedPlayers = Object.entries(playerWins).sort(([, winsA], [, winsB]) => winsB - winsA);
 
         const batch = db.batch();
+        
+        const totalCollected = tournamentData.entryFee * tournamentData.filledSlots;
+        const commission = totalCollected - tournamentData.prizePool;
+
+        if (commission > 0) {
+            const commissionTransactionRef = db.collection('transactions').doc();
+            batch.set(commissionTransactionRef, {
+                userId: 'platform',
+                type: 'tournament_commission',
+                amount: commission,
+                status: 'completed',
+                createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                relatedTournamentId: tournamentId,
+                description: `Commission from ${tournamentData.name}`,
+            });
+        }
+        
         let rank = 1;
         for (const [playerId, wins] of sortedPlayers) {
             const prizeAmount = prizeDistribution[String(rank)];
@@ -865,3 +897,5 @@ exports.distributeTournamentWinnings = functions.https.onCall(async (data, conte
         throw new HttpsError('internal', 'An unexpected error occurred.', error);
     }
 });
+
+    

@@ -25,7 +25,7 @@ import { cn } from "@/lib/utils"
 import { ArrowDownLeft, ArrowUpRight, UploadCloud, DownloadCloud, Landmark, Wallet as WalletIcon, AlertCircle, Loader2, ScanBarcode, ExternalLink, History, ArrowLeft } from "lucide-react"
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert"
 import { useUser, useFirestore, storage } from "@/firebase"
-import { collection, query, where, onSnapshot, orderBy, addDoc, serverTimestamp, doc, limit } from "firebase/firestore"
+import { collection, query, where, onSnapshot, orderBy, addDoc, serverTimestamp, doc, limit, type QueryDocumentSnapshot } from "firebase/firestore"
 import { useEffect, useState, useMemo } from "react"
 import type { Transaction, UpiConfiguration, DepositRequest, WithdrawalRequest } from "@/lib/types"
 import { useToast } from "@/hooks/use-toast"
@@ -153,7 +153,7 @@ export default function WalletPage() {
     }
     setHistoryLoading(true);
     const unsubscribeDeposits = onSnapshot(depositsQuery, (snapshot) => {
-        const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as DepositRequest));
+        const data = snapshot.docs.map((doc: QueryDocumentSnapshot) => ({ id: doc.id, ...doc.data() } as DepositRequest));
         setDepositHistory(data);
     }, (error) => {
        errorEmitter.emit('permission-error', new FirestorePermissionError({
@@ -163,7 +163,7 @@ export default function WalletPage() {
     });
     
     const unsubscribeWithdrawals = onSnapshot(withdrawalsQuery, (snapshot) => {
-        const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as WithdrawalRequest));
+        const data = snapshot.docs.map((doc: QueryDocumentSnapshot) => ({ id: doc.id, ...doc.data() } as WithdrawalRequest));
         setWithdrawalHistory(data);
     }, (error) => {
          errorEmitter.emit('permission-error', new FirestorePermissionError({
@@ -250,7 +250,7 @@ export default function WalletPage() {
             status: 'pending',
             createdAt: serverTimestamp(),
             userName: user.displayName, // For easier review in admin panel
-        } as Omit<DepositRequest, 'id'>);
+        });
         
         toast({ id: toastId, title: "Deposit request submitted successfully.", description: "Your request is under review and will be processed shortly.", className: 'bg-green-100 text-green-800' });
         (e.target as HTMLFormElement).reset();
@@ -300,7 +300,7 @@ export default function WalletPage() {
             upiId: userProfile.upiId || '',
             bankDetails: userProfile.bankDetails || '',
             userName: user.displayName, // For admin panel
-        } as Omit<WithdrawalRequest, 'id'>);
+        });
         toast({ title: "Withdrawal request submitted successfully." });
         (e.target as HTMLFormElement).reset();
     } catch(error: any) {
@@ -524,3 +524,5 @@ export default function WalletPage() {
     </div>
   )
 }
+
+    
