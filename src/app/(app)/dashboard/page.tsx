@@ -15,6 +15,7 @@ import useEmblaCarousel from 'embla-carousel-react';
 import Autoplay from 'embla-carousel-autoplay';
 import { motion } from 'framer-motion';
 import { Badge } from '@/components/ui/badge';
+import { ImageSlider } from '@/components/app/ImageSlider';
 
 // Welcome Message Component
 const AnimatedWelcome = ({ name }: { name: string }) => {
@@ -185,6 +186,7 @@ export default function DashboardPage() {
 
     return (
         <div className="flex-1 space-y-6">
+            <ImageSlider />
             <AnimatedWelcome name={userProfile?.displayName || 'Champion'}/>
             
             <TournamentSlider tournaments={tournaments} loading={loadingTournaments} />
