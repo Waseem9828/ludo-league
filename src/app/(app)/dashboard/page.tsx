@@ -5,9 +5,8 @@ import { useState, useEffect } from 'react';
 import { useUser } from '@/firebase/auth/use-user';
 import { useFirestore } from '@/firebase';
 import { collection, query, where, orderBy, limit, onSnapshot, QuerySnapshot, DocumentData } from 'firebase/firestore';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import { Tournament } from '@/lib/types';
-import { TrendingUp, Zap, Users, Trophy, Swords, Gift, Award } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -17,57 +16,6 @@ import { motion } from 'framer-motion';
 import { Badge } from '@/components/ui/badge';
 import { ImageSlider } from '@/components/app/ImageSlider';
 
-// Welcome Message Component
-const AnimatedWelcome = ({ name }: { name: string }) => {
-    const welcomeText = `Welcome back, ${name}!`;
-    
-    const sentence = {
-        hidden: { opacity: 1 },
-        visible: {
-            opacity: 1,
-            transition: {
-                delay: 0.1,
-                staggerChildren: 0.05,
-            },
-        },
-    };
-
-    const letter = {
-        hidden: { opacity: 0, y: 20 },
-        visible: {
-            opacity: 1,
-            y: 0,
-        },
-    };
-
-    return (
-        <motion.h2 
-            className="text-xl font-bold tracking-tight text-gradient-primary mb-3 text-center"
-            variants={sentence}
-            initial="hidden"
-            animate="visible"
-        >
-            {welcomeText.split("").map((char, index) => (
-                <motion.span key={char + "-" + index} variants={letter}>
-                    {char}
-                </motion.span>
-            ))}
-        </motion.h2>
-    );
-};
-
-
-const StatCard = ({ title, value, icon: Icon, loading }: { title: string, value: string | number, icon: React.ElementType, loading: boolean }) => (
-    <Card className="hover:shadow-lg transition-shadow">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1">
-            <CardTitle className="text-xs font-medium">{title}</CardTitle>
-            <Icon className="h-4 w-4 text-primary" />
-        </CardHeader>
-        <CardContent>
-            {loading ? <Skeleton className="h-7 w-1/2" /> : <div className="text-xl font-bold text-gradient-primary">{value}</div>}
-        </CardContent>
-    </Card>
-);
 
 const TournamentSlider = ({ tournaments, loading }: { tournaments: Tournament[], loading: boolean }) => {
   const [emblaRef] = useEmblaCarousel({ loop: true, align: 'start' }, [Autoplay({ delay: 5000 })]);
@@ -118,42 +66,45 @@ const TournamentSlider = ({ tournaments, loading }: { tournaments: Tournament[],
   );
 };
 
-const ActionCard = ({ title, href, icon: Icon, badgeText }: { title: string, href: string, icon: React.ElementType, badgeText?: string }) => (
-    <Link href={href} className="block hover:scale-[1.02] transition-transform duration-300">
-        <Card className="h-full bg-card shadow-lg hover:shadow-primary/20 border-border hover:border-primary/50 text-center">
-            <CardHeader className="p-3 items-center">
-                <div className="relative mb-1.5">
-                    <div className="p-2 bg-primary/10 rounded-lg inline-block">
-                        <Icon className="h-5 w-5 text-primary"/>
+
+const DashboardCard = ({ title, value, imageUrls, href, badgeText, index }: { title: string; value?: string | number; imageUrls: string[]; href: string; badgeText?: string; index: number; }) => {
+  const [emblaRef] = useEmblaCarousel({ loop: true }, [Autoplay({ delay: 3500 + (index * 250), stopOnInteraction: false })]);
+
+  return (
+    <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: index * 0.05 }}
+    >
+        <Link href={href} className="block group">
+            <Card className="relative overflow-hidden rounded-lg shadow-lg aspect-square">
+                <div className="overflow-hidden h-full" ref={emblaRef}>
+                    <div className="flex h-full">
+                        {imageUrls.map((url, i) => (
+                            <div className="relative flex-[0_0_100%] h-full" key={i}>
+                                <Image src={url} alt={`${title} image ${i + 1}`} fill className="object-cover transition-transform duration-500 group-hover:scale-105" />
+                            </div>
+                        ))}
                     </div>
-                    {badgeText && <Badge variant="destructive" className="absolute -top-2 -right-2 text-xs px-1.5 h-5">{badgeText}</Badge>}
                 </div>
-                <CardTitle className="text-xs">{title}</CardTitle>
-            </CardHeader>
-        </Card>
-    </Link>
-);
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/50 to-transparent" />
+                <div className="absolute bottom-0 left-0 right-0 p-4 text-white">
+                    <h3 className="font-semibold text-base">{title}</h3>
+                    {value !== undefined && <p className="text-2xl font-bold">{value}</p>}
+                </div>
+                {badgeText && <Badge variant="destructive" className="absolute top-2 right-2">{badgeText}</Badge>}
+            </Card>
+        </Link>
+    </motion.div>
+  );
+};
 
 
 export default function DashboardPage() {
-    const { user, userProfile, loading: userLoading } = useUser();
+    const { user, userProfile } = useUser();
     const firestore = useFirestore();
-    const [stats, setStats] = useState({ walletBalance: 0, winnings: 0, matchesPlayed: 0 });
-    const [loadingStats, setLoadingStats] = useState(true);
     const [tournaments, setTournaments] = useState<Tournament[]>([]);
     const [loadingTournaments, setLoadingTournaments] = useState(true);
-
-    useEffect(() => {
-        if (user && userProfile) {
-            setLoadingStats(true);
-            setStats({
-                walletBalance: userProfile.walletBalance || 0,
-                winnings: userProfile.winnings || 0,
-                matchesPlayed: userProfile.totalMatchesPlayed || 0,
-            });
-            setLoadingStats(false);
-        }
-    }, [user, userProfile]);
 
     useEffect(() => {
         if (!firestore) return;
@@ -180,41 +131,96 @@ export default function DashboardPage() {
     }, [firestore]);
 
 
-    const loading = userLoading || loadingStats;
+    const cardsData = [
+      {
+        id: 'wallet',
+        title: 'Wallet',
+        value: `₹${userProfile?.walletBalance?.toFixed(2) || '0.00'}`,
+        href: '/wallet',
+        imageUrls: [
+          `https://picsum.photos/seed/wallet1/400/400`,
+          `https://picsum.photos/seed/wallet2/400/400`,
+        ],
+      },
+      {
+        id: 'winnings',
+        title: 'Winnings',
+        value: `₹${userProfile?.winnings?.toFixed(2) || '0.00'}`,
+        href: '/profile',
+        imageUrls: [
+          `https://picsum.photos/seed/winnings1/400/400`,
+          `https://picsum.photos/seed/winnings2/400/400`,
+        ],
+      },
+      {
+        id: 'matches',
+        title: 'Matches Played',
+        value: userProfile?.totalMatchesPlayed || 0,
+        href: '/profile',
+        imageUrls: [
+          `https://picsum.photos/seed/matches1/400/400`,
+          `https://picsum.photos/seed/matches2/400/400`,
+        ],
+      },
+      {
+        id: 'winrate',
+        title: 'Win Rate',
+        value: `${userProfile?.winRate?.toFixed(0) || 0}%`,
+        href: '/leaderboard',
+        imageUrls: [
+          `https://picsum.photos/seed/winrate1/400/400`,
+          `https://picsum.photos/seed/winrate2/400/400`,
+        ],
+      },
+      {
+        id: 'active_matches',
+        title: 'Active Matches',
+        href: '/lobby',
+        badgeText: (userProfile?.activeMatchIds?.length || 0) > 0 ? userProfile?.activeMatchIds?.length.toString() : undefined,
+        imageUrls: [
+          `https://picsum.photos/seed/active1/400/400`,
+          `https://picsum.photos/seed/active2/400/400`,
+        ],
+      },
+       {
+        id: 'referral',
+        title: 'Referral Fund',
+        href: '/referrals',
+        imageUrls: [
+          `https://picsum.photos/seed/referral1/400/400`,
+          `https://picsum.photos/seed/referral2/400/400`,
+        ],
+      },
+       {
+        id: 'bonus',
+        title: 'Daily Bonus',
+        href: '/wallet',
+        imageUrls: [
+          `https://picsum.photos/seed/bonus1/400/400`,
+          `https://picsum.photos/seed/bonus2/400/400`,
+        ],
+      },
+    ];
 
     return (
         <div className="flex-1 space-y-4">
             <ImageSlider />
-            <AnimatedWelcome name={userProfile?.displayName || 'Champion'}/>
+            <h1 className="text-xl font-bold tracking-tight text-center">Welcome back, {userProfile?.displayName || 'Champion'}!</h1>
             
             <TournamentSlider tournaments={tournaments} loading={loadingTournaments} />
             
-            {/* Stat Cards */}
-            <div className="grid gap-3 grid-cols-2 md:grid-cols-4">
-                <StatCard title="Wallet" value={`₹${stats.walletBalance.toFixed(2)}`} icon={Zap} loading={loading} />
-                <StatCard title="Winnings" value={`₹${stats.winnings.toFixed(2)}`} icon={Trophy} loading={loading} />
-                <StatCard title="Matches" value={stats.matchesPlayed} icon={Users} loading={loading} />
-                <StatCard title="Win Rate" value={`${userProfile?.winRate?.toFixed(0) || 0}%`} icon={TrendingUp} loading={loading} />
-            </div>
-
-            {/* Action Cards */}
-            <div className="grid grid-cols-3 gap-3">
-                 <ActionCard 
-                    title="Active Matches"
-                    href="/lobby"
-                    icon={Swords}
-                    badgeText={(userProfile?.activeMatchIds?.length || 0) > 0 ? userProfile?.activeMatchIds?.length.toString() : undefined}
-                 />
-                 <ActionCard 
-                    title="Referral Fund"
-                    href="/referrals"
-                    icon={Gift}
-                 />
-                 <ActionCard 
-                    title="Daily Bonus"
-                    href="/wallet" // Linking to wallet as bonus page doesn't exist
-                    icon={Award}
-                 />
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {cardsData.map((card, index) => (
+                    <DashboardCard 
+                        key={card.id}
+                        title={card.title}
+                        value={card.value}
+                        imageUrls={card.imageUrls}
+                        href={card.href}
+                        badgeText={card.badgeText}
+                        index={index}
+                    />
+                ))}
             </div>
             
         </div>
