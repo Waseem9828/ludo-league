@@ -11,6 +11,7 @@ import { AppSidebar } from "@/components/app/AppSidebar";
 import { FcmInitializer } from "@/components/app/fcm-initializer";
 import { usePathname } from 'next/navigation';
 import { PromotionBanner } from '@/components/app/PromotionBanner';
+import { BottomNav } from '@/components/app/bottom-nav';
 
 
 function AppLayoutContent({ children }: { children: React.ReactNode }) {
@@ -52,7 +53,7 @@ function AppLayoutContent({ children }: { children: React.ReactNode }) {
         </SheetContent>
       </Sheet>
 
-      <main className='lg:col-span-10 bg-gradient-primary'>
+      <main className='lg:col-span-10 bg-gradient-primary pb-16 md:pb-0'>
         <div className="p-4">
             <AppHeader />
         </div>
@@ -62,6 +63,7 @@ function AppLayoutContent({ children }: { children: React.ReactNode }) {
         <FirebaseErrorListener />
         <FcmInitializer />
       </main>
+      <BottomNav />
     </div>
   );
 }

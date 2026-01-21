@@ -10,6 +10,8 @@ import { Wallet2, Menu } from "lucide-react";
 import { motion } from 'framer-motion';
 import { useSidebar } from "./ui/sidebar";
 import { Button } from "./ui/button";
+import { usePathname } from "next/navigation";
+import { cn } from "@/lib/utils";
 
 const WalletBalance = () => {
     const { userProfile, loading } = useUser();
@@ -50,16 +52,22 @@ const letter = {
 export default function AppHeader() {
     const { setIsOpen } = useSidebar();
     const appName = "Ludo League";
+    const pathname = usePathname();
+    const isAdminPage = pathname.startsWith('/admin');
+
     return (
         <div className="flex w-full items-center justify-between gap-2">
             <div className="flex items-center gap-2">
-                <Button variant="ghost" size="icon" className="lg:hidden text-primary-foreground hover:bg-white/20 flex-shrink-0" onClick={() => setIsOpen(true)}>
+                <Button variant="ghost" size="icon" className={cn("lg:hidden flex-shrink-0", isAdminPage ? "text-foreground hover:bg-muted" : "text-primary-foreground hover:bg-white/20")} onClick={() => setIsOpen(true)}>
                     <Menu />
                 </Button>
                 <Link href="/dashboard" className="flex items-center gap-2 flex-shrink-0">
                     <Image src="/icon-192x192.png" alt="Ludo League Logo" width={32} height={32} />
                     <motion.h1 
-                        className="text-lg md:text-xl font-bold text-white tracking-wider flex overflow-hidden"
+                        className={cn(
+                            "text-lg md:text-xl font-bold tracking-wider flex overflow-hidden",
+                            !isAdminPage && "text-white"
+                        )}
                         variants={sentence}
                         initial="hidden"
                         animate="visible"
@@ -74,9 +82,11 @@ export default function AppHeader() {
             </div>
             
             <div className="flex items-center justify-end gap-2 flex-shrink-0">
-                <NoSsr>
-                    <WalletBalance />
-                </NoSsr>
+                {!isAdminPage && (
+                    <NoSsr>
+                        <WalletBalance />
+                    </NoSsr>
+                )}
                 <NoSsr>
                     <UserNav />
                 </NoSsr>

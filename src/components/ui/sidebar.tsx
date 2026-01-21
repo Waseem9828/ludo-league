@@ -232,8 +232,8 @@ const NavItemLink = ({ item, isCollapsed }: NavItemProps) => {
     const pathname = usePathname();
     const linkClasses = cn(
         buttonVariants({ variant: "ghost" }),
-        "w-full justify-start",
-        pathname === item.href && "bg-muted text-primary hover:bg-muted hover:text-primary",
+        "w-full justify-start text-muted-foreground hover:bg-muted/50 hover:text-primary",
+        pathname === item.href && "bg-primary/10 text-primary font-semibold hover:bg-primary/10 hover:text-primary",
     );
 
     const Icon = item.icon;
@@ -316,7 +316,7 @@ const NavItemGroup = ({ item, isCollapsed }: NavItemProps) => {
     return (
         <Collapsible open={!isCollapsed && isOpen} onOpenChange={setIsOpen}>
             <CollapsibleTrigger asChild>
-                <div className={cn(buttonVariants({ variant: "ghost" }), "w-full justify-start cursor-pointer")}>
+                <div className={cn(buttonVariants({ variant: "ghost" }), "w-full justify-start cursor-pointer text-muted-foreground hover:text-primary")}>
                     <Icon className={cn("h-5 w-5", !isCollapsed && "mr-2")} />
                     {!isCollapsed && (
                         <>
