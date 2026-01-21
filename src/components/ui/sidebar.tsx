@@ -370,7 +370,7 @@ function AdminSidebarNav({ className, inSheet }: { className?: string, inSheet?:
     );
 }
 
-export const AdminSidebar = () => (
+export const AdminSidebar = ({ inSheet }: { inSheet?: boolean }) => (
     <div className="flex flex-col h-full bg-card border-r">
          <div className="p-4 border-b">
             <Link href="/admin/dashboard" className="flex items-center gap-2 font-bold text-lg">
@@ -378,7 +378,7 @@ export const AdminSidebar = () => (
                 <span>Admin Panel</span>
             </Link>
         </div>
-        <AdminSidebarNav className="flex-1 overflow-y-auto" />
+        <AdminSidebarNav className="flex-1 overflow-y-auto" inSheet={inSheet} />
     </div>
 );
 

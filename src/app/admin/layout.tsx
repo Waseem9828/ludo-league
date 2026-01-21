@@ -47,7 +47,7 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
                         Main navigation menu for the admin panel.
                     </SheetDescription>
                 </SheetHeader>
-                <AdminSidebar />
+                <AdminSidebar inSheet={true} />
             </SheetContent>
         </Sheet>
 
