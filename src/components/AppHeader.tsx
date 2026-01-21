@@ -6,11 +6,10 @@ import Link from "next/link";
 import NoSsr from "@/components/NoSsr";
 import { UserNav } from "@/components/app/user-nav";
 import { useUser } from "@/firebase";
-import { Wallet2 } from "lucide-react";
+import { Wallet2, Menu } from "lucide-react";
 import { motion } from 'framer-motion';
-import { SheetTrigger } from "./ui/sheet";
+import { useSidebar } from "./ui/sidebar";
 import { Button } from "./ui/button";
-import { Menu } from "lucide-react";
 
 const WalletBalance = () => {
     const { userProfile, loading } = useUser();
@@ -49,15 +48,14 @@ const letter = {
 };
   
 export default function AppHeader() {
+    const { setIsOpen } = useSidebar();
     const appName = "Ludo League";
     return (
         <div className="flex w-full items-center justify-between gap-2">
             <div className="flex items-center gap-2">
-                <SheetTrigger asChild>
-                    <Button variant="ghost" size="icon" className="md:hidden text-primary-foreground hover:bg-white/20 flex-shrink-0">
-                        <Menu />
-                    </Button>
-                </SheetTrigger>
+                <Button variant="ghost" size="icon" className="md:hidden text-primary-foreground hover:bg-white/20 flex-shrink-0" onClick={() => setIsOpen(true)}>
+                    <Menu />
+                </Button>
                 <Link href="/dashboard" className="flex items-center gap-2 flex-shrink-0">
                     <Image src="/icon-192x192.png" alt="Ludo League Logo" width={32} height={32} />
                     <motion.h1 
