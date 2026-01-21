@@ -5,8 +5,6 @@ import { Toaster } from '@/components/ui/toaster';
 import { FirebaseClientProvider } from '@/firebase/client-provider';
 import { FirebaseErrorListener } from '@/components/FirebaseErrorListener';
 import { Inter } from 'next/font/google';
-import { RippleEffect } from '@/components/ui/ripple-effect';
-import { ClickSound } from '@/components/app/click-sound';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 
@@ -31,8 +29,6 @@ export default function RootLayout({
             {children}
             <Toaster />
             <FirebaseErrorListener />
-            <RippleEffect />
-            <ClickSound />
         </FirebaseClientProvider>
       </body>
     </html>

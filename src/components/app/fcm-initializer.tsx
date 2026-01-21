@@ -10,7 +10,6 @@ import { doc, setDoc } from 'firebase/firestore';
 export function FcmInitializer() {
   const { toast } = useToast();
   const { user } = useUser();
-  const notificationAudioRef = useRef<HTMLAudioElement>(null);
 
   useEffect(() => {
     if (typeof window === 'undefined' || !messaging || !user) {
@@ -44,7 +43,6 @@ export function FcmInitializer() {
 
     const unsubscribe = onMessage(messaging, (payload) => {
       console.log('Message received. ', payload);
-      notificationAudioRef.current?.play().catch(error => console.error("Notification sound failed:", error));
       
       toast({
         title: payload.notification?.title || 'New Notification',
@@ -58,5 +56,5 @@ export function FcmInitializer() {
 
   }, [user, toast]);
 
-  return <audio ref={notificationAudioRef} src="/sounds/notification.mp3" preload="auto" />; 
+  return null;
 }
