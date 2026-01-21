@@ -370,8 +370,8 @@ function AdminSidebarNav({ className, inSheet }: { className?: string, inSheet?:
     );
 }
 
-export const Sidebar = () => (
-    <div className="flex flex-col h-full">
+export const AdminSidebar = () => (
+    <div className="flex flex-col h-full bg-card border-r">
          <div className="p-4 border-b">
             <Link href="/admin/dashboard" className="flex items-center gap-2 font-bold text-lg">
                 <AppLogo />
@@ -379,6 +379,12 @@ export const Sidebar = () => (
             </Link>
         </div>
         <AdminSidebarNav className="flex-1 overflow-y-auto" />
+    </div>
+);
+
+export const Sidebar = ({ children, className }: { children: React.ReactNode, className?: string }) => (
+    <div className={cn("flex flex-col h-full bg-card border-r", className)}>
+        {children}
     </div>
 );
 

@@ -1,4 +1,3 @@
-
 'use client';
 
 import { Toaster } from '@/components/ui/toaster';
@@ -7,7 +6,7 @@ import AppHeader from '@/components/AppHeader';
 import { useAuthGuard } from '@/hooks/useAuthGuard';
 import CustomLoader from '@/components/CustomLoader';
 import { FirebaseErrorListener } from '@/components/FirebaseErrorListener';
-import { SidebarProvider, useSidebar, Sidebar } from '@/components/ui/sidebar';
+import { SidebarProvider, useSidebar, AdminSidebar } from '@/components/ui/sidebar';
 import { useAdminOnly } from '@/hooks/useAdminOnly';
 
 function AdminLayoutContent({ children }: { children: React.ReactNode }) {
@@ -36,13 +35,13 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
   return (
     <div className='lg:grid lg:grid-cols-12 min-h-screen'>
         <div className="hidden lg:block lg:col-span-2">
-           <Sidebar />
+           <AdminSidebar />
         </div>
 
         {/* Mobile sidebar */}
         <Sheet open={isOpen} onOpenChange={setIsOpen}>
             <SheetContent side="left" className="w-64 p-0">
-                <Sidebar />
+                <AdminSidebar />
             </SheetContent>
         </Sheet>
 

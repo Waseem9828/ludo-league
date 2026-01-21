@@ -1,4 +1,3 @@
-
 'use client';
 
 import { Toaster } from '@/components/ui/toaster';
@@ -7,7 +6,7 @@ import AppHeader from '@/components/AppHeader';
 import { useAuthGuard } from '@/hooks/useAuthGuard';
 import CustomLoader from '@/components/CustomLoader';
 import { FirebaseErrorListener } from '@/components/FirebaseErrorListener';
-import { SidebarProvider, useSidebar } from '@/components/ui/sidebar'; // Corrected import
+import { SidebarProvider, useSidebar } from '@/components/ui/sidebar';
 import { AppSidebar } from "@/components/app/AppSidebar";
 import { FcmInitializer } from "@/components/app/fcm-initializer";
 import { usePathname } from 'next/navigation';
@@ -47,10 +46,12 @@ function AppLayoutContent({ children }: { children: React.ReactNode }) {
         </SheetContent>
       </Sheet>
 
-      <main className='lg:col-span-10 px-4'>
-        <AppHeader />
+      <main className='lg:col-span-10 bg-gradient-primary'>
+        <div className="p-4">
+            <AppHeader />
+        </div>
         <PromotionBanner />
-        <div className='py-4'>{children}</div>
+        <div className='py-4 px-4 bg-background rounded-t-2xl min-h-[calc(100vh-88px)]'>{children}</div>
         <Toaster />
         <FirebaseErrorListener />
         <FcmInitializer />
