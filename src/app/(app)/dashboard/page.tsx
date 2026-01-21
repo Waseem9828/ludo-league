@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useUser } from '@/firebase/auth/use-user';
 import { useFirestore } from '@/firebase';
 import { collection, query, where, onSnapshot, QuerySnapshot, DocumentData, orderBy, limit } from 'firebase/firestore';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import type { Tournament } from '@/lib/types';
 import Link from 'next/link';
 import Image from 'next/image';
