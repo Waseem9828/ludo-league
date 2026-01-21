@@ -4,16 +4,59 @@
 import { useState, useEffect } from 'react';
 import { useUser } from '@/firebase/auth/use-user';
 import { useFirestore } from '@/firebase';
-import { doc, getDoc, collection, query, where, getDocs, orderBy, limit, DocumentSnapshot } from 'firebase/firestore';
+import { collection, query, where, orderBy, limit, onSnapshot, QuerySnapshot, DocumentData } from 'firebase/firestore';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Match, Tournament, UserProfile } from '@/lib/types';
-import { TrendingUp, Zap, Users, Trophy, ChevronRight, Swords } from 'lucide-react';
+import { Tournament } from '@/lib/types';
+import { TrendingUp, Zap, Users, Trophy, Swords, Gift, Award } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ImageSlider } from '@/components/app/ImageSlider';
+import useEmblaCarousel from 'embla-carousel-react';
+import Autoplay from 'embla-carousel-autoplay';
+import { motion } from 'framer-motion';
+import { Badge } from '@/components/ui/badge';
 
-const StatCard = ({ title, value, icon: Icon, link, loading }: { title: string, value: string | number, icon: React.ElementType, link?: string, loading: boolean }) => (
+// Welcome Message Component
+const AnimatedWelcome = ({ name }: { name: string }) => {
+    const welcomeText = `Welcome back, ${name}!`;
+    
+    const sentence = {
+        hidden: { opacity: 1 },
+        visible: {
+            opacity: 1,
+            transition: {
+                delay: 0.1,
+                staggerChildren: 0.05,
+            },
+        },
+    };
+
+    const letter = {
+        hidden: { opacity: 0, y: 20 },
+        visible: {
+            opacity: 1,
+            y: 0,
+        },
+    };
+
+    return (
+        <motion.h2 
+            className="text-2xl font-bold tracking-tight text-gradient-primary mb-4 text-center"
+            variants={sentence}
+            initial="hidden"
+            animate="visible"
+        >
+            {welcomeText.split("").map((char, index) => (
+                <motion.span key={char + "-" + index} variants={letter}>
+                    {char}
+                </motion.span>
+            ))}
+        </motion.h2>
+    );
+};
+
+
+const StatCard = ({ title, value, icon: Icon, loading }: { title: string, value: string | number, icon: React.ElementType, loading: boolean }) => (
     <Card className="hover:shadow-lg transition-shadow">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">{title}</CardTitle>
@@ -21,188 +64,158 @@ const StatCard = ({ title, value, icon: Icon, link, loading }: { title: string, 
         </CardHeader>
         <CardContent>
             {loading ? <Skeleton className="h-8 w-1/2" /> : <div className="text-2xl font-bold text-gradient-primary">{value}</div>}
-            {link && !loading && (
-                <Link href={link} className="text-xs text-muted-foreground hover:text-primary transition-colors">
-                    View all
-                </Link>
-            )}
         </CardContent>
     </Card>
 );
 
+const TournamentSlider = ({ tournaments, loading }: { tournaments: Tournament[], loading: boolean }) => {
+  const [emblaRef] = useEmblaCarousel({ loop: true, align: 'start' }, [Autoplay({ delay: 5000 })]);
+
+  if (loading) {
+      return (
+          <div className="relative w-full aspect-video rounded-lg overflow-hidden shadow-lg">
+              <Skeleton className="h-full w-full" />
+          </div>
+      );
+  }
+
+  if (tournaments.length === 0) {
+    return (
+      <Card className="flex items-center justify-center h-48 bg-muted">
+        <p className="text-muted-foreground">No tournaments available right now.</p>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="overflow-hidden rounded-lg shadow-lg" ref={emblaRef}>
+      <div className="flex -ml-4">
+        {tournaments.map((tournament) => (
+          <div className="relative flex-[0_0_100%] pl-4" key={tournament.id}>
+            <Link href={`/tournaments/${tournament.id}`}>
+              <Card className="overflow-hidden">
+                <div className="relative aspect-video w-full">
+                  <Image
+                    src={tournament.bannerImageUrl || `https://picsum.photos/seed/${tournament.id}/800/400`}
+                    alt={tournament.name}
+                    fill
+                    className="object-cover"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
+                  <div className="absolute bottom-0 left-0 p-4 text-white">
+                    <Badge className="mb-2">{tournament.status.toUpperCase()}</Badge>
+                    <h3 className="text-lg font-bold">{tournament.name}</h3>
+                    <p className="text-sm">Prize Pool: <span className="font-bold text-green-400">₹{tournament.prizePool.toLocaleString()}</span></p>
+                  </div>
+                </div>
+              </Card>
+            </Link>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+const ActionCard = ({ title, href, icon: Icon, badgeText }: { title: string, href: string, icon: React.ElementType, badgeText?: string }) => (
+    <Link href={href} className="block hover:scale-[1.02] transition-transform duration-300">
+        <Card className="h-full bg-card shadow-lg hover:shadow-primary/20 border-border hover:border-primary/50">
+            <CardHeader>
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                        <div className="p-3 bg-primary/10 rounded-lg">
+                            <Icon className="h-6 w-6 text-primary"/>
+                        </div>
+                        <CardTitle className="text-md">{title}</CardTitle>
+                    </div>
+                    {badgeText && <Badge variant="destructive">{badgeText}</Badge>}
+                </div>
+            </CardHeader>
+        </Card>
+    </Link>
+);
+
+
 export default function DashboardPage() {
     const { user, userProfile, loading: userLoading } = useUser();
     const firestore = useFirestore();
-    const [walletStats, setWalletStats] = useState({ balance: 0, winnings: 0 });
-    const [gameStats, setGameStats] = useState({ matchesPlayed: 0, matchesWon: 0 });
+    const [stats, setStats] = useState({ walletBalance: 0, winnings: 0, matchesPlayed: 0 });
     const [loadingStats, setLoadingStats] = useState(true);
-    const [activeMatches, setActiveMatches] = useState<Match[]>([]);
-    const [upcomingTournaments, setUpcomingTournaments] = useState<Tournament[]>([]);
-    const [loadingMatches, setLoadingMatches] = useState(true);
+    const [tournaments, setTournaments] = useState<Tournament[]>([]);
     const [loadingTournaments, setLoadingTournaments] = useState(true);
 
     useEffect(() => {
         if (user && userProfile) {
             setLoadingStats(true);
-            setWalletStats({
-                balance: userProfile.walletBalance || 0,
+            setStats({
+                walletBalance: userProfile.walletBalance || 0,
                 winnings: userProfile.winnings || 0,
-            });
-            setGameStats({
                 matchesPlayed: userProfile.totalMatchesPlayed || 0,
-                matchesWon: userProfile.totalMatchesWon || 0,
             });
             setLoadingStats(false);
         }
     }, [user, userProfile]);
 
     useEffect(() => {
-        async function fetchGameData() {
-            if (!firestore) return;
+        if (!firestore) return;
 
-            // Fetch Upcoming Tournaments
-            setLoadingTournaments(true);
-            try {
-                const tournamentsQuery = query(
-                    collection(firestore, 'tournaments'),
-                    where('status', '==', 'upcoming'),
-                    orderBy('startTime', 'asc'),
-                    limit(3)
-                );
-                const tournamentSnapshots = await getDocs(tournamentsQuery);
-                const tournaments = tournamentSnapshots.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Tournament[];
-                setUpcomingTournaments(tournaments);
-            } catch (error) {
-                console.error("Error fetching upcoming tournaments: ", error);
-            } finally {
+        setLoadingTournaments(true);
+        try {
+            const tournamentsQuery = query(
+                collection(firestore, 'tournaments'),
+                where('status', 'in', ['upcoming', 'live']),
+                orderBy('startTime', 'desc'),
+                limit(5)
+            );
+            const unsubscribe = onSnapshot(tournamentsQuery, (snapshot: QuerySnapshot<DocumentData>) => {
+                const fetchedTournaments = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Tournament));
+                setTournaments(fetchedTournaments);
                 setLoadingTournaments(false);
-            }
+            });
+            return () => unsubscribe();
+        } catch (error) {
+            console.error("Error fetching tournaments: ", error);
+            setLoadingTournaments(false);
         }
-
-        fetchGameData();
     }, [firestore]);
 
-    useEffect(() => {
-        if (user && firestore && userProfile) {
-            const fetchActiveMatches = async () => {
-                const activeMatchIds = userProfile.activeMatchIds || [];
-                if (activeMatchIds.length === 0) {
-                    setActiveMatches([]);
-                    setLoadingMatches(false);
-                    return;
-                }
-
-                setLoadingMatches(true);
-                try {
-                    const matchPromises = activeMatchIds.map((id: string) => getDoc(doc(firestore, 'matches', id)));
-                    const matchDocs = await Promise.all(matchPromises);
-                    const matches = matchDocs
-                        .filter((docSnap: DocumentSnapshot) => docSnap.exists())
-                        .map((docSnap: DocumentSnapshot) => ({ id: docSnap.id, ...docSnap.data() } as Match));
-                    setActiveMatches(matches);
-                } catch(error) {
-                    console.error("Error fetching active matches:", error);
-                } finally {
-                    setLoadingMatches(false);
-                }
-            };
-
-            fetchActiveMatches();
-        } else if (!userLoading) {
-            // If user is not logged in and not loading, clear matches.
-            setActiveMatches([]);
-            setLoadingMatches(false);
-        }
-    }, [user, firestore, userProfile, userLoading]);
 
     const loading = userLoading || loadingStats;
 
     return (
-        <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
-            <ImageSlider />
-            <div className="flex items-center justify-between space-y-2">
-                <h2 className="text-3xl font-bold tracking-tight text-gradient-primary">Welcome back, {userProfile?.displayName || 'User'}!</h2>
-            </div>
-
+        <div className="flex-1 space-y-6">
+            <AnimatedWelcome name={userProfile?.displayName || 'Champion'}/>
+            
+            <TournamentSlider tournaments={tournaments} loading={loadingTournaments} />
+            
             {/* Stat Cards */}
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                <StatCard title="Wallet Balance" value={`₹${walletStats.balance.toFixed(2)}`} icon={Zap} link="/wallet" loading={loading} />
-                <StatCard title="Total Winnings" value={`₹${walletStats.winnings.toFixed(2)}`} icon={Trophy} loading={loading} />
-                <StatCard title="Matches Played" value={gameStats.matchesPlayed} icon={Users} loading={loading} />
-                <StatCard title="Matches Won" value={gameStats.matchesWon} icon={TrendingUp} loading={loading} />
+            <div className="grid gap-4 grid-cols-2 md:grid-cols-4">
+                <StatCard title="Wallet" value={`₹${stats.walletBalance.toFixed(2)}`} icon={Zap} loading={loading} />
+                <StatCard title="Winnings" value={`₹${stats.winnings.toFixed(2)}`} icon={Trophy} loading={loading} />
+                <StatCard title="Matches" value={stats.matchesPlayed} icon={Users} loading={loading} />
+                <StatCard title="Win Rate" value={`${userProfile?.winRate?.toFixed(0) || 0}%`} icon={TrendingUp} loading={loading} />
             </div>
 
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-                {/* Active Matches */}
-                <Card className="col-span-12 lg:col-span-4">
-                    <CardHeader>
-                        <CardTitle className="flex items-center justify-between">
-                            <span>Your Active Matches</span>
-                            <Link href="/lobby" className="text-sm font-normal text-primary hover:underline">Go to Lobby</Link>
-                        </CardTitle>
-                        <CardDescription>Your ongoing matches. Complete them to play more.</CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                        {loadingMatches ? (
-                            Array.from({ length: 2 }).map((_, i) => <Skeleton key={i} className="h-20 w-full" />)
-                        ) : activeMatches.length > 0 ? (
-                            activeMatches.map((match) => (
-                                <Link key={match.id} href={`/match/${match.id}`} className="block hover:bg-muted/50 p-3 rounded-lg transition-colors">
-                                    <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-4">
-                                             <div className="p-3 bg-primary/10 rounded-lg">
-                                                <Swords className="h-6 w-6 text-primary"/>
-                                             </div>
-                                            <div>
-                                                <p className="font-semibold">Match vs {Object.values(match.players).find(p => p.id !== user?.uid)?.name || 'Opponent'}</p>
-                                                <p className="text-sm text-muted-foreground">Entry: ₹{match.entryFee}</p>
-                                            </div>
-                                        </div>
-                                        <div className="text-right">
-                                            <p className="font-semibold text-green-500">Prize: ₹{match.prizePool}</p>
-                                            <p className="text-sm text-muted-foreground capitalize">{match.status}</p>
-                                        </div>
-                                    </div>
-                                </Link>
-                            ))
-                        ) : (
-                            <p className="text-center text-muted-foreground py-8">No active matches. Go to the lobby to find one!</p>
-                        )}
-                    </CardContent>
-                </Card>
-
-                {/* Upcoming Tournaments */}
-                <Card className="col-span-12 lg:col-span-3">
-                    <CardHeader>
-                        <CardTitle className="flex items-center justify-between">
-                            <span>Upcoming Tournaments</span>
-                            <Link href="/tournaments" className="text-sm font-normal text-primary hover:underline">View All</Link>
-                        </CardTitle>
-                        <CardDescription>Join the next big event.</CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                         {loadingTournaments ? (
-                             Array.from({ length: 2 }).map((_, i) => <Skeleton key={i} className="h-24 w-full" />)
-                        ) : upcomingTournaments.length > 0 ? (
-                            upcomingTournaments.map((tournament) => (
-                                <Link key={tournament.id} href={`/tournaments/${tournament.id}`} className="block hover:bg-muted/50 p-3 rounded-lg transition-colors">
-                                    <div className="flex items-start gap-4">
-                                        <Image src={tournament.bannerImageUrl || `https://picsum.photos/seed/${tournament.id}/400/400`} alt={tournament.name} width={80} height={80} className="rounded-md w-20 h-20 object-cover" />
-                                        <div className="flex-1">
-                                            <p className="font-semibold">{tournament.name}</p>
-                                            <p className="text-sm text-muted-foreground">Starts: {new Date(tournament.startTime.seconds * 1000).toLocaleDateString()}</p>
-                                            <p className="text-sm text-muted-foreground">Prize: <span className="font-bold text-green-500">₹{tournament.prizePool}</span></p>
-                                        </div>
-                                         <ChevronRight className="h-5 w-5 text-muted-foreground self-center" />
-                                    </div>
-                                </Link>
-                            ))
-                        ) : (
-                            <p className="text-center text-muted-foreground py-8">No upcoming tournaments.</p>
-                        )}
-                    </CardContent>
-                </Card>
+            {/* Action Cards */}
+            <div className="grid gap-4 md:grid-cols-3">
+                 <ActionCard 
+                    title="Active Matches"
+                    href="/lobby"
+                    icon={Swords}
+                    badgeText={(userProfile?.activeMatchIds?.length || 0) > 0 ? userProfile?.activeMatchIds?.length.toString() : undefined}
+                 />
+                 <ActionCard 
+                    title="Referral Fund"
+                    href="/referrals"
+                    icon={Gift}
+                 />
+                 <ActionCard 
+                    title="Daily Bonus"
+                    href="/wallet" // Linking to wallet as bonus page doesn't exist
+                    icon={Award}
+                 />
             </div>
+            
         </div>
     );
 }
