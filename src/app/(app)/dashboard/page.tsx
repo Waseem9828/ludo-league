@@ -100,7 +100,7 @@ const StatCard = ({
 
   return (
     <Link href={href} className="block group">
-      <Card className="bg-muted/50 hover:bg-muted/80 transition-colors h-full overflow-hidden aspect-[4/3]">
+      <Card className="bg-muted/50 hover:bg-muted/80 transition-colors h-full overflow-hidden aspect-[4/3] rounded-2xl">
         <div className="relative w-full h-full">
           {/* Image Slider Background */}
           {loading ? (
