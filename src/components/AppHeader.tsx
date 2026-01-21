@@ -53,7 +53,7 @@ export default function AppHeader() {
     return (
         <div className="flex w-full items-center justify-between gap-2">
             <div className="flex items-center gap-2">
-                <Button variant="ghost" size="icon" className="md:hidden text-primary-foreground hover:bg-white/20 flex-shrink-0" onClick={() => setIsOpen(true)}>
+                <Button variant="ghost" size="icon" className="lg:hidden text-primary-foreground hover:bg-white/20 flex-shrink-0" onClick={() => setIsOpen(true)}>
                     <Menu />
                 </Button>
                 <Link href="/dashboard" className="flex items-center gap-2 flex-shrink-0">

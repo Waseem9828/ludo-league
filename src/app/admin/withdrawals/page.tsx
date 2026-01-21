@@ -1,9 +1,8 @@
-
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
 import { useFirestore, useUser } from "@/firebase";
-import { collection, query, onSnapshot, orderBy, doc, writeBatch, serverTimestamp, getDoc } from "firebase/firestore";
+import { collection, query, onSnapshot, orderBy, doc, writeBatch, serverTimestamp, getDoc, updateDoc } from "firebase/firestore";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -154,32 +153,13 @@ export default function WithdrawalsPage() {
         const withdrawalRef = doc(firestore, "withdrawalRequests", request.id);
 
         try {
-            const batch = writeBatch(firestore);
-            batch.update(withdrawalRef, {
+            await updateDoc(withdrawalRef, {
                 status,
                 processedAt: serverTimestamp(),
                 processedBy: adminUser.uid,
                 rejectionReason: status === 'rejected' ? rejectionReason : null,
             });
-
-            const transactionRef = doc(collection(firestore, 'transactions'));
-            const transactionType = status === 'approved' ? 'withdrawal' : 'withdrawal_refund';
-            const amount = status === 'approved' ? -request.amount : request.amount;
-            const description = status === 'approved'
-                ? `Withdrawal to ${request.upiId || request.bankDetails || 'user account'}`
-                : `Refund for rejected withdrawal. Reason: ${rejectionReason}`;
-
-            batch.set(transactionRef, {
-                userId: request.userId,
-                type: transactionType,
-                amount,
-                status: 'completed',
-                createdAt: serverTimestamp(),
-                description,
-                relatedId: request.id,
-            });
-
-            await batch.commit();
+            
             toast({ title: "Success", description: `Withdrawal has been ${status}.`, variant: status === 'rejected' ? 'destructive' : 'default' });
         } catch (error: any) {
             console.error("Error updating status: ", error);

@@ -1,6 +1,5 @@
 'use client';
 import { motion, Variants } from 'framer-motion';
-import { NewsTicker } from './app/news-ticker';
 import Image from 'next/image';
 
 const containerVariants: Variants = {
@@ -68,9 +67,6 @@ export const CustomLoader = () => {
         </motion.div>
       </motion.div>
       
-      <div className="absolute bottom-0 left-0 w-full p-4 z-10">
-        <NewsTicker />
-      </div>
     </div>
   );
 };

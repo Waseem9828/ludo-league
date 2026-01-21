@@ -2,6 +2,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import Image from 'next/image';
 import { useUser } from '@/firebase/auth/use-user';
 import { useFirestore } from "@/firebase";
 import { collection, query, onSnapshot, orderBy, doc, getDoc, updateDoc, serverTimestamp, type QueryDocumentSnapshot } from "firebase/firestore";
@@ -166,11 +167,24 @@ export default function DepositsPage() {
     const renderRow = (request: DepositRequest, isMobile = false) => {
         const ActionButtons = () => (
             <div className={cn("flex gap-2", isMobile ? "justify-between mt-4" : "justify-end")}>
-                 <Button asChild variant="outline" size={isMobile ? "sm" : "icon"} className={cn({"h-8 w-8": !isMobile})}>
-                    <a href={request.screenshotUrl} target="_blank" rel="noopener noreferrer">
-                         <Eye className="h-4 w-4" /> {isMobile && <span className="ml-2">View Screenshot</span>}
-                    </a>
-                </Button>
+                 <Dialog>
+                    <DialogTrigger asChild>
+                        <Button variant="outline" size={isMobile ? "sm" : "icon"} className={cn({"h-8 w-8": !isMobile})}>
+                            <Eye className="h-4 w-4" /> {isMobile && <span className="ml-2">View Screenshot</span>}
+                        </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                        <DialogHeader>
+                            <DialogTitle>Deposit Screenshot</DialogTitle>
+                            <DialogDescription>UTR: {request.utr}</DialogDescription>
+                        </DialogHeader>
+                        <div className="py-4">
+                            <a href={request.screenshotUrl} target='_blank' rel='noopener noreferrer'>
+                                <Image src={request.screenshotUrl} alt="Deposit Screenshot" width={400} height={800} className="w-full h-auto rounded-md" />
+                            </a>
+                        </div>
+                    </DialogContent>
+                 </Dialog>
                 {canManageDeposits && request.status === 'pending' && (
                     <div className={cn("flex gap-2", {"w-full": isMobile})}>
                          <Button 

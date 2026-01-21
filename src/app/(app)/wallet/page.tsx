@@ -25,7 +25,7 @@ import { cn } from "@/lib/utils"
 import { ArrowDownLeft, ArrowUpRight, UploadCloud, DownloadCloud, Landmark, Wallet as WalletIcon, AlertCircle, Loader2, ScanBarcode, ExternalLink, History, ArrowLeft } from "lucide-react"
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert"
 import { useUser, useFirestore, storage } from "@/firebase"
-import { collection, query, where, onSnapshot, orderBy, addDoc, serverTimestamp, doc, limit, type QueryDocumentSnapshot } from "firebase/firestore"
+import { collection, query, where, onSnapshot, orderBy, addDoc, serverTimestamp, doc, limit, type QueryDocumentSnapshot, getDocs } from "firebase/firestore"
 import { useEffect, useState, useMemo } from "react"
 import type { Transaction, UpiConfiguration, DepositRequest, WithdrawalRequest } from "@/lib/types"
 import { useToast } from "@/hooks/use-toast"
@@ -232,6 +232,14 @@ export default function WalletPage() {
         return;
     }
     
+    // UTR duplicate check
+    const q = query(collection(firestore, "deposits"), where("utr", "==", utr));
+    const snap = await getDocs(q);
+    if(!snap.empty){
+        toast({ title: "UTR already used", description: "This transaction ID has already been submitted.", variant: "destructive" });
+        return;
+    }
+
     setIsSubmitting(true);
     const { id: toastId } = toast({ title: 'Submitting deposit request...' });
     try {
@@ -250,6 +258,7 @@ export default function WalletPage() {
             status: 'pending',
             createdAt: serverTimestamp(),
             userName: user.displayName, // For easier review in admin panel
+            userAvatar: user.photoURL,
         });
         
         toast({ id: toastId, title: "Deposit request submitted successfully.", description: "Your request is under review and will be processed shortly.", className: 'bg-green-100 text-green-800' });
@@ -299,7 +308,8 @@ export default function WalletPage() {
             createdAt: serverTimestamp(),
             upiId: userProfile.upiId || '',
             bankDetails: userProfile.bankDetails || '',
-            userName: user.displayName, // For admin panel
+            userName: user.displayName,
+            userAvatar: user.photoURL,
         });
         toast({ title: "Withdrawal request submitted successfully." });
         (e.target as HTMLFormElement).reset();

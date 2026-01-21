@@ -41,6 +41,27 @@ const sendNotification = async (userId, title, body, link) => {
     }
 };
 
+exports.claimSuperAdminRole = functions.https.onCall(async (data, context) => {
+    if (!context.auth) {
+        throw new functions.https.HttpsError("unauthenticated", "You must be authenticated to call this function.");
+    }
+
+    const targetUid = '8VHy30yW04XgFsRlnPo1ZzQPCch1';
+
+    if (context.auth.uid !== targetUid) {
+        throw new functions.https.HttpsError("permission-denied", "You are not authorized to perform this action.");
+    }
+
+    try {
+        await admin.auth().setCustomUserClaims(targetUid, { role: 'superAdmin', admin: true });
+        await db.collection('users').doc(targetUid).set({ isAdmin: true, role: 'superAdmin' }, { merge: true });
+        return { message: `Success! You (${targetUid}) have been granted Super Admin privileges. Please sign out and sign back in to apply the changes.` };
+    } catch (error) {
+        console.error("Error setting custom claims:", error);
+        throw new functions.https.HttpsError("internal", "Unable to set custom claims.");
+    }
+});
+
 
 exports.setRole = functions.https.onCall(async (data, context) => {
   // 1. Authentication and Authorization Check
@@ -370,20 +391,31 @@ exports.onWithdrawalRequestUpdate = functions.firestore
 .onUpdate(async (change, context) => {
     const after = change.after.data();
     const before = change.before.data();
+    const { userId, amount } = after;
 
     if (after.status === 'approved' && before.status !== 'approved') {
+        const transactionRef = db.collection('transactions').doc();
+        await transactionRef.set({
+            userId: userId,
+            type: 'withdrawal',
+            amount: -amount,
+            status: 'completed',
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+            description: `Withdrawal of ₹${amount}`,
+            relatedId: context.params.withdrawalId,
+        });
+
         await sendNotification(
-            after.userId,
-            'Withdrawal Processed!',
-            `Your withdrawal request of ₹${after.amount} has been approved.`,
+            userId,
+            'Withdrawal Approved!',
+            `Your withdrawal request of ₹${amount} has been approved.`,
             '/wallet'
         );
-    }
-     if (after.status === 'rejected' && before.status !== 'rejected') {
+    } else if (after.status === 'rejected' && before.status !== 'rejected') {
         await sendNotification(
-            after.userId,
+            userId,
             'Withdrawal Rejected',
-            `Your withdrawal request of ₹${after.amount} was rejected. Reason: ${after.rejectionReason || 'Not specified'}.`,
+            `Your withdrawal request of ₹${amount} was rejected. Reason: ${after.rejectionReason || 'Not specified'}.`,
             '/wallet'
         );
     }
@@ -897,5 +929,3 @@ exports.distributeTournamentWinnings = functions.https.onCall(async (data, conte
         throw new HttpsError('internal', 'An unexpected error occurred.', error);
     }
 });
-
-    

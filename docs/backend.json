@@ -192,6 +192,8 @@
           "type": "string",
           "description": "The ID of the user who submitted the application."
         },
+        "userName": { "type": "string" },
+        "userAvatar": { "type": "string", "format": "uri" },
         "status": {
           "type": "string",
           "enum": ["pending", "approved", "rejected"],
@@ -247,7 +249,6 @@
         "userId",
         "status",
         "submittedAt",
-        "aadhaarPanUrl",
         "selfieUrl",
         "fullName",
         "dateOfBirth"
@@ -306,6 +307,8 @@
         "type": "object",
         "properties": {
             "userId": {"type": "string"},
+            "userName": { "type": "string" },
+            "userAvatar": { "type": "string", "format": "uri" },
             "amount": {"type": "number"},
             "utr": {"type": "string"},
             "screenshotUrl": {"type": "string", "format": "uri"},
@@ -324,6 +327,8 @@
         "type": "object",
         "properties": {
             "userId": {"type": "string"},
+            "userName": { "type": "string" },
+            "userAvatar": { "type": "string", "format": "uri" },
             "amount": {"type": "number"},
             "status": {"type": "string", "enum": ["pending", "approved", "rejected"]},
             "rejectionReason": {"type": "string"},
@@ -475,6 +480,30 @@
             "claimed": { "type": "boolean" }
         },
         "required": ["progress", "completed", "claimed"]
+    },
+    "Banner": {
+        "title": "Banner",
+        "description": "Represents a promotional banner in the app.",
+        "type": "object",
+        "properties": {
+            "name": { "type": "string" },
+            "imageUrl": { "type": "string", "format": "uri" },
+            "targetPage": { "type": "string", "description": "The in-app path the banner links to (e.g., /tournaments)." },
+            "isActive": { "type": "boolean" },
+            "createdAt": { "type": "string", "format": "date-time" }
+        },
+        "required": ["name", "imageUrl", "targetPage", "isActive", "createdAt"]
+    },
+    "Announcement": {
+        "title": "Announcement",
+        "description": "A promotional message for the top banner ticker.",
+        "type": "object",
+        "properties": {
+            "text": { "type": "string" },
+            "isActive": { "type": "boolean" },
+            "createdAt": { "type": "string", "format": "date-time" }
+        },
+        "required": ["text", "isActive", "createdAt"]
     }
   },
   "auth": {
@@ -602,6 +631,18 @@
             "$ref": "#/backend/entities/UserTaskProgress"
         },
         "description": "Stores progress for each user on each task."
+    },
+    "/banners/{bannerId}": {
+        "schema": {
+            "$ref": "#/backend/entities/Banner"
+        },
+        "description": "Stores promotional banners for the app."
+    },
+    "/announcements/{announcementId}": {
+        "schema": {
+            "$ref": "#/backend/entities/Announcement"
+        },
+        "description": "Stores promotional text for the top banner ticker."
     }
   }
 }
