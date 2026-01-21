@@ -1,11 +1,10 @@
-
-"use client";
+'use client';
 
 import { useState, useEffect } from 'react';
 import { useUser } from '@/firebase/auth/use-user';
 import { useFirestore } from '@/firebase';
 import { collection, query, where, orderBy, limit, onSnapshot, QuerySnapshot, DocumentData } from 'firebase/firestore';
-import { Card } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tournament } from '@/lib/types';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -15,7 +14,7 @@ import Autoplay from 'embla-carousel-autoplay';
 import { motion } from 'framer-motion';
 import { Badge } from '@/components/ui/badge';
 import { ImageSlider } from '@/components/app/ImageSlider';
-
+import { Wallet, Trophy, Swords, BarChart, Gift, Award, Info } from 'lucide-react';
 
 const TournamentSlider = ({ tournaments, loading }: { tournaments: Tournament[], loading: boolean }) => {
   const [emblaRef] = useEmblaCarousel({ loop: true, align: 'start' }, [Autoplay({ delay: 5000 })]);
@@ -67,37 +66,29 @@ const TournamentSlider = ({ tournaments, loading }: { tournaments: Tournament[],
 };
 
 
-const DashboardCard = ({ title, value, imageUrls, href, badgeText, index }: { title: string; value?: string | number; imageUrls: string[]; href: string; badgeText?: string; index: number; }) => {
-  const [emblaRef] = useEmblaCarousel({ loop: true }, [Autoplay({ delay: 3500 + (index * 250), stopOnInteraction: false })]);
+const StatCard = ({ icon: Icon, label, value, href }: { icon: React.ElementType, label: string, value: string | number, href: string }) => (
+    <Link href={href} className="block group">
+        <Card className="bg-muted/50 hover:bg-muted/80 transition-colors h-full">
+            <CardHeader className="flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium">{label}</CardTitle>
+                <Icon className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+                <div className="text-xl font-bold">{value}</div>
+            </CardContent>
+        </Card>
+    </Link>
+);
 
-  return (
-    <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: index * 0.05 }}
-    >
-        <Link href={href} className="block group">
-            <Card className="relative overflow-hidden rounded-lg shadow-lg aspect-square">
-                <div className="overflow-hidden h-full" ref={emblaRef}>
-                    <div className="flex h-full">
-                        {imageUrls.map((url, i) => (
-                            <div className="relative flex-[0_0_100%] h-full" key={i}>
-                                <Image src={url} alt={`${title} image ${i + 1}`} fill className="object-cover transition-transform duration-500 group-hover:scale-105" />
-                            </div>
-                        ))}
-                    </div>
-                </div>
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/50 to-transparent" />
-                <div className="absolute bottom-0 left-0 right-0 p-4 text-white">
-                    <h3 className="font-semibold text-base">{title}</h3>
-                    {value !== undefined && <p className="text-2xl font-bold">{value}</p>}
-                </div>
-                {badgeText && <Badge variant="destructive" className="absolute top-2 right-2">{badgeText}</Badge>}
-            </Card>
-        </Link>
-    </motion.div>
-  );
-};
+const ActionCard = ({ icon: Icon, label, href, badgeText }: { icon: React.ElementType, label: string, href: string, badgeText?: string }) => (
+    <Link href={href} className="block group">
+        <Card className="relative bg-muted/50 hover:bg-muted/80 transition-colors h-full flex flex-col items-center justify-center p-4">
+            <Icon className="h-6 w-6 text-primary mb-2" />
+            <p className="text-xs font-semibold text-center">{label}</p>
+            {badgeText && <Badge variant="destructive" className="absolute top-2 right-2">{badgeText}</Badge>}
+        </Card>
+    </Link>
+);
 
 
 export default function DashboardPage() {
@@ -131,76 +122,58 @@ export default function DashboardPage() {
     }, [firestore]);
 
 
-    const cardsData = [
+    const statCardsData = [
       {
         id: 'wallet',
         title: 'Wallet',
         value: `₹${userProfile?.walletBalance?.toFixed(2) || '0.00'}`,
         href: '/wallet',
-        imageUrls: [
-          `https://picsum.photos/seed/wallet1/400/400`,
-          `https://picsum.photos/seed/wallet2/400/400`,
-        ],
+        icon: Wallet
       },
       {
         id: 'winnings',
         title: 'Winnings',
         value: `₹${userProfile?.winnings?.toFixed(2) || '0.00'}`,
         href: '/profile',
-        imageUrls: [
-          `https://picsum.photos/seed/winnings1/400/400`,
-          `https://picsum.photos/seed/winnings2/400/400`,
-        ],
+        icon: Trophy
       },
       {
         id: 'matches',
         title: 'Matches Played',
         value: userProfile?.totalMatchesPlayed || 0,
         href: '/profile',
-        imageUrls: [
-          `https://picsum.photos/seed/matches1/400/400`,
-          `https://picsum.photos/seed/matches2/400/400`,
-        ],
+        icon: Swords
       },
       {
         id: 'winrate',
         title: 'Win Rate',
         value: `${userProfile?.winRate?.toFixed(0) || 0}%`,
         href: '/leaderboard',
-        imageUrls: [
-          `https://picsum.photos/seed/winrate1/400/400`,
-          `https://picsum.photos/seed/winrate2/400/400`,
-        ],
+        icon: BarChart
       },
-      {
+    ];
+
+    const actionCardsData = [
+       {
         id: 'active_matches',
         title: 'Active Matches',
         href: '/lobby',
         badgeText: (userProfile?.activeMatchIds?.length || 0) > 0 ? userProfile?.activeMatchIds?.length.toString() : undefined,
-        imageUrls: [
-          `https://picsum.photos/seed/active1/400/400`,
-          `https://picsum.photos/seed/active2/400/400`,
-        ],
+        icon: Info
       },
        {
         id: 'referral',
         title: 'Referral Fund',
         href: '/referrals',
-        imageUrls: [
-          `https://picsum.photos/seed/referral1/400/400`,
-          `https://picsum.photos/seed/referral2/400/400`,
-        ],
+        icon: Gift
       },
        {
         id: 'bonus',
         title: 'Daily Bonus',
         href: '/wallet',
-        imageUrls: [
-          `https://picsum.photos/seed/bonus1/400/400`,
-          `https://picsum.photos/seed/bonus2/400/400`,
-        ],
+        icon: Award
       },
-    ];
+    ]
 
     return (
         <div className="flex-1 space-y-4">
@@ -210,15 +183,25 @@ export default function DashboardPage() {
             <TournamentSlider tournaments={tournaments} loading={loadingTournaments} />
             
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {cardsData.map((card, index) => (
-                    <DashboardCard 
+                {statCardsData.map((card) => (
+                    <StatCard 
                         key={card.id}
-                        title={card.title}
-                        value={card.value}
-                        imageUrls={card.imageUrls}
+                        label={card.title}
+                        value={card.value || ''}
                         href={card.href}
+                        icon={card.icon}
+                    />
+                ))}
+            </div>
+
+            <div className="grid grid-cols-3 gap-4">
+                {actionCardsData.map((card) => (
+                     <ActionCard
+                        key={card.id}
+                        label={card.title}
+                        href={card.href}
+                        icon={card.icon}
                         badgeText={card.badgeText}
-                        index={index}
                     />
                 ))}
             </div>
