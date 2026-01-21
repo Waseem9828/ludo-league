@@ -54,13 +54,16 @@ service firebase.storage {
       allow read, write: if isOwner(userId);
     }
     
-    // --- Publicly Accessible Files & Banners ---
-    // Anyone can read these.
+    // --- Publicly Accessible Content ---
+    // Anyone can read these files. Admin write access is handled by the global rule.
     match /public/{allPaths=**} {
       allow read: if true;
     }
-     match /banners/{allPaths=**} {
+    match /banners/{allPaths=**} {
       allow read: if true;
+    }
+    match /dashboard-cards/{allPaths=**} {
+        allow read: if true;
     }
   }
 }

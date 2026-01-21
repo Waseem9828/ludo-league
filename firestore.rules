@@ -34,23 +34,24 @@ service cloud.firestore {
     match /roomCodeCreators/{userId} {
         allow read, create, delete: if isOwner(userId);
         allow update: if false; // Handled by Cloud Function
-        allow list: if isOwner(userId);
+        allow list: if request.auth != null;
     }
     match /roomCodeSeekers/{userId} {
         allow read, create, delete: if isOwner(userId);
         allow update: if false; // Handled by Cloud Function
-        allow list: if isOwner(userId);
+        allow list: if request.auth != null;
     }
     
     // KYC Applications
     match /kycApplications/{kycId} {
-      allow create: if isOwner(request.resource.data.userId);
-      allow read: if isOwner(resource.data.userId);
+      allow create: if isOwner(request.resource.data.userId); // User can create their own KYC app.
+      allow read: if isOwner(resource.data.userId); // User can read their own KYC app.
     }
 
     // Matches Collection
     match /matches/{matchId} {
       allow read: if request.auth != null; // Any user can see match details.
+      allow list: if request.auth != null;
       allow create: if false; // Handled by matchmaking Cloud Function
       allow update: if (request.auth != null && request.auth.uid in resource.data.playerIds); // Only players can update.
     }
@@ -87,29 +88,37 @@ service cloud.firestore {
       allow read, write: if isOwner(userId) || isAdmin();
     }
     match /supportChats/{userId}/messages/{messageId} {
-      // A user can read/write to their own chat thread.
+      // A user can read/write to their own chat thread. Admins can too.
       allow read, write: if isOwner(userId) || isAdmin();
     }
     
     // Task and Mission rules
     match /tasks/{taskId} {
-      allow read: if request.auth != null; // All users can read available tasks.
+      allow get: if request.auth != null; // All users can read available tasks.
     }
     match /user_tasks/{userId}/tasks/{taskId} {
         // Users can only read their own task progress. Updates are done via Cloud Functions.
-        allow read: if isOwner(userId);
+        allow get: if isOwner(userId);
     }
 
-    // Read-only collections for all authenticated users.
+    // Publicly readable collections for all authenticated users.
+    // Admin write access is handled by the global rule at the bottom.
     match /tournaments/{doc=**} { allow read: if request.auth != null; }
     match /news/{doc=**} { allow read: if request.auth != null; }
     match /upiConfiguration/{doc=**} { allow read: if request.auth != null; }
-    match /referralConfiguration/settings { allow read: if request.auth != null; }
-    match /bonus_config/settings { allow read: if request.auth != null; }
-    match /settings/global { allow read: if request.auth != null; }
+    match /referralConfiguration/settings { allow get: if request.auth != null; }
+    match /bonus_config/settings { allow get: if request.auth != null; }
+    match /settings/global { allow get: if request.auth != null; }
+    match /banners/{bannerId} { allow read: if request.auth != null; }
+    match /dashboardCardImages/{imageId} { allow read: if request.auth != null; }
+
+    match /announcements/{announcementId} { 
+      allow read: if request.auth != null;
+      allow write: if isAdmin(); // Specific admin write rule
+    }
 
     // ========= ADMIN RULE: Global Read/Write Access =========
-    // Admins can read and write anything, anywhere. This must be the last rule.
+    // This rule must be last. It gives admins god-mode access to everything.
     match /{path=**} {
       allow read, write: if isAdmin();
     }
