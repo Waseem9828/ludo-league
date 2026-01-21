@@ -578,7 +578,7 @@ exports.onMatchCreate = functions.firestore
 exports.onResultSubmit = functions.firestore
   .document('matches/{matchId}/results/{userId}')
   .onCreate(async (snap, context) => {
-    const matchId = context.params.matchId;
+    const { matchId, userId } = context.params;
     const matchRef = db.collection('matches').doc(matchId);
     
     try {
@@ -594,6 +594,12 @@ exports.onResultSubmit = functions.firestore
         if (['completed', 'disputed', 'cancelled'].includes(freshMatchData.status)) {
           console.log(`Match ${matchId} is already concluded with status: ${freshMatchData.status}. No action taken.`);
           return; // Exit transaction if match is already resolved.
+        }
+        
+        // Notify other players
+        const otherPlayerIds = freshMatchData.playerIds.filter(pId => pId !== userId);
+        for(const pId of otherPlayerIds) {
+            await sendNotification(pId, "Result Submitted", `${freshMatchData.players[userId]?.name || 'Opponent'} has submitted their match result.`, `/match/${matchId}`);
         }
 
         const expectedResults = freshMatchData.playerIds.length;
@@ -664,6 +670,7 @@ exports.onResultSubmit = functions.firestore
     try {
         let winningPlayerName = 'Unknown Player';
         let prizePoolAmount = 0;
+        let playerIds = [];
 
         await db.runTransaction(async (transaction) => {
             const matchDoc = await transaction.get(matchRef);
@@ -671,6 +678,7 @@ exports.onResultSubmit = functions.firestore
                 throw new HttpsError('not-found', 'Match not found.');
             }
             const matchData = matchDoc.data();
+            playerIds = matchData.playerIds;
 
             if (matchData.prizeDistributed) {
                 throw new HttpsError('failed-precondition', 'Winnings have already been distributed for this match.');
@@ -739,6 +747,13 @@ exports.onResultSubmit = functions.firestore
             });
         });
         
+        // Send notifications outside the transaction
+        for (const pId of playerIds) {
+            const title = pId === winnerId ? "You Won!" : "Match Result";
+            const body = pId === winnerId ? `Congratulations, you won ₹${prizePoolAmount}!` : `Match resolved. ${winningPlayerName} is the winner.`;
+            await sendNotification(pId, title, body, `/match/${matchId}`);
+        }
+
         return { 
             success: true, 
             message: `Successfully declared ${winningPlayerName} as winner and distributed prize of ₹${prizePoolAmount}.`
@@ -941,3 +956,40 @@ exports.distributeTournamentWinnings = functions.https.onCall(async (data, conte
         throw new HttpsError('internal', 'An unexpected error occurred.', error);
     }
 });
+
+exports.onTournamentCreate = functions.firestore
+  .document('tournaments/{tournamentId}')
+  .onCreate(async (snap, context) => {
+    const tournament = snap.data();
+    
+    const usersSnapshot = await db.collection('users').get();
+    const tokens = [];
+    usersSnapshot.forEach(doc => {
+      const user = doc.data();
+      if (user.fcmToken) {
+        tokens.push(user.fcmToken);
+      }
+    });
+
+    if (tokens.length === 0) {
+      return null;
+    }
+
+    const payload = {
+      notification: {
+        title: 'New Tournament Alert!',
+        body: `${tournament.name} is now open for registration with a prize pool of ₹${tournament.prizePool}!`,
+        clickAction: `/tournaments/${snap.id}`,
+      },
+    };
+
+    try {
+      const response = await admin.messaging().sendEachForMulticast({ tokens, ...payload });
+      console.log(`Sent tournament notification. Success: ${response.successCount}, Failure: ${response.failureCount}`);
+      return response;
+    } catch (error) {
+      console.error('Error sending tournament notifications:', error);
+      return null;
+    }
+});
+

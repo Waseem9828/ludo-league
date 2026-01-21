@@ -25,9 +25,9 @@ export function FcmInitializer() {
           const currentToken = await getToken(messaging, { vapidKey: process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY });
           if (currentToken) {
             console.log('FCM Token:', currentToken);
-            // Save the token to Firestore
-            const tokenRef = doc(db, 'fcmTokens', user.uid);
-            await setDoc(tokenRef, { token: currentToken }, { merge: true });
+            // Save the token to the user's profile document
+            const userProfileRef = doc(db, 'users', user.uid);
+            await setDoc(userProfileRef, { fcmToken: currentToken }, { merge: true });
 
           } else {
             console.log('No registration token available. Request permission to generate one.');
@@ -58,3 +58,4 @@ export function FcmInitializer() {
 
   return null; 
 }
+
