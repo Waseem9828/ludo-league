@@ -3,52 +3,47 @@
 
 import { useEffect } from 'react';
 import { getToken, onMessage } from 'firebase/messaging';
-import { messaging } from '@/firebase/config'; // Assuming messaging is initialized here
-import { useToast } from '@/components/ui/use-toast';
-import { useAuth } from '@/hooks/useAuth'; // To get the current user
+import { messaging, db } from '@/firebase/config'; // Corrected import
+import { useToast } from "@/hooks/use-toast"; // Corrected import
+import { useUser } from '@/firebase/auth/use-user'; // Corrected import
 import { doc, setDoc } from 'firebase/firestore';
-import { db } from '@/firebase/config'; // Your firestore instance
 
 export function FcmInitializer() {
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { user } = useUser();
 
   useEffect(() => {
-    const initializeFcm = async () => {
-      if (!messaging || !user) return;
+    if (typeof window === 'undefined' || !messaging || !user) {
+      return;
+    }
 
-      // 1. Request permission
+    const requestPermissionAndGetToken = async () => {
       try {
         const permission = await Notification.requestPermission();
-        if (permission !== 'granted') {
-          console.log('Notification permission not granted.');
-          return;
-        }
+        if (permission === 'granted') {
+          console.log('Notification permission granted.');
+          const currentToken = await getToken(messaging, { vapidKey: process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY });
+          if (currentToken) {
+            console.log('FCM Token:', currentToken);
+            // Save the token to Firestore
+            const tokenRef = doc(db, 'fcmTokens', user.uid);
+            await setDoc(tokenRef, { token: currentToken }, { merge: true });
 
-        // 2. Get FCM Token
-        const fcmToken = await getToken(messaging, {
-          vapidKey: process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY,
-        });
-
-        if (fcmToken) {
-          // 3. Store the token in Firestore
-          console.log('FCM Token:', fcmToken);
-          const userDocRef = doc(db, 'users', user.uid);
-          await setDoc(userDocRef, { fcmToken }, { merge: true });
+          } else {
+            console.log('No registration token available. Request permission to generate one.');
+          }
         } else {
-          console.log('No registration token available. Request permission to generate one.');
+          console.log('Unable to get permission to notify.');
         }
       } catch (error) {
         console.error('An error occurred while retrieving token. ', error);
       }
     };
 
-    initializeFcm();
+    requestPermissionAndGetToken();
 
-    // 4. Handle foreground messages
     const unsubscribe = onMessage(messaging, (payload) => {
-      console.log('Foreground message received. ', payload);
-      // Show a toast notification
+      console.log('Message received. ', payload);
       toast({
         title: payload.notification?.title || 'New Notification',
         description: payload.notification?.body || '',
@@ -56,9 +51,10 @@ export function FcmInitializer() {
     });
 
     return () => {
-      unsubscribe(); // Unsubscribe from the onMessage event
+      unsubscribe();
     };
+
   }, [user, toast]);
 
-  return null; // This component doesn't render anything
+  return null; 
 }

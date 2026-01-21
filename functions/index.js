@@ -265,7 +265,19 @@ exports.onDepositRequestUpdate = functions.firestore
 
   // Check if the deposit just got approved
   if (after.status === 'approved' && before.status !== 'approved') {
-    const { userId, amount } = after;
+    const { userId, amount, utr } = after;
+
+    // --- Create Transaction First ---
+    // This will trigger onTransactionCreate to update the wallet balance.
+    const transactionRef = db.collection('transactions').doc();
+    await transactionRef.set({
+        userId: userId,
+        type: 'deposit',
+        amount: amount,
+        status: 'completed',
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        description: `Deposit approved via UTR: ${utr}`,
+    });
 
     // Send a notification to the user
     await sendNotification(

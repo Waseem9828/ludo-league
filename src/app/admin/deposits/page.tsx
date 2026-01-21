@@ -1,10 +1,9 @@
-
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
 import { useUser } from '@/firebase/auth/use-user';
 import { useFirestore } from "@/firebase";
-import { collection, query, onSnapshot, orderBy, doc, writeBatch, runTransaction, getDoc, QueryDocumentSnapshot } from "firebase/firestore";
+import { collection, query, onSnapshot, orderBy, doc, getDoc, updateDoc, serverTimestamp, type QueryDocumentSnapshot } from "firebase/firestore";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -132,45 +131,30 @@ export default function DepositsPage() {
         setActionLoading(prev => ({ ...prev, [request.id]: true }));
 
         const depositRef = doc(firestore, "depositRequests", request.id);
-        const userRef = doc(firestore, "users", request.userId);
 
         try {
-             await runTransaction(firestore, async (transaction) => {
-                const depositDoc = await transaction.get(depositRef);
-                if (!depositDoc.exists() || depositDoc.data().status !== 'pending') {
-                    throw new Error("This request has already been processed or does not exist.");
-                }
+            const depositDoc = await getDoc(depositRef);
+            if (!depositDoc.exists() || depositDoc.data().status !== 'pending') {
+                throw new Error("This request has already been processed or does not exist.");
+            }
 
-                if (status === 'approved') {
-                    const transactionRef = doc(collection(firestore, 'transactions'));
-                    transaction.set(transactionRef, {
-                        userId: request.userId,
-                        type: 'deposit',
-                        amount: request.amount,
-                        status: 'completed',
-                        createdAt: new Date(),
-                        description: `Deposit via UTR: ${request.utr}`,
-                    });
-                }
-                
-                transaction.update(depositRef, {
-                    status,
-                    reviewedAt: new Date(),
-                    reviewedBy: adminUser.uid,
-                    rejectionReason: status === 'rejected' ? rejectionReason : null,
-                });
+            await updateDoc(depositRef, {
+                status,
+                reviewedAt: serverTimestamp(),
+                reviewedBy: adminUser.uid,
+                rejectionReason: status === 'rejected' ? rejectionReason : null,
             });
 
             toast({ 
-                title: `Request ${status}`,
-                description: `Deposit of ₹${request.amount} for ${request.userName} has been ${status}.`,
+                title: `Request marked as ${status}`,
+                description: "The system will now process the transaction and update the user's balance.",
                 variant: status === 'approved' ? 'default' : 'destructive',
-                 className: status === 'approved' ? 'bg-green-100 text-green-800' : ''
+                className: status === 'approved' ? 'bg-green-100 text-green-800' : ''
             });
 
         } catch (error: any) {
             console.error("Error updating status: ", error);
-            toast({ title: "Transaction Error", description: error.message, variant: "destructive" });
+            toast({ title: "Update Error", description: error.message, variant: "destructive" });
         } finally {
             setActionLoading(prev => ({ ...prev, [request.id]: false }));
         }

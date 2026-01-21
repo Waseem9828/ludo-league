@@ -287,9 +287,18 @@ const IdAndCodeCard = ({ match, id }: { match: Match, id: string }) => {
         setRoomCode(match.roomCode || '');
     }, [match.roomCode]);
 
-    const handleCopy = (text: string, type: 'Match ID' | 'Room Code') => {
-        navigator.clipboard.writeText(text);
-        toast({ title: `${type} copied!` });
+    const handleCopy = async (text: string, type: 'Match ID' | 'Room Code') => {
+        try {
+            await navigator.clipboard.writeText(text);
+            toast({ title: `${type} copied!` });
+        } catch (error) {
+            console.error('Failed to copy:', error);
+            toast({
+                title: 'Failed to Copy',
+                description: 'Could not copy to clipboard. Please try again.',
+                variant: 'destructive',
+            });
+        }
     }
 
     const handleRoomCodeChange = (e: React.ChangeEvent<HTMLInputElement>) => {

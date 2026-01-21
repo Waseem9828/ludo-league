@@ -50,12 +50,21 @@ export default function ReferralsPage() {
         }
     }, [userProfile?.referralCode]);
 
-    const handleCopy = (textToCopy: string, type: 'Code' | 'Link') => {
-        navigator.clipboard.writeText(textToCopy);
-        toast({
-            title: `Referral ${type} Copied!`,
-            description: "You can now share it with your friends.",
-        });
+    const handleCopy = async (textToCopy: string, type: 'Code' | 'Link') => {
+        try {
+            await navigator.clipboard.writeText(textToCopy);
+            toast({
+                title: `Referral ${type} Copied!`,
+                description: "You can now share it with your friends.",
+            });
+        } catch (error) {
+            console.error('Failed to copy:', error);
+            toast({
+                title: 'Failed to Copy',
+                description: 'Could not copy to clipboard. Please try again.',
+                variant: 'destructive',
+            });
+        }
     };
     
     const handleShare = async () => {
@@ -63,7 +72,7 @@ export default function ReferralsPage() {
             try {
                 await navigator.share({
                     title: 'Join me on Ludo League!',
-                    text: `Sign up on Ludo League using my referral code and let's play! My code is ${userProfile?.referralCode}.`,
+                    text: `Sign up on Ludo League using my referral code and let\'s play! My code is ${userProfile?.referralCode}.`,
                     url: referralLink,
                 });
                 toast({ title: 'Link shared successfully!' });
@@ -73,7 +82,7 @@ export default function ReferralsPage() {
             }
         } else {
              // Fallback for desktop or unsupported browsers
-            handleCopy(referralLink, 'Link');
+            await handleCopy(referralLink, 'Link');
         }
     };
 
@@ -96,7 +105,7 @@ export default function ReferralsPage() {
                         {loading ? (
                             <Loader2 className="h-4 w-4 animate-spin" />
                         ) : commission ? (
-                            `Share your referral code with friends. When they make their first deposit, you'll earn a ${commission}% commission!`
+                            `Share your referral code with friends. When they make their first deposit, you\'ll earn a ${commission}% commission!`
                         ) : (
                             'Share your referral code with friends to earn rewards!'
                         )}
