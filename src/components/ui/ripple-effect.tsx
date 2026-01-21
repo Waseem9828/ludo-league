@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -30,7 +29,7 @@ export function RippleEffect() {
   }, []);
 
   return (
-    <div className="fixed inset-0 pointer-events-none">
+    <div className="fixed inset-0 pointer-events-none z-[9999]">
       {ripples.map(ripple => (
         <div
           key={ripple.id}

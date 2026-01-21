@@ -1,16 +1,16 @@
-
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { getToken, onMessage } from 'firebase/messaging';
-import { messaging, db } from '@/firebase/config'; // Corrected import
-import { useToast } from "@/hooks/use-toast"; // Corrected import
-import { useUser } from '@/firebase/auth/use-user'; // Corrected import
+import { messaging, db } from '@/firebase/config';
+import { useToast } from "@/hooks/use-toast";
+import { useUser } from '@/firebase/auth/use-user';
 import { doc, setDoc } from 'firebase/firestore';
 
 export function FcmInitializer() {
   const { toast } = useToast();
   const { user } = useUser();
+  const notificationAudioRef = useRef<HTMLAudioElement>(null);
 
   useEffect(() => {
     if (typeof window === 'undefined' || !messaging || !user) {
@@ -44,6 +44,8 @@ export function FcmInitializer() {
 
     const unsubscribe = onMessage(messaging, (payload) => {
       console.log('Message received. ', payload);
+      notificationAudioRef.current?.play().catch(error => console.error("Notification sound failed:", error));
+      
       toast({
         title: payload.notification?.title || 'New Notification',
         description: payload.notification?.body || '',
@@ -56,6 +58,5 @@ export function FcmInitializer() {
 
   }, [user, toast]);
 
-  return null; 
+  return <audio ref={notificationAudioRef} src="/sounds/notification.mp3" preload="auto" />; 
 }
-
