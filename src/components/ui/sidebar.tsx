@@ -1,4 +1,3 @@
-
 'use client';
 
 import {
@@ -37,6 +36,37 @@ import { buttonVariants, Button } from "./button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./tooltip";
 import { useState, useMemo, useCallback, createContext, useContext, useEffect } from "react";
 import { AppLogo } from "@/components/icons/AppLogo";
+import React from 'react';
+
+interface SidebarContextType {
+    isOpen: boolean;
+    setIsOpen: (isOpen: boolean) => void;
+}
+
+const SidebarContext = createContext<SidebarContextType | undefined>(undefined);
+
+export const useSidebar = () => {
+    const context = useContext(SidebarContext);
+    if (!context) {
+        throw new Error("useSidebar must be used within a SidebarProvider");
+    }
+    return context;
+};
+
+export const SidebarProvider = ({ children }: { children: React.ReactNode }) => {
+    const [isOpen, setIsOpen] = useState(false);
+
+    return (
+        <SidebarContext.Provider value={{ isOpen, setIsOpen }}>
+            {children}
+        </SidebarContext.Provider>
+    );
+};
+
+interface NavItemProps {
+    item: NavItem | AdminNavItem;
+    isCollapsed: boolean;
+}
 
 const adminNavItems: AdminNavItem[] = [
     {
@@ -198,36 +228,6 @@ const adminNavItems: AdminNavItem[] = [
     },
 ];
 
-interface SidebarContextType {
-    isCollapsed: boolean;
-    setIsCollapsed: (isCollapsed: boolean) => void;
-}
-
-const SidebarContext = createContext<SidebarContextType | undefined>(undefined);
-
-export const useSidebar = () => {
-    const context = useContext(SidebarContext);
-    if (!context) {
-        throw new Error("useSidebar must be used within a SidebarProvider");
-    }
-    return context;
-};
-
-export const SidebarProvider = ({ children }: { children: React.ReactNode }) => {
-    const [isCollapsed, setIsCollapsed] = useState(false);
-
-    return (
-        <SidebarContext.Provider value={{ isCollapsed, setIsCollapsed }}>
-            {children}
-        </SidebarContext.Provider>
-    );
-};
-
-interface NavItemProps {
-    item: NavItem | AdminNavItem;
-    isCollapsed: boolean;
-}
-
 const NavItemLink = ({ item, isCollapsed }: NavItemProps) => {
     const pathname = usePathname();
     const linkClasses = cn(
@@ -338,8 +338,8 @@ const NavItemGroup = ({ item, isCollapsed }: NavItemProps) => {
 };
 
 
-export function SidebarNav({ className, inSheet }: { className?: string, inSheet?: boolean }) {
-    const { isCollapsed } = useSidebar();
+function AdminSidebarNav({ className, inSheet }: { className?: string, inSheet?: boolean }) {
+    const { isOpen } = useSidebar();
     const { role } = useRole();
 
     const getFilteredAdminItems = useCallback((items: AdminNavItem[]): AdminNavItem[] => {
@@ -363,8 +363,8 @@ export function SidebarNav({ className, inSheet }: { className?: string, inSheet
         <nav className={cn("flex flex-col gap-1 p-2", className)}>
             {filteredNav.map((item) => (
                 item.children
-                    ? <NavItemGroup key={item.title} item={item} isCollapsed={isCollapsed && !inSheet} />
-                    : <NavItemLink key={item.title} item={item} isCollapsed={isCollapsed && !inSheet} />
+                    ? <NavItemGroup key={item.title} item={item} isCollapsed={isOpen && !inSheet} />
+                    : <NavItemLink key={item.title} item={item} isCollapsed={isOpen && !inSheet} />
             ))}
         </nav>
     );
@@ -378,6 +378,34 @@ export const Sidebar = () => (
                 <span>Admin Panel</span>
             </Link>
         </div>
-        <SidebarNav className="flex-1 overflow-y-auto" />
+        <AdminSidebarNav className="flex-1 overflow-y-auto" />
     </div>
 );
+
+export const SidebarNav = React.forwardRef<
+    HTMLElement,
+    React.HTMLAttributes<HTMLElement>
+>(({ className, ...props }, ref) => {
+    return <nav ref={ref} className={cn("flex flex-col gap-1 p-2", className)} {...props} />
+});
+SidebarNav.displayName = "SidebarNav";
+
+
+export const SidebarNavItem = ({ href, icon, children }: { href: string; icon: React.ReactElement; children: React.ReactNode }) => {
+    const pathname = usePathname();
+    const isActive = pathname === href;
+
+    return (
+        <Link
+            href={href}
+            className={cn(
+                buttonVariants({ variant: "ghost" }),
+                "w-full justify-start",
+                isActive && "bg-muted text-primary hover:bg-muted hover:text-primary",
+            )}
+        >
+            {React.cloneElement(icon, { className: "h-5 w-5 mr-2" })}
+            <span className="truncate">{children}</span>
+        </Link>
+    );
+};
