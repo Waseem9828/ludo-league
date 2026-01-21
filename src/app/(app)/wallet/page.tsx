@@ -84,7 +84,9 @@ export default function WalletPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [depositAmount, setDepositAmount] = useState(100);
   const [depositScreenshot, setDepositScreenshot] = useState<File | null>(null);
-  const [activeUpiId, setActiveUpiId] = useState<string | null>(null);
+  
+  const [activeUpi, setActiveUpi] = useState<{ id: string | null, ref: string | null }>({ id: null, ref: null});
+
   const [depositStep, setDepositStep] = useState<'enterAmount' | 'confirmUtr'>('enterAmount');
   
   const balance = userProfile?.walletBalance ?? 0;
@@ -94,15 +96,15 @@ export default function WalletPage() {
     const upiConfigRef = doc(firestore, 'upiConfiguration', 'active');
     const unsubscribeUpi = onSnapshot(upiConfigRef, (doc) => {
       if (doc.exists()) {
-        const data = doc.data() as { activeUpiId: string };
-        setActiveUpiId(data.activeUpiId);
+        const data = doc.data() as { activeUpiId: string, activeUpiRef: string };
+        setActiveUpi({ id: data.activeUpiId, ref: data.activeUpiRef });
       } else {
         console.log("No active UPI configuration found!");
-        setActiveUpiId(null);
+        setActiveUpi({ id: null, ref: null });
       }
     }, (error) => {
       console.error("Error fetching active UPI: ", error);
-      setActiveUpiId(null);
+      setActiveUpi({ id: null, ref: null });
     });
 
     return () => unsubscribeUpi();
@@ -206,7 +208,7 @@ export default function WalletPage() {
       });
       return;
     }
-    if (!activeUpiId) {
+    if (!activeUpi.id) {
         toast({
             title: "Payment Details Not Available",
             description: "Please wait for the payment QR code to load.",
@@ -233,7 +235,7 @@ export default function WalletPage() {
     }
     
     // UTR duplicate check
-    const q = query(collection(firestore, "deposits"), where("utr", "==", utr));
+    const q = query(collection(firestore, "depositRequests"), where("utr", "==", utr));
     const snap = await getDocs(q);
     if(!snap.empty){
         toast({ title: "UTR already used", description: "This transaction ID has already been submitted.", variant: "destructive" });
@@ -259,6 +261,8 @@ export default function WalletPage() {
             createdAt: serverTimestamp(),
             userName: user.displayName, // For easier review in admin panel
             userAvatar: user.photoURL,
+            targetUpiId: activeUpi.id,
+            targetUpiRef: activeUpi.ref
         });
         
         toast({ id: toastId, title: "Deposit request submitted successfully.", description: "Your request is under review and will be processed shortly.", className: 'bg-green-100 text-green-800' });
@@ -368,7 +372,7 @@ export default function WalletPage() {
                                 
                                 <div className="flex flex-col gap-4">
                                     {depositAmount >= 100 ? (
-                                        <DynamicQrCode upiId={activeUpiId} amount={depositAmount} />
+                                        <DynamicQrCode upiId={activeUpi.id} amount={depositAmount} />
                                     ) : (
                                         <div className="flex flex-col items-center justify-center gap-4 p-4 bg-muted rounded-lg h-full">
                                             <ScanBarcode className="h-10 w-10 text-muted-foreground"/>

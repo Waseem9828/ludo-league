@@ -265,7 +265,13 @@ exports.onDepositRequestUpdate = functions.firestore
 
   // Check if the deposit just got approved
   if (after.status === 'approved' && before.status !== 'approved') {
-    const { userId, amount, utr } = after;
+    const { userId, amount, utr, targetUpiRef } = after;
+
+    if (!targetUpiRef) {
+        console.error(`Deposit request ${context.params.depositId} is missing targetUpiRef.`);
+        // Optionally, mark the deposit as failed or require manual intervention.
+        return;
+    }
 
     // --- Create Transaction First ---
     // This will trigger onTransactionCreate to update the wallet balance.
@@ -287,47 +293,41 @@ exports.onDepositRequestUpdate = functions.firestore
         '/wallet'
     );
     
-    // --- UPI Limit Management ---
-    const activeUpiRef = db.collection('upiConfiguration').doc('active');
-    const activeUpiSnap = await activeUpiRef.get();
+    // --- UPI Limit Management (Robust Version) ---
+    const upiConfigDocRef = db.collection('upiConfiguration').doc(targetUpiRef);
+    const upiConfigSnap = await upiConfigDocRef.get();
 
-    if(activeUpiSnap.exists()) {
-        const activeUpiData = activeUpiSnap.data();
-        if (activeUpiData.activeUpiRef) {
-            const activeUpiConfigDocRef = db.collection('upiConfiguration').doc(activeUpiData.activeUpiRef);
-            const upiConfigSnap = await activeUpiConfigDocRef.get();
-            if(upiConfigSnap.exists()) {
-                const upiConfigData = upiConfigSnap.data();
-                const newReceivedAmount = (upiConfigData.currentReceived || 0) + amount;
+    if (upiConfigSnap.exists()) {
+        const upiConfigData = upiConfigSnap.data();
+        const newReceivedAmount = (upiConfigData.currentReceived || 0) + amount;
 
-                if (newReceivedAmount >= upiConfigData.paymentLimit) {
-                    // Limit reached, find a new UPI to activate
-                    const nextUpiQuery = db.collection('upiConfiguration').where('isActive', '==', false).limit(1);
-                    const nextUpiSnapshot = await nextUpiQuery.get();
-                    
-                    if(!nextUpiSnapshot.empty) {
-                        const nextUpiDoc = nextUpiSnapshot.docs[0];
-                        const batch = db.batch();
-                        // Deactivate current
-                        batch.update(activeUpiConfigDocRef, { isActive: false, currentReceived: newReceivedAmount });
-                        // Activate next
-                        batch.update(nextUpiDoc.ref, { isActive: true });
-                        // Update the global active reference
-                        batch.set(activeUpiRef, { activeUpiId: nextUpiDoc.data().upiId, activeUpiRef: nextUpiDoc.id, updatedAt: admin.firestore.FieldValue.serverTimestamp() });
-                        
-                        await batch.commit();
-                        console.log(`UPI limit reached for ${upiConfigData.upiId}. Switched to ${nextUpiDoc.data().upiId}.`);
-                    } else {
-                        // No other UPIs available, just update the current one
-                        await activeUpiConfigDocRef.update({ currentReceived: newReceivedAmount });
-                        console.log("UPI limit reached, but no alternative UPIs available.");
-                    }
-                } else {
-                    // Limit not reached, just update the current amount
-                    await activeUpiConfigDocRef.update({ currentReceived: newReceivedAmount });
-                }
-                await change.after.ref.update({ processedWithUpiId: upiConfigData.upiId });
+        if (newReceivedAmount >= upiConfigData.paymentLimit) {
+            // Limit reached, find a new UPI to activate
+            const nextUpiQuery = db.collection('upiConfiguration').where('isActive', '==', false).limit(1);
+            const nextUpiSnapshot = await nextUpiQuery.get();
+            
+            const batch = db.batch();
+            // Deactivate current
+            batch.update(upiConfigDocRef, { isActive: false, currentReceived: newReceivedAmount });
+
+            if(!nextUpiSnapshot.empty) {
+                const nextUpiDoc = nextUpiSnapshot.docs[0];
+                const activeUpiRef = db.collection('upiConfiguration').doc('active');
+                
+                // Activate next
+                batch.update(nextUpiDoc.ref, { isActive: true });
+                // Update the global active reference
+                batch.set(activeUpiRef, { activeUpiId: nextUpiDoc.data().upiId, activeUpiRef: nextUpiDoc.id, updatedAt: admin.firestore.FieldValue.serverTimestamp() });
+                
+                console.log(`UPI limit reached for ${upiConfigData.upiId}. Switched to ${nextUpiDoc.data().upiId}.`);
+            } else {
+                console.log("UPI limit reached, but no alternative UPIs available. Deactivating current UPI.");
             }
+            await batch.commit();
+
+        } else {
+            // Limit not reached, just update the current amount
+            await upiConfigDocRef.update({ currentReceived: newReceivedAmount });
         }
     }
     // --- End UPI Limit Management ---
@@ -391,20 +391,43 @@ exports.onWithdrawalRequestUpdate = functions.firestore
 .onUpdate(async (change, context) => {
     const after = change.after.data();
     const before = change.before.data();
+    const { userId, amount } = after;
 
     if (after.status === 'approved' && before.status !== 'approved') {
+        const transactionRef = db.collection('transactions').doc();
+        await transactionRef.set({
+            userId: userId,
+            type: 'withdrawal',
+            amount: -amount,
+            status: 'completed',
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+            description: `Withdrawal of ₹${amount}`,
+            relatedId: context.params.withdrawalId,
+        });
+
         await sendNotification(
-            after.userId,
-            'Withdrawal Processed!',
-            `Your withdrawal request of ₹${after.amount} has been approved.`,
+            userId,
+            'Withdrawal Approved!',
+            `Your withdrawal request of ₹${amount} has been approved.`,
             '/wallet'
         );
-    }
-     if (after.status === 'rejected' && before.status !== 'rejected') {
+    } else if (after.status === 'rejected' && before.status !== 'rejected') {
+        // Refund the amount to the user's wallet
+        const transactionRef = db.collection('transactions').doc();
+        await transactionRef.set({
+            userId: userId,
+            type: 'withdrawal_refund',
+            amount: amount, // Positive amount to credit back
+            status: 'completed',
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+            description: `Refund for rejected withdrawal request of ₹${amount}`,
+            relatedId: context.params.withdrawalId,
+        });
+        
         await sendNotification(
-            after.userId,
+            userId,
             'Withdrawal Rejected',
-            `Your withdrawal request of ₹${after.amount} was rejected. Reason: ${after.rejectionReason || 'Not specified'}.`,
+            `Your withdrawal request of ₹${amount} was rejected. Reason: ${after.rejectionReason || 'Not specified'}.`,
             '/wallet'
         );
     }

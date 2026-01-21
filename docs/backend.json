@@ -213,10 +213,15 @@
           "type": "string",
           "description": "Reason for rejection, if applicable."
         },
-        "aadhaarPanUrl": {
+        "aadhaarUrl": {
           "type": "string",
           "format": "uri",
-          "description": "URL to the uploaded Aadhaar/PAN card image."
+          "description": "URL to the uploaded Aadhaar card image."
+        },
+        "panUrl": {
+          "type": "string",
+          "format": "uri",
+          "description": "URL to the uploaded PAN card image."
         },
         "selfieUrl": {
           "type": "string",
@@ -317,7 +322,8 @@
             "createdAt": {"type": "string", "format": "date-time"},
             "reviewedBy": {"type": "string", "description": "Admin user ID."},
             "reviewedAt": {"type": "string", "format": "date-time"},
-            "processedWithUpiId": {"type": "string"}
+            "targetUpiId": { "type": "string", "description": "The UPI ID the user was instructed to pay."},
+            "targetUpiRef": { "type": "string", "description": "The document ID of the UPI configuration used for this deposit." }
         },
         "required": ["userId", "amount", "utr", "screenshotUrl", "status", "createdAt"]
     },
