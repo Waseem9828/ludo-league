@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useUser } from '@/firebase/auth/use-user';
 import { useFirestore } from '@/firebase';
-import { collection, query, where, onSnapshot, QuerySnapshot, DocumentData, orderBy } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, QuerySnapshot, DocumentData, orderBy, limit } from 'firebase/firestore';
 import { Card, CardContent } from '@/components/ui/card';
 import type { Tournament } from '@/lib/types';
 import Link from 'next/link';
