@@ -14,8 +14,8 @@ import Autoplay from 'embla-carousel-autoplay';
 import { motion } from 'framer-motion';
 import { Badge } from '@/components/ui/badge';
 import { ImageSlider } from '@/components/app/ImageSlider';
-import { Wallet, Trophy, Swords, BarChart, Gift, Award, Info } from 'lucide-react';
 
+// Tournament Slider Component (remains the same)
 const TournamentSlider = ({ tournaments, loading }: { tournaments: Tournament[], loading: boolean }) => {
   const [emblaRef] = useEmblaCarousel({ loop: true, align: 'start' }, [Autoplay({ delay: 5000 })]);
 
@@ -65,15 +65,13 @@ const TournamentSlider = ({ tournaments, loading }: { tournaments: Tournament[],
   );
 };
 
-
-const DashboardCard = ({
-  icon: Icon,
+// New Dynamic Stat Card Component
+const StatCard = ({
   label,
   value,
   href,
   cardId
 }: {
-  icon: React.ElementType;
   label: string;
   value: string | number;
   href: string;
@@ -82,7 +80,7 @@ const DashboardCard = ({
   const firestore = useFirestore();
   const [images, setImages] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
-  const [emblaRef] = useEmblaCarousel({ loop: true, align: 'start' }, [Autoplay({ delay: Math.random() * (5000 - 3000) + 3000 })]);
+  const [emblaRef] = useEmblaCarousel({ loop: true, align: 'start' }, [Autoplay({ delay: Math.random() * (6000 - 4000) + 4000 })]);
 
   useEffect(() => {
     if (!firestore) return;
@@ -102,7 +100,7 @@ const DashboardCard = ({
 
   return (
     <Link href={href} className="block group">
-      <Card className="bg-muted/50 hover:bg-muted/80 transition-colors h-full overflow-hidden aspect-square">
+      <Card className="bg-muted/50 hover:bg-muted/80 transition-colors h-full overflow-hidden aspect-[4/3]">
         <div className="relative w-full h-full">
           {/* Image Slider Background */}
           {loading ? (
@@ -118,18 +116,82 @@ const DashboardCard = ({
                 </div>
             </div>
           ) : (
-            // Fallback for when there are no images
+            // Fallback for when there are no images - a simple gradient
             <div className="absolute inset-0 bg-gradient-primary" />
           )}
 
           {/* Overlay and Content */}
           <div className="absolute inset-0 bg-black/40" />
-          <div className="relative h-full flex flex-col justify-between p-4 text-white">
-            <div className="flex justify-between items-start">
-              <h3 className="text-sm font-medium">{label}</h3>
-              <Icon className="h-4 w-4" />
+          <div className="relative h-full flex flex-col justify-between p-3 text-white">
+            <h3 className="text-sm font-medium">{label}</h3>
+            <div className="text-2xl font-bold text-right">{value}</div>
+          </div>
+        </div>
+      </Card>
+    </Link>
+  );
+};
+
+
+// New Dynamic Action Card Component
+const ActionCard = ({
+  label,
+  value,
+  href,
+  cardId
+}: {
+  label: string;
+  value?: string | number;
+  href: string;
+  cardId: string;
+}) => {
+  const firestore = useFirestore();
+  const [images, setImages] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [emblaRef] = useEmblaCarousel({ loop: true, align: 'start' }, [Autoplay({ delay: Math.random() * (7000 - 5000) + 5000 })]);
+
+  useEffect(() => {
+    if (!firestore) return;
+    setLoading(true);
+    const imagesQuery = query(
+      collection(firestore, 'dashboardCardImages'),
+      where('cardId', '==', cardId),
+      where('isActive', '==', true),
+      orderBy('createdAt', 'desc')
+    );
+    const unsubscribe = onSnapshot(imagesQuery, (snapshot) => {
+      setImages(snapshot.docs.map(doc => doc.data().imageUrl));
+      setLoading(false);
+    });
+    return () => unsubscribe();
+  }, [firestore, cardId]);
+
+  return (
+    <Link href={href} className="block group">
+      <Card className="bg-muted/50 hover:bg-muted/80 transition-colors h-full overflow-hidden aspect-[3/4]">
+        <div className="relative w-full h-full">
+          {/* Image Slider Background */}
+          {loading ? (
+             <Skeleton className="absolute inset-0" />
+          ) : images.length > 0 ? (
+            <div className="absolute inset-0 overflow-hidden" ref={emblaRef}>
+                <div className="flex h-full">
+                    {images.map((imgUrl) => (
+                        <div className="relative flex-[0_0_100%] h-full" key={imgUrl}>
+                            <Image src={imgUrl} alt={label} fill className="object-cover group-hover:scale-105 transition-transform duration-300" />
+                        </div>
+                    ))}
+                </div>
             </div>
-            <div className="text-2xl font-bold">{value}</div>
+          ) : (
+            <div className="absolute inset-0 bg-gradient-primary" />
+          )}
+
+          {/* Overlay and Content */}
+          <div className="absolute inset-0 bg-black/40" />
+          <div className="relative h-full flex flex-col items-center justify-center p-3 text-white text-center">
+            <h3 className="text-lg font-bold">{label}</h3>
+             {value && <div className="text-sm font-semibold mt-1">{value}</div>}
           </div>
         </div>
       </Card>
@@ -169,55 +231,49 @@ export default function DashboardPage() {
     }, [firestore]);
 
 
-    const cardData = [
+    const statCardData = [
       {
         id: 'wallet',
         title: 'Wallet',
         value: `₹${userProfile?.walletBalance?.toFixed(2) || '0.00'}`,
         href: '/wallet',
-        icon: Wallet
       },
       {
         id: 'winnings',
         title: 'Winnings',
         value: `₹${userProfile?.winnings?.toFixed(2) || '0.00'}`,
         href: '/profile',
-        icon: Trophy
       },
       {
         id: 'matches',
         title: 'Matches Played',
         value: userProfile?.totalMatchesPlayed || 0,
         href: '/profile',
-        icon: Swords
       },
       {
         id: 'winrate',
         title: 'Win Rate',
         value: `${userProfile?.winRate?.toFixed(0) || 0}%`,
         href: '/leaderboard',
-        icon: BarChart
       },
+    ];
+
+    const actionCardData = [
        {
         id: 'active_matches',
         title: 'Active Matches',
         value: userProfile?.activeMatchIds?.length || 0,
         href: '/lobby',
-        icon: Info
       },
        {
         id: 'referral',
         title: 'Referral Fund',
-        value: 'View',
         href: '/referrals',
-        icon: Gift
       },
        {
         id: 'bonus',
         title: 'Daily Bonus',
-        value: 'Claim',
         href: '/wallet',
-        icon: Award
       },
     ];
 
@@ -233,27 +289,45 @@ export default function DashboardPage() {
               Welcome back, {userProfile?.displayName || 'Champion'}!
             </motion.h1>
             
-            <TournamentSlider tournaments={tournaments} loading={loadingTournaments} />
-            
+            {/* Stat Cards */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {cardData.map((card, index) => (
+                {statCardData.map((card, index) => (
                     <motion.div
                       key={card.id}
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ duration: 0.5, delay: 0.3 + index * 0.1 }}
                     >
-                      <DashboardCard 
+                      <StatCard 
                           cardId={card.id}
                           label={card.title}
                           value={card.value as string | number}
                           href={card.href}
-                          icon={card.icon}
                       />
                     </motion.div>
                 ))}
             </div>
+
+            <TournamentSlider tournaments={tournaments} loading={loadingTournaments} />
             
+             {/* Action Cards */}
+            <div className="grid grid-cols-3 gap-4">
+                {actionCardData.map((card, index) => (
+                    <motion.div
+                      key={card.id}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.5, delay: 0.8 + index * 0.1 }}
+                    >
+                      <ActionCard 
+                          cardId={card.id}
+                          label={card.title}
+                          value={card.value as string | number}
+                          href={card.href}
+                      />
+                    </motion.div>
+                ))}
+            </div>
         </div>
     );
 }
