@@ -1,7 +1,7 @@
 'use client';
 
 import { Toaster } from '@/components/ui/toaster';
-import { Sheet, SheetContent } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import AppHeader from '@/components/AppHeader';
 import { useAuthGuard } from '@/hooks/useAuthGuard';
 import CustomLoader from '@/components/CustomLoader';
@@ -41,6 +41,12 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
         {/* Mobile sidebar */}
         <Sheet open={isOpen} onOpenChange={setIsOpen}>
             <SheetContent side="left" className="w-64 p-0">
+                 <SheetHeader className="sr-only">
+                    <SheetTitle>Admin Menu</SheetTitle>
+                    <SheetDescription>
+                        Main navigation menu for the admin panel.
+                    </SheetDescription>
+                </SheetHeader>
                 <AdminSidebar />
             </SheetContent>
         </Sheet>
