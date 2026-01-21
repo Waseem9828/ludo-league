@@ -120,6 +120,12 @@ const adminNavItems: AdminNavItem[] = [
                 role: ["superAdmin"],
             },
             {
+                title: "Dashboard Cards",
+                href: "/admin/dashboard-cards",
+                icon: FileImage,
+                role: ["superAdmin"],
+            },
+            {
                 title: "News",
                 href: "/admin/news-management",
                 icon: Newspaper,

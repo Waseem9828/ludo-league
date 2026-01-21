@@ -510,6 +510,31 @@
             "createdAt": { "type": "string", "format": "date-time" }
         },
         "required": ["text", "isActive", "createdAt"]
+    },
+    "DashboardCardImage": {
+        "title": "Dashboard Card Image",
+        "description": "An image for a specific card on the user dashboard.",
+        "type": "object",
+        "properties": {
+            "cardId": {
+                "type": "string",
+                "description": "The unique identifier for the dashboard card (e.g., 'wallet', 'winnings')."
+            },
+            "imageUrl": {
+                "type": "string",
+                "format": "uri",
+                "description": "The URL of the uploaded image."
+            },
+            "isActive": {
+                "type": "boolean",
+                "description": "Whether the image is currently active for the slider."
+            },
+            "createdAt": {
+                "type": "string",
+                "format": "date-time"
+            }
+        },
+        "required": ["cardId", "imageUrl", "isActive", "createdAt"]
     }
   },
   "auth": {
@@ -649,6 +674,12 @@
             "$ref": "#/backend/entities/Announcement"
         },
         "description": "Stores promotional text for the top banner ticker."
+    },
+    "/dashboardCardImages/{imageId}": {
+      "schema": {
+        "$ref": "#/backend/entities/DashboardCardImage"
+      },
+      "description": "Stores images for the user dashboard cards."
     }
   }
 }

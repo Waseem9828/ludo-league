@@ -3,9 +3,9 @@
 import { useState, useEffect } from 'react';
 import { useUser } from '@/firebase/auth/use-user';
 import { useFirestore } from '@/firebase';
-import { collection, query, where, orderBy, limit, onSnapshot, QuerySnapshot, DocumentData } from 'firebase/firestore';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tournament } from '@/lib/types';
+import { collection, query, where, onSnapshot, QuerySnapshot, DocumentData, orderBy } from 'firebase/firestore';
+import { Card, CardContent } from '@/components/ui/card';
+import type { Tournament } from '@/lib/types';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -66,33 +66,80 @@ const TournamentSlider = ({ tournaments, loading }: { tournaments: Tournament[],
 };
 
 
-const StatCard = ({ icon: Icon, label, value, href }: { icon: React.ElementType, label: string, value: string | number, href: string }) => (
-    <Link href={href} className="block group">
-        <Card className="bg-muted/50 hover:bg-muted/80 transition-colors h-full">
-            <CardHeader className="flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium">{label}</CardTitle>
-                <Icon className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-                <div className="text-xl font-bold">{value}</div>
-            </CardContent>
-        </Card>
-    </Link>
-);
+const DashboardCard = ({
+  icon: Icon,
+  label,
+  value,
+  href,
+  cardId
+}: {
+  icon: React.ElementType;
+  label: string;
+  value: string | number;
+  href: string;
+  cardId: string;
+}) => {
+  const firestore = useFirestore();
+  const [images, setImages] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [emblaRef] = useEmblaCarousel({ loop: true, align: 'start' }, [Autoplay({ delay: Math.random() * (5000 - 3000) + 3000 })]);
 
-const ActionCard = ({ icon: Icon, label, href, badgeText }: { icon: React.ElementType, label: string, href: string, badgeText?: string }) => (
+  useEffect(() => {
+    if (!firestore) return;
+    setLoading(true);
+    const imagesQuery = query(
+      collection(firestore, 'dashboardCardImages'),
+      where('cardId', '==', cardId),
+      where('isActive', '==', true),
+      orderBy('createdAt', 'desc')
+    );
+    const unsubscribe = onSnapshot(imagesQuery, (snapshot) => {
+      setImages(snapshot.docs.map(doc => doc.data().imageUrl));
+      setLoading(false);
+    });
+    return () => unsubscribe();
+  }, [firestore, cardId]);
+
+  return (
     <Link href={href} className="block group">
-        <Card className="relative bg-muted/50 hover:bg-muted/80 transition-colors h-full flex flex-col items-center justify-center p-4">
-            <Icon className="h-6 w-6 text-primary mb-2" />
-            <p className="text-xs font-semibold text-center">{label}</p>
-            {badgeText && <Badge variant="destructive" className="absolute top-2 right-2">{badgeText}</Badge>}
-        </Card>
+      <Card className="bg-muted/50 hover:bg-muted/80 transition-colors h-full overflow-hidden aspect-square">
+        <div className="relative w-full h-full">
+          {/* Image Slider Background */}
+          {loading ? (
+             <Skeleton className="absolute inset-0" />
+          ) : images.length > 0 ? (
+            <div className="absolute inset-0 overflow-hidden" ref={emblaRef}>
+                <div className="flex h-full">
+                    {images.map((imgUrl) => (
+                        <div className="relative flex-[0_0_100%] h-full" key={imgUrl}>
+                            <Image src={imgUrl} alt={label} fill className="object-cover group-hover:scale-105 transition-transform duration-300" />
+                        </div>
+                    ))}
+                </div>
+            </div>
+          ) : (
+            // Fallback for when there are no images
+            <div className="absolute inset-0 bg-gradient-primary" />
+          )}
+
+          {/* Overlay and Content */}
+          <div className="absolute inset-0 bg-black/40" />
+          <div className="relative h-full flex flex-col justify-between p-4 text-white">
+            <div className="flex justify-between items-start">
+              <h3 className="text-sm font-medium">{label}</h3>
+              <Icon className="h-4 w-4" />
+            </div>
+            <div className="text-2xl font-bold">{value}</div>
+          </div>
+        </div>
+      </Card>
     </Link>
-);
+  );
+};
 
 
 export default function DashboardPage() {
-    const { user, userProfile } = useUser();
+    const { userProfile } = useUser();
     const firestore = useFirestore();
     const [tournaments, setTournaments] = useState<Tournament[]>([]);
     const [loadingTournaments, setLoadingTournaments] = useState(true);
@@ -122,7 +169,7 @@ export default function DashboardPage() {
     }, [firestore]);
 
 
-    const statCardsData = [
+    const cardData = [
       {
         id: 'wallet',
         title: 'Wallet',
@@ -151,58 +198,59 @@ export default function DashboardPage() {
         href: '/leaderboard',
         icon: BarChart
       },
-    ];
-
-    const actionCardsData = [
        {
         id: 'active_matches',
         title: 'Active Matches',
+        value: userProfile?.activeMatchIds?.length || 0,
         href: '/lobby',
-        badgeText: (userProfile?.activeMatchIds?.length || 0) > 0 ? userProfile?.activeMatchIds?.length.toString() : undefined,
         icon: Info
       },
        {
         id: 'referral',
         title: 'Referral Fund',
+        value: 'View',
         href: '/referrals',
         icon: Gift
       },
        {
         id: 'bonus',
         title: 'Daily Bonus',
+        value: 'Claim',
         href: '/wallet',
         icon: Award
       },
-    ]
+    ];
 
     return (
         <div className="flex-1 space-y-4">
             <ImageSlider />
-            <h1 className="text-xl font-bold tracking-tight text-center">Welcome back, {userProfile?.displayName || 'Champion'}!</h1>
+            <motion.h1 
+              className="text-xl font-bold tracking-tight text-center"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+            >
+              Welcome back, {userProfile?.displayName || 'Champion'}!
+            </motion.h1>
             
             <TournamentSlider tournaments={tournaments} loading={loadingTournaments} />
             
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {statCardsData.map((card) => (
-                    <StatCard 
-                        key={card.id}
-                        label={card.title}
-                        value={card.value || ''}
-                        href={card.href}
-                        icon={card.icon}
-                    />
-                ))}
-            </div>
-
-            <div className="grid grid-cols-3 gap-4">
-                {actionCardsData.map((card) => (
-                     <ActionCard
-                        key={card.id}
-                        label={card.title}
-                        href={card.href}
-                        icon={card.icon}
-                        badgeText={card.badgeText}
-                    />
+                {cardData.map((card, index) => (
+                    <motion.div
+                      key={card.id}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.5, delay: 0.3 + index * 0.1 }}
+                    >
+                      <DashboardCard 
+                          cardId={card.id}
+                          label={card.title}
+                          value={card.value as string | number}
+                          href={card.href}
+                          icon={card.icon}
+                      />
+                    </motion.div>
                 ))}
             </div>
             
