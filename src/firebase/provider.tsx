@@ -2,32 +2,12 @@
 'use client';
 
 import { createContext, useContext, useMemo, type ReactNode } from 'react';
-import { getApps, initializeApp, type FirebaseApp, type FirebaseOptions } from 'firebase/app';
-import { getAuth, type Auth } from 'firebase/auth';
-import { getFirestore, type Firestore } from 'firebase/firestore';
-import { getMessaging, type Messaging } from 'firebase/messaging';
-import { getStorage, type FirebaseStorage } from 'firebase/storage';
-import { firebaseConfig } from './config';
-
-function initializeFirebase(config: FirebaseOptions): { app: FirebaseApp; auth: Auth; firestore: Firestore; messaging: Messaging | null, storage: FirebaseStorage } {
-  const apps = getApps();
-  const app = apps.length > 0 ? apps[0] : initializeApp(config);
-  const auth = getAuth(app);
-  const firestore = getFirestore(app);
-  const storage = getStorage(app);
-  
-  let messaging: Messaging | null = null;
-  // Messaging is only available in the browser
-  if (typeof window !== 'undefined') {
-    try {
-        messaging = getMessaging(app);
-    } catch(e) {
-        console.error("Could not initialize Firebase Messaging", e);
-    }
-  }
-
-  return { app, auth, firestore, messaging, storage };
-}
+import type { FirebaseApp } from 'firebase/app';
+import type { Auth } from 'firebase/auth';
+import type { Firestore } from 'firebase/firestore';
+import type { Messaging } from 'firebase/messaging';
+import type { FirebaseStorage } from 'firebase/storage';
+import { app, auth, db, messaging, storage } from './config';
 
 type FirebaseContextValue = {
   app: FirebaseApp;
@@ -46,8 +26,9 @@ type FirebaseProviderProps = {
 };
 
 export function FirebaseProvider({ children }: FirebaseProviderProps) {
+  // Services are now imported directly from config.ts, ensuring they are singletons.
   const services = useMemo(() => {
-    return initializeFirebase(firebaseConfig);
+    return { app, auth, firestore: db, messaging, storage };
   }, []);
 
   return (
