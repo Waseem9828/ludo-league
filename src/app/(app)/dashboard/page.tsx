@@ -235,13 +235,13 @@ export default function DashboardPage() {
       {
         id: 'wallet',
         title: 'Wallet',
-        value: `₹${userProfile?.walletBalance?.toFixed(2) || '0.00'}`,
+        value: `₹${userProfile?.walletBalance?.toFixed(0) || '0'}`,
         href: '/wallet',
       },
       {
         id: 'winnings',
         title: 'Winnings',
-        value: `₹${userProfile?.winnings?.toFixed(2) || '0.00'}`,
+        value: `₹${userProfile?.winnings?.toFixed(0) || '0'}`,
         href: '/profile',
       },
       {

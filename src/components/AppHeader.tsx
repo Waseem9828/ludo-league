@@ -1,4 +1,3 @@
-
 'use client';
 
 import Image from "next/image";
@@ -24,7 +23,7 @@ const WalletBalance = () => {
         <Link href="/wallet">
             <div className="flex items-center gap-2 rounded-full bg-white/10 px-3 py-1.5 text-white hover:bg-white/20 transition-colors duration-200 cursor-pointer">
                 <Wallet2 className="h-5 w-5" />
-                <span className="text-sm font-semibold tracking-wider">₹{userProfile.walletBalance.toFixed(2)}</span>
+                <span className="text-sm font-semibold tracking-wider">₹{userProfile.walletBalance.toFixed(0)}</span>
             </div>
       </Link>
     );

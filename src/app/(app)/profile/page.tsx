@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState } from 'react';
@@ -108,10 +107,10 @@ export default function ProfilePage() {
             
             <CardContent className="p-4 md:p-6">
                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                    <StatCard icon={Wallet} label="Balance" value={`₹${userProfile.walletBalance || 0}`} />
-                    <StatCard icon={Trophy} label="Winnings" value={`₹${userProfile.winnings || 0}`} />
+                    <StatCard icon={Wallet} label="Balance" value={`₹${(userProfile.walletBalance || 0).toFixed(0)}`} />
+                    <StatCard icon={Trophy} label="Winnings" value={`₹${(userProfile.winnings || 0).toFixed(0)}`} />
                     <StatCard icon={Swords} label="Matches" value={userProfile.totalMatchesPlayed || 0} />
-                    <StatCard icon={BarChart} label="Win Rate" value={`${userProfile.winRate || 0}%`} />
+                    <StatCard icon={BarChart} label="Win Rate" value={`${(userProfile.winRate || 0).toFixed(0)}%`} />
                 </div>
                 
                  <div className="grid md:grid-cols-2 gap-6">

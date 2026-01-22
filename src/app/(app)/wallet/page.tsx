@@ -1,4 +1,3 @@
-
 'use client';
 import Image from "next/image"
 import Link from "next/link";
@@ -336,7 +335,7 @@ export default function WalletPage() {
                     <CardDescription>Total funds available for matches.</CardDescription>
                 </div>
                 <div className="text-3xl sm:text-4xl font-bold text-primary">
-                    ₹{balance.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    ₹{balance.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
                 </div>
             </CardHeader>
         </Card>
@@ -399,7 +398,7 @@ export default function WalletPage() {
                             <CardContent className="space-y-6">
                                 <div className="flex justify-between items-center bg-muted p-3 rounded-lg">
                                     <span className="text-sm font-medium">Amount Paid:</span>
-                                    <span className="text-xl font-bold text-primary">₹{depositAmount.toFixed(2)}</span>
+                                    <span className="text-xl font-bold text-primary">₹{depositAmount.toFixed(0)}</span>
                                 </div>
                                 <div className="grid gap-2">
                                     <Label htmlFor="utr">UTR / Transaction ID</Label>
@@ -487,7 +486,7 @@ export default function WalletPage() {
                                             </div>
                                         </div>
                                         <div className="text-right">
-                                             <p className={cn("font-bold text-lg", isDeposit ? "text-green-600" : "text-red-600")}>₹{req.amount.toFixed(2)}</p>
+                                             <p className={cn("font-bold text-lg", isDeposit ? "text-green-600" : "text-red-600")}>₹{req.amount.toFixed(0)}</p>
                                             <Badge variant={req.status === 'approved' ? 'default' : req.status === 'pending' ? 'secondary' : 'destructive'} className={cn('mt-1', {'bg-green-100 text-green-800': req.status === 'approved'})}>
                                                 {req.status}
                                             </Badge>
@@ -521,7 +520,7 @@ export default function WalletPage() {
                                         </div>
                                         <div className="text-right">
                                             <p className={cn("font-bold text-lg", t.amount >= 0 ? "text-green-600" : "text-red-500")}>
-                                                {t.amount >= 0 ? '+' : ''}₹{t.amount.toFixed(2)}
+                                                {t.amount >= 0 ? '+' : ''}₹{t.amount.toFixed(0)}
                                             </p>
                                              <Badge variant={t.status === 'completed' ? 'default' : t.status === 'pending' ? 'secondary' : 'destructive'} className={cn('mt-1', {'bg-green-100 text-green-800': t.status === 'completed'})}>
                                                 {t.status}
