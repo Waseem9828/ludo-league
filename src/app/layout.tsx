@@ -1,4 +1,5 @@
-import type { Metadata } from 'next';
+
+import type { Metadata, Viewport } from 'next';
 import React from 'react';
 import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
@@ -12,7 +13,6 @@ export const metadata: Metadata = {
   title: 'Ludo League',
   description: 'A platform for competitive Ludo matches.',
   manifest: '/manifest.json',
-  themeColor: '#1F5FA8',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
@@ -23,6 +23,11 @@ export const metadata: Metadata = {
     apple: '/icon-192x192.png',
   },
 };
+
+export const viewport: Viewport = {
+  themeColor: '#1F5FA8',
+};
+
 
 export default function RootLayout({
   children,
