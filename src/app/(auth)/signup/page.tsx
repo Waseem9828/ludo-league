@@ -80,6 +80,7 @@ function SignUpForm() {
                 disabled={isLoading || isGoogleLoading} 
                 variant="outline"
                 className="w-full h-12 border-border font-semibold shadow-sm transition-all duration-300 transform hover:scale-105"
+                suppressHydrationWarning
             >
                  {isGoogleLoading ? <Loader2 className="h-5 w-5 mr-3 animate-spin"/> : <GoogleIcon className="h-5 w-5 mr-3" />}
                 Sign up with Google
@@ -104,6 +105,7 @@ function SignUpForm() {
                     onChange={e => setDisplayName(e.target.value)} 
                     required 
                     className="bg-background/50 border-border h-12 pl-10 focus:ring-primary focus:border-primary"
+                    suppressHydrationWarning
                 />
             </div>
              <div className="relative">
@@ -115,6 +117,7 @@ function SignUpForm() {
                     onChange={e => setEmail(e.target.value)} 
                     required 
                     className="bg-background/50 border-border h-12 pl-10 focus:ring-primary focus:border-primary"
+                    suppressHydrationWarning
                 />
             </div>
             <div className="relative">
@@ -126,6 +129,7 @@ function SignUpForm() {
                     onChange={e => setPassword(e.target.value)} 
                     required 
                     className="bg-background/50 border-border h-12 pl-10 focus:ring-primary focus:border-primary"
+                    suppressHydrationWarning
                 />
             </div>
             <div className="relative">
@@ -136,9 +140,10 @@ function SignUpForm() {
                     value={referralCode} 
                     onChange={e => setReferralCode(e.target.value)} 
                     className="bg-background/50 border-border h-12 pl-10 focus:ring-primary focus:border-primary"
+                    suppressHydrationWarning
                 />
             </div>
-            <Button type="submit" disabled={isLoading || isGoogleLoading} className="w-full h-12 font-bold text-lg transition-all duration-300 transform hover:scale-105">
+            <Button type="submit" disabled={isLoading || isGoogleLoading} className="w-full h-12 font-bold text-lg transition-all duration-300 transform hover:scale-105" suppressHydrationWarning>
                 {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : "Sign Up with Email"}
             </Button>
         </form>
