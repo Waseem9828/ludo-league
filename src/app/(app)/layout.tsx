@@ -19,7 +19,7 @@ function AppLayoutContent({ children }: { children: React.ReactNode }) {
   const { isOpen, setIsOpen } = useSidebar();
   const pathname = usePathname();
 
-  const isAuthPage = pathname === '/signin' || pathname === '/signup';
+  const isAuthPage = pathname === '/login' || pathname === '/signup';
 
   if (isAuthenticating) {
     return (
