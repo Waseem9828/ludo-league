@@ -44,9 +44,14 @@ function SignUpForm() {
   }, [cooldown]);
 
   const handleSignupError = (error: any) => {
-    const message = error.code === 'auth/too-many-requests'
-      ? 'Too many attempts. Please wait a moment before trying again.'
-      : error.message;
+    let message = 'An unexpected error occurred. Please try again.';
+    if (error.code === 'auth/too-many-requests') {
+        message = 'Too many attempts. Please wait a moment before trying again.';
+    } else if (error.code === 'auth/email-already-in-use') {
+        message = 'This email address is already in use. Please log in or use a different email.';
+    } else if (error.code === 'auth/weak-password') {
+        message = 'The password is too weak. It should be at least 6 characters long.';
+    }
     toast({ title: "Sign Up Failed", description: message, variant: "destructive" });
     setCooldown(10); // 10 second cooldown
   };

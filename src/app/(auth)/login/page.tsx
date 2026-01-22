@@ -32,10 +32,12 @@ export default function LoginPage() {
   }, [cooldown]);
 
   const handleLoginError = (error: any) => {
-    // Avoid showing generic "Firebase: Error (auth/too-many-requests)."
-    const message = error.code === 'auth/too-many-requests'
-      ? 'Too many failed attempts. Please wait a moment before trying again.'
-      : error.message;
+    let message = 'An unexpected error occurred. Please try again.';
+    if (error.code === 'auth/too-many-requests') {
+        message = 'Too many failed attempts. Please wait a moment before trying again.';
+    } else if (error.code === 'auth/invalid-credential') {
+        message = 'The email or password you entered is incorrect. Please try again.';
+    }
     toast({ title: "Login Failed", description: message, variant: "destructive" });
     setCooldown(10); // Start a 10-second cooldown
   };
