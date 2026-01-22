@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://www.ludoleague.online/</loc>
+    <priority>1.0</priority>
+  </url>
+  <url>
+    <loc>https://www.ludoleague.online/about</loc>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://www.ludoleague.online/contact</loc>
+    <priority>0.8</priority>
+  </url>
+    <url>
+    <loc>https://www.ludoleague.online/privacy-policy</loc>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://www.ludoleague.online/terms-and-conditions</loc>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://www.ludoleague.online/tutorials</loc>
+    <priority>0.8</priority>
+  </url>
+</urlset>

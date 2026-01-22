@@ -52,7 +52,7 @@ export default function AppHeader() {
     const { setIsOpen } = useSidebar();
     const appName = "Ludo League";
     const pathname = usePathname();
-    const isAdminPage = pathname.startsWith('/admin');
+    const isAdminPage = pathname?.startsWith('/admin');
 
     return (
         <div className="flex w-full items-center justify-between gap-2">
