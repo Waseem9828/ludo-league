@@ -10,9 +10,9 @@ import { Inter } from 'next/font/google';
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 
 export const metadata: Metadata = {
-  title: 'Ludo League Online – Play Competitive Ludo Matches',
-  description: 'Ludo League Online is a competitive Ludo platform where players join matches, compete fairly, and enjoy an online Ludo gaming experience.',
-  keywords: 'ludo league, ludo league online, play ludo online, ludo league game, online ludo competition',
+  title: 'Ludo League Online – Play Ludo League Games & Compete in Real Matches',
+  description: 'Play Ludo League Online at LudoLeague.online. Join multiplayer Ludo matches, compete with real players, and enjoy classic Ludo gameplay on web browsers.',
+  keywords: 'ludo league online, play ludo league, online ludo game, multiplayer ludo, ludo league dashboard',
   robots: 'index, follow',
   appleWebApp: {
     capable: true,
@@ -24,13 +24,13 @@ export const metadata: Metadata = {
     apple: '/icon-192x192.png',
   },
   openGraph: {
-      title: 'Ludo League Online – Play Competitive Ludo Matches',
-      description: 'The ultimate platform for Ludo enthusiasts. Join thousands of players in fair, secure, and exciting online Ludo matches.',
+      title: 'Ludo League Online – Play Ludo League Games & Compete in Real Matches',
+      description: 'Play Ludo League Online at LudoLeague.online. Join multiplayer Ludo matches, compete with real players, and enjoy classic Ludo gameplay on web browsers.',
       url: 'https://www.ludoleague.online',
       siteName: 'Ludo League',
       images: [
         {
-          url: 'https://www.ludoleague.online/og-image.png', // Assuming you will add an OG image here
+          url: 'https://www.ludoleague.online/og-image.png',
           width: 1200,
           height: 630,
         },
