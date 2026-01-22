@@ -9,61 +9,63 @@ service firebase.storage {
       return request.auth != null && request.auth.uid == userId;
     }
     
-    function isAdmin() {
-      // Storage rules cannot read from Firestore. 
-      // Rely solely on the custom claim set on the auth token.
-      return request.auth != null && request.auth.token.admin == true;
+    function isSuperAdmin() {
+      return request.auth != null && request.auth.token.role == 'superAdmin';
     }
-
-    // --- Global Admin Access ---
-    // Admins have full read, write, and list access to everything.
-    match /{allPaths=**} {
-      allow read, write, list: if isAdmin();
+    function isKycAdmin() {
+      return request.auth != null && (request.auth.token.role == 'kycAdmin' || isSuperAdmin());
+    }
+    function isDepositAdmin() {
+      return request.auth != null && (request.auth.token.role == 'depositAdmin' || isSuperAdmin());
+    }
+    function isMatchAdmin() {
+      return request.auth != null && (request.auth.token.role == 'matchAdmin' || isSuperAdmin());
+    }
+    function isAdmin() {
+      return request.auth != null && request.auth.token.admin == true;
     }
     
     // ===================================
-    //      Storage Rules by Path for non-admins
+    //      Storage Rules by Path
     // ===================================
 
     // --- User Profile Pictures ---
-    // A user can manage their own profile pictures.
-    // Any authenticated user can view them.
+    // A user can manage their own profile pictures. Any authenticated user can view them.
     match /profile-pictures/{userId}/{allPaths=**} {
         allow read: if request.auth != null;
         allow write: if isOwner(userId);
     }
 
     // --- KYC Documents ---
-    // A user can create files in their own KYC folder.
-    // Only the user can read, update, or delete those specific files afterward.
+    // User can write. Only user and KYC Admins can read.
     match /kyc/{userId}/{allPaths=**} {
-      allow read, write: if isOwner(userId);
+      allow read: if isOwner(userId) || isKycAdmin();
+      allow write: if isOwner(userId);
     }
     
     // --- Deposit Screenshots ---
-    // A user can create screenshots in their own deposits folder.
-    // Only the user can read, update, or delete them later.
+    // User can write. Only user and Deposit Admins can read.
     match /deposits/{userId}/{allPaths=**} {
-      allow read, write: if isOwner(userId);
+      allow read: if isOwner(userId) || isDepositAdmin();
+      allow write: if isOwner(userId);
     }
 
     // --- Match Result Screenshots ---
-    // A user can upload a result for their own user ID.
-    // Only the user can read, update, or delete them.
+    // User can write. Only user and Match Admins can read.
     match /match-results/{matchId}/{userId}/{fileName} {
-      allow read, write: if isOwner(userId);
+      allow read: if isOwner(userId) || isMatchAdmin();
+      allow write: if isOwner(userId);
     }
     
-    // --- Publicly Accessible Content ---
-    // Anyone can read these files. Admin write access is handled by the global rule.
-    match /public/{allPaths=**} {
-      allow read: if true;
-    }
+    // --- Publicly Readable, Admin Writable ---
+    // Banners, card images, etc.
     match /banners/{allPaths=**} {
       allow read: if true;
+      allow write: if isAdmin(); // Any admin can manage these assets
     }
     match /dashboard-cards/{allPaths=**} {
         allow read: if true;
+        allow write: if isAdmin();
     }
   }
 }

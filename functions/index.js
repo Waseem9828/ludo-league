@@ -102,7 +102,7 @@ exports.setRole = functions.https.onCall(async (data, context) => {
     const isNowAdmin = role !== 'none';
     
     await admin.auth().setCustomUserClaims(uid, { role: isNowAdmin ? role : null, admin: isNowAdmin ? true : null });
-    await db.collection('users').doc(uid).update({ isAdmin: isNowAdmin });
+    await db.collection('users').doc(uid).update({ isAdmin: isNowAdmin, role: isNowAdmin ? role : null });
 
     if (isNowAdmin) {
       return { message: `Success! User ${uid} has been made a ${role}.` };
@@ -144,8 +144,8 @@ exports.listUsers = functions.https.onCall(async (data, context) => {
 });
 
 exports.getAdminDashboardStats = functions.https.onCall(async (data, context) => {
-    if (!context.auth || !context.auth.token.admin) {
-        throw new HttpsError('permission-denied', 'Only admins can access dashboard stats.');
+    if (!context.auth || context.auth.token.role !== 'superAdmin') {
+        throw new HttpsError('permission-denied', 'Only super admins can access dashboard stats.');
     }
 
     try {
@@ -169,8 +169,8 @@ exports.getAdminDashboardStats = functions.https.onCall(async (data, context) =>
 });
 
 exports.getAdminUserStats = functions.https.onCall(async (data, context) => {
-    if (!context.auth || !context.auth.token.admin) {
-        throw new HttpsError('permission-denied', 'Only admins can access user stats.');
+    if (!context.auth || context.auth.token.role !== 'superAdmin') {
+        throw new HttpsError('permission-denied', 'Only super admins can access user stats.');
     }
 
     try {
@@ -650,9 +650,9 @@ exports.onResultSubmit = functions.firestore
   });
 
   exports.declareWinnerAndDistribute = functions.https.onCall(async (data, context) => {
-    // Use an existing check or implement a new one for admin privileges.
-    if (!context.auth || context.auth.token.admin !== true) {
-        throw new HttpsError('permission-denied', 'Only admins can call this function.');
+    const callerClaims = context.auth.token;
+    if (!callerClaims || (callerClaims.role !== 'matchAdmin' && callerClaims.role !== 'superAdmin')) {
+        throw new HttpsError('permission-denied', 'Only match admins or super admins can call this function.');
     }
 
     const { matchId, winnerId } = data;
@@ -856,8 +856,9 @@ exports.dailyLoginBonus = functions.https.onCall(async (data, context) => {
 
 
 exports.distributeTournamentWinnings = functions.https.onCall(async (data, context) => {
-    if (!context.auth || !context.auth.token.admin) {
-        throw new HttpsError('permission-denied', 'Only admins can perform this action.');
+    const callerClaims = context.auth.token;
+    if (!callerClaims || (callerClaims.role !== 'matchAdmin' && callerClaims.role !== 'superAdmin')) {
+        throw new HttpsError('permission-denied', 'Only match admins or super admins can perform this action.');
     }
 
     const { tournamentId, prizeDistribution } = data;
