@@ -1,7 +1,7 @@
 'use client';
 
 import { Sidebar, SidebarNav, SidebarNavItem } from "@/components/ui/sidebar";
-import { Home, Wallet, User, Gift, Trophy, LogOut, Swords, BarChart, Settings, LifeBuoy } from "lucide-react";
+import { Home, Wallet, User, Gift, Trophy, LogOut, Swords, BarChart, Settings, LifeBuoy, Award } from "lucide-react";
 import { signOut } from "@/firebase/auth/client";
 import { Button } from "@/components/ui/button";
 import Link from 'next/link';
@@ -15,6 +15,7 @@ const AppSidebarNav = () => {
       <SidebarNavItem href="/dashboard" icon={<Home />}>Dashboard</SidebarNavItem>
       <SidebarNavItem href="/lobby" icon={<Swords />}>Play</SidebarNavItem>
       <SidebarNavItem href="/tournaments" icon={<Trophy />}>Tournaments</SidebarNavItem>
+      <SidebarNavItem href="/tasks" icon={<Award />}>Missions</SidebarNavItem>
       <SidebarNavItem href="/leaderboard" icon={<BarChart />}>Leaderboard</SidebarNavItem>
       <SidebarNavItem href="/wallet" icon={<Wallet />}>Wallet</SidebarNavItem>
       <SidebarNavItem href="/profile" icon={<User />}>Profile</SidebarNavItem>

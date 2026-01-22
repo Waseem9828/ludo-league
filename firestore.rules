@@ -94,11 +94,12 @@ service cloud.firestore {
     
     // Task and Mission rules
     match /tasks/{taskId} {
-      allow get: if request.auth != null; // All users can read available tasks.
+      allow read: if request.auth != null; // All users can read available tasks.
     }
     match /user_tasks/{userId}/tasks/{taskId} {
         // Users can only read their own task progress. Updates are done via Cloud Functions.
-        allow get: if isOwner(userId);
+        allow read: if isOwner(userId);
+        allow write: if false;
     }
 
     // Publicly readable collections for all authenticated users.

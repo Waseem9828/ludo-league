@@ -28,7 +28,8 @@ import {
     Percent,
     Gift,
     ArrowUpFromDot,
-    Megaphone
+    Megaphone,
+    ClipboardCheck
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -187,6 +188,12 @@ const adminNavItems: AdminNavItem[] = [
                 title: "Bonus",
                 icon: Gift,
                 href: "/admin/bonus-settings",
+                role: ["superAdmin"],
+            },
+            {
+                title: "Tasks",
+                icon: ClipboardCheck,
+                href: "/admin/tasks",
                 role: ["superAdmin"],
             },
         ]

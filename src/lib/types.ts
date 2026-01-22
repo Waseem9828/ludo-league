@@ -82,7 +82,7 @@ export type UserProfile = {
   export type Transaction = {
     id: string;
     userId: string;
-    type: 'deposit' | 'withdrawal' | 'entry-fee' | 'winnings' | 'refund' | 'admin-credit' | 'admin-debit' | 'referral-bonus' | 'tournament-fee' | 'daily_bonus' | 'match_commission' | 'tournament_commission' | 'withdrawal_refund';
+    type: 'deposit' | 'withdrawal' | 'entry-fee' | 'winnings' | 'refund' | 'admin-credit' | 'admin-debit' | 'referral-bonus' | 'tournament-fee' | 'daily_bonus' | 'match_commission' | 'tournament_commission' | 'withdrawal_refund' | 'task-reward';
     amount: number;
     status: 'pending' | 'completed' | 'rejected' | 'approved' | 'failed';
     createdAt: Timestamp;
@@ -112,7 +112,8 @@ export type UserProfile = {
     reviewedAt?: Timestamp;
     reviewedBy?: string; // Admin UID
     rejectionReason?: string;
-    processedWithUpiId?: string;
+    targetUpiId?: string;
+    targetUpiRef?: string;
   }
 
   export type WithdrawalRequest = {
@@ -281,4 +282,22 @@ export interface KycApplication {
     loading: boolean;
     userProfile: UserProfile | null;
     isAdmin: boolean;
+  };
+
+  export type Task = {
+    id: string;
+    title: string;
+    description: string;
+    type: 'PLAY_COUNT' | 'WIN_BASED';
+    target: number;
+    reward: number;
+    enabled: boolean;
+    createdAt: Timestamp;
+  };
+  
+  export type UserTaskProgress = {
+    id: string;
+    progress: number;
+    completed: boolean;
+    claimed: boolean;
   };

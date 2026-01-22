@@ -223,7 +223,7 @@ exports.onTransactionCreate = functions.firestore
             const updateData = {};
 
             // Update wallet balance for relevant transaction types
-            const balanceAffectingTypes = ['deposit', 'withdrawal', 'entry-fee', 'winnings', 'refund', 'admin-credit', 'admin-debit', 'referral-bonus', 'tournament-fee', 'daily_bonus', 'withdrawal_refund'];
+            const balanceAffectingTypes = ['deposit', 'withdrawal', 'entry-fee', 'winnings', 'refund', 'admin-credit', 'admin-debit', 'referral-bonus', 'tournament-fee', 'daily_bonus', 'withdrawal_refund', 'task-reward'];
             if (balanceAffectingTypes.includes(type)) {
                 const currentBalance = userData.walletBalance || 0;
                 const newBalance = currentBalance + amount;
@@ -533,18 +533,16 @@ exports.onRoomCodeSeekerWrite = functions.firestore
   });
 
 
-exports.onMatchCreate = functions.firestore
-  .document('matches/{matchId}')
+exports.onTournamentCreate = functions.firestore
+  .document('tournaments/{tournamentId}')
   .onCreate(async (snap, context) => {
-    const match = snap.data();
-    const creatorId = match.creatorId;
-
-    // Get all users' FCM tokens except the creator
+    const tournament = snap.data();
+    
     const usersSnapshot = await db.collection('users').get();
     const tokens = [];
     usersSnapshot.forEach(doc => {
       const user = doc.data();
-      if (doc.id !== creatorId && user.fcmToken) {
+      if (user.fcmToken) {
         tokens.push(user.fcmToken);
       }
     });
@@ -555,24 +553,21 @@ exports.onMatchCreate = functions.firestore
 
     const payload = {
       notification: {
-        title: 'New Match Available!',
-        body: `A new match for ₹${match.prizePool} has been created. Tap to join now!`,
-        clickAction: `/lobby`,
+        title: 'New Tournament Alert!',
+        body: `${tournament.name} is now open for registration with a prize pool of ₹${tournament.prizePool}!`,
+        clickAction: `/tournaments/${snap.id}`,
       },
     };
 
     try {
       const response = await admin.messaging().sendEachForMulticast({ tokens, ...payload });
-      if (response.failureCount > 0) {
-        console.log('Failed to send notifications to some devices:', response.failureCount);
-      }
+      console.log(`Sent tournament notification. Success: ${response.successCount}, Failure: ${response.failureCount}`);
       return response;
     } catch (error) {
-      console.error('Error sending notifications:', error);
+      console.error('Error sending tournament notifications:', error);
       return null;
     }
-  });
-
+});
 
 // New, advanced onResultSubmit function
 exports.onResultSubmit = functions.firestore
@@ -957,39 +952,118 @@ exports.distributeTournamentWinnings = functions.https.onCall(async (data, conte
     }
 });
 
-exports.onTournamentCreate = functions.firestore
-  .document('tournaments/{tournamentId}')
-  .onCreate(async (snap, context) => {
-    const tournament = snap.data();
-    
-    const usersSnapshot = await db.collection('users').get();
-    const tokens = [];
-    usersSnapshot.forEach(doc => {
-      const user = doc.data();
-      if (user.fcmToken) {
-        tokens.push(user.fcmToken);
-      }
-    });
+exports.onMatchComplete = functions.firestore
+  .document('matches/{matchId}')
+  .onUpdate(async (change, context) => {
+    const before = change.before.data();
+    const after = change.after.data();
 
-    if (tokens.length === 0) {
-      return null;
+    // Check if the match has just been completed
+    if (after.status === 'completed' && before.status !== 'completed') {
+      const { playerIds, winnerId } = after;
+
+      const tasksSnap = await db.collection('tasks').where('enabled', '==', true).get();
+      if (tasksSnap.empty) return;
+
+      const tasks = tasksSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+      for (const playerId of playerIds) {
+        for (const task of tasks) {
+          const progressRef = db.doc(`user_tasks/${playerId}/tasks/${task.id}`);
+          
+          try {
+            await db.runTransaction(async (transaction) => {
+                const progressDoc = await transaction.get(progressRef);
+                let progressData;
+                if (!progressDoc.exists) {
+                    progressData = { progress: 0, completed: false, claimed: false };
+                } else {
+                    progressData = progressDoc.data();
+                }
+
+                if (progressData.completed) return;
+
+                let progressMade = false;
+                if (task.type === 'PLAY_COUNT') {
+                    progressData.progress += 1;
+                    progressMade = true;
+                }
+                if (task.type === 'WIN_BASED' && playerId === winnerId) {
+                    progressData.progress += 1;
+                    progressMade = true;
+                }
+
+                if(progressMade) {
+                    if(progressData.progress >= task.target) {
+                        progressData.completed = true;
+                        sendNotification(playerId, 'Mission Complete!', `You have completed the mission: "${task.title}". Go to the Missions page to claim your reward!`, '/tasks');
+                    }
+                    transaction.set(progressRef, progressData, { merge: true });
+                }
+            });
+          } catch (e) {
+              console.error(`Error updating task progress for user ${playerId}, task ${task.id}:`, e);
+          }
+        }
+      }
+    }
+  });
+
+
+exports.claimTaskReward = functions.https.onCall(async (data, context) => {
+    if (!context.auth) {
+        throw new functions.https.HttpsError('unauthenticated', 'You must be logged in.');
+    }
+    const { taskId } = data;
+    if (!taskId) {
+        throw new functions.https.HttpsError('invalid-argument', 'The function must be called with a "taskId" argument.');
     }
 
-    const payload = {
-      notification: {
-        title: 'New Tournament Alert!',
-        body: `${tournament.name} is now open for registration with a prize pool of ₹${tournament.prizePool}!`,
-        clickAction: `/tournaments/${snap.id}`,
-      },
-    };
+    const userId = context.auth.uid;
+    const taskProgressRef = db.doc(`user_tasks/${userId}/tasks/${taskId}`);
+    const taskRef = db.doc(`tasks/${taskId}`);
 
     try {
-      const response = await admin.messaging().sendEachForMulticast({ tokens, ...payload });
-      console.log(`Sent tournament notification. Success: ${response.successCount}, Failure: ${response.failureCount}`);
-      return response;
+        return await db.runTransaction(async (transaction) => {
+            const progressDoc = await transaction.get(taskProgressRef);
+            const taskDoc = await transaction.get(taskRef);
+
+            if (!progressDoc.exists) {
+                throw new functions.https.HttpsError('not-found', 'Task progress not found. Play some games to start!');
+            }
+            if (!taskDoc.exists) {
+                throw new functions.https.HttpsError('not-found', 'Task definition not found.');
+            }
+            
+            const progressData = progressDoc.data();
+            const taskData = taskDoc.data();
+
+            if (!progressData.completed) {
+                throw new functions.https.HttpsError('failed-precondition', 'Task is not yet complete.');
+            }
+            if (progressData.claimed) {
+                throw new functions.https.HttpsError('failed-precondition', 'Reward has already been claimed.');
+            }
+
+            // Create a transaction to award the user
+            const transactionRef = db.collection('transactions').doc();
+            transaction.set(transactionRef, {
+                userId: userId,
+                type: 'task-reward',
+                amount: taskData.reward,
+                status: 'completed',
+                createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                description: `Reward for completing task: ${taskData.title}`,
+            });
+
+            // Mark the task as claimed
+            transaction.update(taskProgressRef, { claimed: true });
+            
+            return { success: true, message: `₹${taskData.reward} has been added to your wallet!`};
+        });
     } catch (error) {
-      console.error('Error sending tournament notifications:', error);
-      return null;
+         console.error('Error claiming task reward:', error);
+         if (error instanceof HttpsError) throw error;
+         throw new functions.https.HttpsError('internal', 'An unexpected error occurred.');
     }
 });
-

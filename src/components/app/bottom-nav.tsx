@@ -1,7 +1,7 @@
 
 'use client';
 
-import { Home, Swords, User, Trophy, BarChart } from 'lucide-react';
+import { Home, Swords, User, Trophy, Award } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { motion } from 'framer-motion';
@@ -11,8 +11,8 @@ import NoSsr from '@/components/NoSsr';
 const navItems = [
   { href: '/dashboard', icon: Home, label: 'Home' },
   { href: '/lobby', icon: Swords, label: 'Play' },
+  { href: '/tasks', icon: Award, label: 'Missions'},
   { href: '/tournaments', icon: Trophy, label: 'Tournaments' },
-  { href: '/leaderboard', icon: BarChart, label: 'Ranks' },
   { href: '/profile', icon: User, label: 'Profile' },
 ];
 
@@ -31,15 +31,15 @@ export function BottomNav() {
                         <Link
                             key={item.href}
                             href={item.href}
-                            className="relative flex flex-col items-center justify-end w-16 h-full pt-2"
+                            className="relative flex flex-col items-center justify-center w-16 h-full pt-1"
                         >
                             <motion.div
                                 className="absolute"
-                                animate={{ y: isActive ? -24 : 0 }}
+                                animate={{ y: isActive ? -22 : 0 }}
                                 transition={{ type: 'spring', stiffness: 380, damping: 25 }}
                             >
                                 <div className={cn(
-                                    "flex items-center justify-center w-14 h-14 rounded-[14px] transition-all duration-200",
+                                    "flex items-center justify-center w-12 h-12 rounded-[14px] transition-all duration-200",
                                     isActive ? "bg-gradient-primary text-white shadow-lg" : "bg-transparent"
                                 )}>
                                     <Icon className={cn("h-6 w-6 transition-colors", isActive ? "text-white" : "text-muted-foreground")} />
@@ -47,9 +47,10 @@ export function BottomNav() {
                             </motion.div>
 
                             <span className={cn(
-                                "text-xs font-medium pb-1 transition-colors",
-                                isActive ? "text-primary font-bold" : "text-muted-foreground"
-                            )}>
+                                "text-xs font-medium pb-1 transition-all duration-200",
+                                isActive ? "opacity-100 text-primary font-bold" : "opacity-0",
+                                'absolute bottom-0'
+                            )} style={{transform: `translateY(${isActive ? '0px': '10px'})`}}>
                                 {item.label}
                             </span>
                         </Link>
