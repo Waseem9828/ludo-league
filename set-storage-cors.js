@@ -6,11 +6,15 @@ const { Storage } = require('@google-cloud/storage');
 
 const projectId = 'studio-4431476254-c1156';
 // The bucket name was corrected to match what was created in the Firebase Console.
-const bucketName = 'studio-4431476254-c1156.firebasestorage.app';
+const bucketName = 'studio-4431476254-c1156.appspot.com';
 
 const corsConfiguration = [
   {
-    origin: ['https://studio--studio-4431476254-c1156.us-central1.hosted.app', 'http://localhost:3000'],
+    origin: [
+        'https://studio--studio-4431476254-c1156.us-central1.hosted.app', 
+        'http://localhost:3000',
+        'https://6000-firebase-studio-1762409723230.cluster-52r6vzs3ujeoctkkxpjif3x34a.cloudworkstations.dev'
+    ],
     method: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     responseHeader: ['Content-Type', 'Authorization'],
     maxAgeSeconds: 3600,
