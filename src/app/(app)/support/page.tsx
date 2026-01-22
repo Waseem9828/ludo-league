@@ -7,12 +7,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { useUser, useFirestore } from '@/firebase';
 import { collection, query, orderBy, onSnapshot, addDoc, serverTimestamp, Timestamp, doc, setDoc } from 'firebase/firestore';
-import { LifeBuoy, Send, MessageSquare, Loader2 } from 'lucide-react';
+import { Send, MessageSquare, Loader2 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
 import { WhatsAppIcon, TelegramIcon } from '@/components/app/SocialIcons';
 import Link from 'next/link';
 import Image from 'next/image';
+import { PlaceHolderImages } from '@/lib/placeholder-images';
 
 type Message = {
   id: string;
@@ -23,6 +24,8 @@ type Message = {
   createdAt: Timestamp;
 };
 
+const bannerImage = PlaceHolderImages.find(img => img.id === 'support-banner');
+
 const ChatMessage = ({ message, isCurrentUser }: { message: Message; isCurrentUser: boolean }) => {
     const time = message.createdAt?.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) || '';
 
@@ -32,7 +35,7 @@ const ChatMessage = ({ message, isCurrentUser }: { message: Message; isCurrentUs
                 <div>
                     <span className={cn(
                         "px-4 py-2 rounded-lg inline-block",
-                        isCurrentUser ? "rounded-br-none bg-gradient-to-br from-primary-start to-primary-end text-primary-foreground" : "rounded-bl-none bg-background text-foreground shadow-sm"
+                        isCurrentUser ? "rounded-br-none bg-gradient-primary text-primary-foreground" : "rounded-bl-none bg-background text-foreground shadow-sm"
                     )}>
                         {message.text}
                          <span className="block text-xs text-right mt-1 opacity-70">{time}</span>
@@ -48,6 +51,20 @@ const ChatMessage = ({ message, isCurrentUser }: { message: Message; isCurrentUs
         </div>
     );
 };
+
+const SocialContactCard = ({ href, icon: Icon, title, handle }: { href: string, icon: React.ElementType, title: string, handle: string }) => (
+    <Link href={href} target="_blank" rel="noopener noreferrer" className='block'>
+        <Card className="shadow-md hover:shadow-lg transition-shadow hover:bg-muted/50 cursor-pointer h-full">
+            <CardContent className="p-4 flex flex-col items-center justify-center text-center gap-3">
+                <Icon className="h-12 w-12"/>
+                <div>
+                    <p className="font-semibold text-lg">{title}</p>
+                    <p className="text-sm text-muted-foreground">{handle}</p>
+                </div>
+            </CardContent>
+        </Card>
+    </Link>
+);
 
 
 export default function SupportPage() {
@@ -108,18 +125,24 @@ export default function SupportPage() {
 
   return (
     <div className="space-y-6">
-        <div className="relative w-full aspect-video rounded-lg overflow-hidden mb-6">
-            <Image src="/support.banner.png" alt="Support Banner" fill className="object-cover" priority />
-        </div>
+        {bannerImage &&
+            <div className="relative w-full aspect-video rounded-lg overflow-hidden mb-6">
+                <Image src={bannerImage.imageUrl} alt={bannerImage.description} fill className="object-cover" priority />
+            </div>
+        }
         <h1 className="text-3xl font-bold tracking-tight">Support Center</h1>
+        <p className="text-lg text-muted-foreground">
+            Have questions? Chat with our support team directly or connect with us on social media. We&apos;re here to help!
+        </p>
      
       <div className="grid md:grid-cols-3 gap-6">
-        <Card className="md:col-span-2 shadow-lg dark:shadow-slate-900">
-          <CardHeader className="border-b dark:border-slate-700">
+        <Card className="md:col-span-2 shadow-lg">
+          <CardHeader className="border-b">
             <CardTitle className="flex items-center gap-3">
-              <MessageSquare className="h-6 w-6" />
+              <MessageSquare className="h-6 w-6 text-primary" />
               Chat with Support
             </CardTitle>
+             <CardDescription>Our team typically replies within a few hours.</CardDescription>
           </CardHeader>
           <CardContent className="p-0 flex flex-col h-[65vh]">
             <div className="flex-grow space-y-6 overflow-y-auto p-4 md:p-6 bg-muted/20">
@@ -128,14 +151,14 @@ export default function SupportPage() {
                 {!loading && messages.map(msg => <ChatMessage key={msg.id} message={msg} isCurrentUser={msg.senderId === user?.uid} />)}
                 <div ref={messagesEndRef} />
             </div>
-            <div className="p-4 border-t dark:border-slate-700 bg-background">
+            <div className="p-4 border-t bg-background">
                 <form onSubmit={handleSendMessage} className="flex items-center gap-3">
                 <Input
                     value={newMessage}
                     onChange={(e) => setNewMessage(e.target.value)}
                     placeholder="Type your message here..."
                     autoComplete="off"
-                    className="h-12 text-base rounded-full focus-visible:ring-primary/50 dark:bg-slate-800"
+                    className="h-12 text-base rounded-full focus-visible:ring-primary/50"
                 />
                 <Button type="submit" size="icon" className="h-12 w-12 rounded-full flex-shrink-0" disabled={!newMessage.trim()}>
                     <Send className="h-5 w-5" />
@@ -146,35 +169,18 @@ export default function SupportPage() {
         </Card>
 
         <div className="space-y-6">
-             <Card className="shadow-lg dark:shadow-slate-900">
-                <CardHeader>
-                    <CardTitle>Other Ways to Connect</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                     <Link href="https://wa.me/919351993756" target="_blank" rel="noopener noreferrer" className='block'>
-                        <div className="p-4 rounded-xl border dark:border-slate-700 hover:bg-muted/50 transition-colors cursor-pointer">
-                            <div className="flex items-center gap-4">
-                                <WhatsAppIcon className="h-10 w-10"/>
-                                <div>
-                                    <p className="font-semibold text-lg">WhatsApp</p>
-                                    <p className="text-sm text-muted-foreground">+91 93519 93756</p>
-                                </div>
-                            </div>
-                        </div>
-                     </Link>
-                     <Link href="https://t.me/ludoleague_support" target="_blank" rel="noopener noreferrer" className='block'>
-                        <div className="p-4 rounded-xl border dark:border-slate-700 hover:bg-muted/50 transition-colors cursor-pointer">
-                             <div className="flex items-center gap-4">
-                                <TelegramIcon className="h-10 w-10"/>
-                                <div>
-                                    <p className="font-semibold text-lg">Telegram</p>
-                                    <p className="text-sm text-muted-foreground">@ludoleague_support</p>
-                                </div>
-                            </div>
-                        </div>
-                     </Link>
-                </CardContent>
-             </Card>
+             <SocialContactCard 
+                href="https://wa.me/919351993756"
+                icon={WhatsAppIcon}
+                title="WhatsApp"
+                handle="+91 93519 93756"
+             />
+             <SocialContactCard 
+                href="https://t.me/ludoleague_support"
+                icon={TelegramIcon}
+                title="Telegram"
+                handle="@ludoleague_support"
+             />
         </div>
       </div>
     </div>
