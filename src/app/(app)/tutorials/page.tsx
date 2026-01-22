@@ -48,36 +48,37 @@ export default function TutorialsPage() {
             <TutorialItem title="How to Play a Match?" icon={Gamepad2}>
                 <ol>
                     <li>Go to the <strong>Lobby</strong> page.</li>
-                    <li>Find an open match or create your own by clicking &apos;Create Match&apos;.</li>
-                    <li>Once an opponent joins (or you join a match), the status will change to &apos;in-progress&apos;.</li>
-                    <li>Go to the match page, copy the Ludo King room code provided by the creator.</li>
-                    <li>Play the game in your Ludo King app.</li>
+                    <li>Select an entry fee to find an opponent automatically.</li>
+                    <li>Decide if you want to provide a Ludo King room code or search for an opponent who has one.</li>
+                    <li>Once a match is found, you will be automatically redirected to the match room.</li>
+                    <li>Copy the room code and use it to play in your Ludo King app.</li>
                     <li>After the game, take a screenshot of the win/loss screen.</li>
-                    <li>Come back to the match page and submit your result with the screenshot.</li>
+                    <li>Come back to the app and submit your result with the screenshot to claim your winnings.</li>
                 </ol>
             </TutorialItem>
              <TutorialItem title="How to Deposit Money?" icon={UploadCloud}>
                 <ol>
-                    <li>Navigate to the <strong>Wallet</strong> page and select the &apos;Deposit&apos; tab.</li>
+                    <li>Navigate to the <strong>Wallet</strong> page and select the 'Deposit' tab.</li>
                     <li>Enter the amount you wish to deposit (minimum ₹100).</li>
-                    <li>Scan the QR code with your UPI app or use the &apos;Pay with UPI&apos; button.</li>
+                    <li>Scan the QR code with your UPI app or use the 'Pay with UPI' button.</li>
                     <li>After successful payment, enter the UTR/Transaction ID and upload a screenshot of the payment.</li>
-                    <li>Click &apos;Submit Deposit Request&apos;. Our team will verify it shortly.</li>
+                    <li>Click 'Submit Deposit Request'. Our team will verify it shortly.</li>
                 </ol>
             </TutorialItem>
             <TutorialItem title="How to Withdraw Winnings?" icon={DownloadCloud}>
                  <ol>
-                    <li>First, ensure your <strong>KYC is approved</strong>. You can&apos;t withdraw without it.</li>
-                    <li>Go to the <strong>Wallet</strong> page and select the &apos;Withdraw&apos; tab.</li>
+                    <li>First, ensure your <strong>KYC is approved</strong>. You can't withdraw without it.</li>
+                    <li>Go to the <strong>Wallet</strong> page and select the 'Withdraw' tab.</li>
                     <li>Your verified bank details or UPI ID will be shown.</li>
                     <li>Enter the amount you wish to withdraw (minimum ₹300).</li>
-                    <li>Click &apos;Request Withdrawal&apos;. Your request will be processed within 24 hours.</li>
+                    <li>Click 'Request Withdrawal'. Your request will be processed within 24 hours.</li>
                 </ol>
             </TutorialItem>
             <TutorialItem title="How does KYC Verification work?" icon={ShieldCheck}>
                 <ol>
                     <li>Go to the <strong>KYC</strong> page.</li>
-                    <li>Upload a clear picture of your Aadhaar or PAN card.</li>
+                    <li>Fill in your full name and date of birth as per your ID.</li>
+                    <li>Provide either your Aadhaar or PAN number and upload a clear picture of the corresponding card.</li>
                     <li>Upload a clear selfie of yourself.</li>
                     <li>Enter your bank account details or UPI ID for withdrawals.</li>
                     <li>Submit the form. Our team will review your documents within 48 hours.</li>
@@ -90,3 +91,5 @@ export default function TutorialsPage() {
     </div>
   );
 }
+
+    

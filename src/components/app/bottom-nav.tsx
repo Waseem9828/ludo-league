@@ -1,7 +1,6 @@
-
 'use client';
 
-import { Home, Swords, User, Trophy, Award } from 'lucide-react';
+import { Home, Swords, User, Trophy, Award, Users } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { motion } from 'framer-motion';
@@ -11,7 +10,7 @@ import NoSsr from '@/components/NoSsr';
 const navItems = [
   { href: '/dashboard', icon: Home, label: 'Home' },
   { href: '/lobby', icon: Swords, label: 'Play' },
-  { href: '/tasks', icon: Award, label: 'Missions'},
+  { href: '/community', icon: Users, label: 'Community'},
   { href: '/tournaments', icon: Trophy, label: 'Tournaments' },
   { href: '/profile', icon: User, label: 'Profile' },
 ];
@@ -61,3 +60,5 @@ export function BottomNav() {
       </NoSsr>
     );
 }
+
+    

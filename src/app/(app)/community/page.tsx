@@ -1,7 +1,7 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Newspaper, Users, Trophy, BarChart, MessageSquare } from "lucide-react";
+import { Newspaper, Users, Trophy, BarChart, MessageSquare, GraduationCap } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { PlaceHolderImages } from "@/lib/placeholder-images";
@@ -71,7 +71,15 @@ export default function CommunityPage() {
             href="/news"
             icon={Newspaper}
         />
+        <FeatureCard 
+            title="Learning Center"
+            description="New to the app? Find guides and FAQs to get started quickly."
+            href="/tutorials"
+            icon={GraduationCap}
+        />
       </div>
     </div>
   );
 }
+
+    
