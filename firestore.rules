@@ -102,6 +102,23 @@ service cloud.firestore {
         allow write: if false;
     }
 
+    // Forum
+    match /forumPosts/{postId} {
+        allow read: if request.auth != null;
+        allow create: if isOwner(request.resource.data.authorId);
+        // Allow author to update any field, and any authenticated user to update ONLY replyCount and lastReplyAt
+        allow update: if (isOwner(resource.data.authorId)) || 
+                       (request.auth != null && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['replyCount', 'lastReplyAt']));
+        allow delete: if isOwner(resource.data.authorId) || isAdmin();
+    }
+    match /forumPosts/{postId}/replies/{replyId} {
+      allow read: if request.auth != null;
+      allow create: if isOwner(request.resource.data.authorId);
+      allow update: if isOwner(resource.data.authorId) && request.resource.data.keys().hasOnly(['content']);
+      allow delete: if isOwner(resource.data.authorId) || isAdmin();
+    }
+
+
     // Publicly readable collections for all authenticated users.
     // Admin write access is handled by the global rule at the bottom.
     match /tournaments/{doc=**} { allow read: if request.auth != null; }
@@ -125,3 +142,5 @@ service cloud.firestore {
     }
   }
 }
+
+    

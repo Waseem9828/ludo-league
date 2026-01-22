@@ -1,3 +1,4 @@
+
 import { Timestamp } from "firebase/firestore";
 import type { User as FirebaseUser } from 'firebase/auth';
 
@@ -301,3 +302,27 @@ export interface KycApplication {
     completed: boolean;
     claimed: boolean;
   };
+  
+export type ForumPost = {
+  id: string;
+  title: string;
+  content: string;
+  authorId: string;
+  authorName: string;
+  authorAvatar: string;
+  createdAt: Timestamp;
+  lastReplyAt: Timestamp;
+  replyCount: number;
+};
+
+export type ForumReply = {
+  id: string;
+  postId: string;
+  content: string;
+  authorId: string;
+  authorName: string;
+  authorAvatar: string;
+  createdAt: Timestamp;
+};
+
+    

@@ -296,7 +296,7 @@
         "type": "object",
         "properties": {
             "userId": {"type": "string"},
-            "type": {"type": "string", "enum": ["deposit", "withdrawal", "entry-fee", "winnings", "refund", "tournament-fee", "referral-bonus", "admin-credit", "admin-debit", "match_commission", "tournament_commission", "daily_bonus", "withdrawal_refund"]},
+            "type": {"type": "string", "enum": ["deposit", "withdrawal", "entry-fee", "winnings", "refund", "tournament-fee", "referral-bonus", "admin-credit", "admin-debit", "match_commission", "tournament_commission", "daily_bonus", "withdrawal_refund", "task-reward"]},
             "amount": {"type": "number", "description": "Positive for credit, negative for debit."},
             "status": {"type": "string", "enum": ["completed", "pending", "rejected", "failed"]},
             "createdAt": {"type": "string", "format": "date-time"},
@@ -535,6 +535,36 @@
             }
         },
         "required": ["cardId", "imageUrl", "isActive", "createdAt"]
+    },
+    "ForumPost": {
+        "title": "Forum Post",
+        "description": "A single post or thread in the community forum.",
+        "type": "object",
+        "properties": {
+            "title": { "type": "string" },
+            "content": { "type": "string" },
+            "authorId": { "type": "string" },
+            "authorName": { "type": "string" },
+            "authorAvatar": { "type": "string", "format": "uri" },
+            "createdAt": { "type": "string", "format": "date-time" },
+            "lastReplyAt": { "type": "string", "format": "date-time" },
+            "replyCount": { "type": "number" }
+        },
+        "required": ["title", "content", "authorId", "authorName", "createdAt", "lastReplyAt", "replyCount"]
+    },
+    "ForumReply": {
+        "title": "Forum Reply",
+        "description": "A reply to a forum post.",
+        "type": "object",
+        "properties": {
+            "postId": { "type": "string" },
+            "content": { "type": "string" },
+            "authorId": { "type": "string" },
+            "authorName": { "type": "string" },
+            "authorAvatar": { "type": "string", "format": "uri" },
+            "createdAt": { "type": "string", "format": "date-time" }
+        },
+        "required": ["postId", "content", "authorId", "authorName", "createdAt"]
     }
   },
   "auth": {
@@ -680,6 +710,16 @@
         "$ref": "#/backend/entities/DashboardCardImage"
       },
       "description": "Stores images for the user dashboard cards."
+    },
+    "/forumPosts/{postId}": {
+      "schema": { "$ref": "#/backend/entities/ForumPost" },
+      "description": "Stores all community forum posts."
+    },
+    "/forumPosts/{postId}/replies/{replyId}": {
+      "schema": { "$ref": "#/backend/entities/ForumReply" },
+      "description": "Stores replies for a specific forum post."
     }
   }
 }
+
+    

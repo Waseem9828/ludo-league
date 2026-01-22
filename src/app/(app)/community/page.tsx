@@ -50,7 +50,7 @@ export default function CommunityPage() {
         <FeatureCard 
             title="Community Forums"
             description="Join discussions, ask questions, and share your best Ludo moments with other players."
-            href="#"
+            href="/community/forum"
             icon={MessageSquare}
         />
         <FeatureCard 
@@ -81,5 +81,7 @@ export default function CommunityPage() {
     </div>
   );
 }
+
+    
 
     
