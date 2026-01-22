@@ -3,7 +3,7 @@
 
 import { Sidebar, SidebarNav, SidebarNavItem } from "@/components/ui/sidebar";
 import { Home, Wallet, User, Gift, Trophy, LogOut } from "lucide-react";
-import { useAuth } from "@/firebase/auth/use-auth";
+import { signOut } from "@/firebase/auth/client";
 import { Button } from "@/components/ui/button";
 
 const AppSidebarNav = () => {
@@ -19,8 +19,6 @@ const AppSidebarNav = () => {
 }
 
 export const AppSidebar = () => {
-    const { signOut } = useAuth();
-
     return (
         <Sidebar>
             <div className="flex flex-col h-full">
