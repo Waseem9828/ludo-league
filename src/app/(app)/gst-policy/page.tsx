@@ -1,6 +1,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FileText } from "lucide-react";
+import Link from "next/link";
 
 export default function GstPolicyPage() {
   return (
@@ -15,7 +16,7 @@ export default function GstPolicyPage() {
             <p>Last updated: {new Date().toLocaleDateString()}</p>
             
             <h2>1. GST on Deposits</h2>
-            <p>As per the Government of India&apos;s regulations, a Goods and Services Tax (GST) of 28% is applicable on all deposits made by players into their wallet on the Ludo League platform. This is in compliance with the amendments to the GST law for online real-money gaming.</p>
+            <p>As per the Government of India&apos;s regulations, a Goods and Services Tax (GST) of 28% is applicable on all deposits made by players into their <Link href="/wallet">wallet</Link> on the ludoleague-online platform. This is in compliance with the amendments to the GST law for online real-money gaming.</p>
             <p>For example, if you deposit ₹100, the amount credited to your wallet will be calculated after deducting the 28% GST. The taxable value will be ₹78.12, and the GST amount will be ₹21.88.</p>
 
             <h2>2. How GST is Calculated</h2>
@@ -28,7 +29,7 @@ export default function GstPolicyPage() {
             <p>We are fully compliant with the GST regulations. Invoices for the GST paid on your deposits will be available upon request. We ensure that all collected taxes are duly paid to the government authorities.</p>
 
             <h2>5. Contact Us</h2>
-            <p>If you have any further questions regarding our GST policy, please do not hesitate to contact our support team at: finance@ludoleague.app</p>
+            <p>If you have any further questions regarding our GST policy, please do not hesitate to contact our support team at: <a href="mailto:finance@ludoleague.online">finance@ludoleague.online</a></p>
         </CardContent>
     </Card>
   );

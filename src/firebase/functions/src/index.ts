@@ -22,13 +22,8 @@ async function getUserProfile(userId: string) {
 }
 
 export const distributeWinnings = functions.https.onCall(async (data: any, context: functions.https.CallableContext) => {
-    if (!context.auth) {
-        throw new functions.https.HttpsError('unauthenticated', 'The function must be called while authenticated.');
-    }
-
-    const adminUser = await admin.auth().getUser(context.auth.uid);
-    if (!adminUser.customClaims || !adminUser.customClaims.admin) {
-        throw new functions.https.HttpsError('permission-denied', 'Only admins can distribute winnings.');
+    if (context.auth?.token.admin !== true) {
+        throw new functions.https.HttpsError('permission-denied', 'Admin access required.');
     }
 
     const { tournamentId, prizeDistribution } = data;
@@ -44,19 +39,29 @@ export const distributeWinnings = functions.https.onCall(async (data: any, conte
     if (tournament.prizeDistributed) {
         throw new functions.https.HttpsError('already-exists', 'Prizes have already been distributed for this tournament.');
     }
+    
+    if (!Array.isArray(tournament.winners)) {
+        throw new functions.https.HttpsError(
+            'failed-precondition',
+            'Tournament winners list is missing or invalid.'
+        );
+    }
 
     const batch = db.batch();
 
     for (const rankStr in prizeDistribution) {
         const rank = parseInt(rankStr, 10);
         const winnerId = tournament.winners[rank - 1]; // Assuming winners are stored in an array by rank
-        const amount = prizeDistribution[rankStr];
+        const amount = Number(prizeDistribution[rankStr]);
+
+        if (!amount || amount <= 0) continue;
         
         if (winnerId) {
             const userRef = db.collection('users').doc(winnerId);
             const transactionRef = db.collection('transactions').doc();
 
-            batch.update(userRef, { walletBalance: admin.firestore.FieldValue.increment(amount) });
+            batch.set(userRef, { walletBalance: admin.firestore.FieldValue.increment(amount) }, { merge: true });
+
             batch.set(transactionRef, {
                 userId: winnerId,
                 amount: amount,
@@ -86,95 +91,96 @@ export const advanceWinner = functions.firestore
         if(!before || !after) {
             return null;
         }
+        
+        if (after.processed === true) {
+            return null; // Already processed
+        }
 
         if (after.winnerId && !before.winnerId && after.tournamentId) {
             const { tournamentId, round, winnerId } = after;
             const matchId = context.params.matchId;
 
             const tournamentRef = db.collection('tournaments').doc(tournamentId);
-
-            // Note: We are not using a transaction here because fetching user profiles 
-            // cannot be done inside a transaction that has already read data.
-            // We accept the small risk of inconsistency for the benefit of better UX.
-
-            const tournamentDoc = await tournamentRef.get();
-            if (!tournamentDoc.exists) { throw new Error("Tournament not found"); }
-
-            const tournament = tournamentDoc.data()!;
-            if (!tournament.bracket) { throw new Error("Tournament bracket not found"); }
-            
-            const currentMatchIndex = tournament.bracket.findIndex((m: any) => m.matchId === matchId);
-            if (currentMatchIndex === -1) { throw new Error("Match not found in bracket"); }
-
-            const totalPlayers = tournament.playerIds.length;
-            const totalRounds = Math.ceil(Math.log2(totalPlayers));
-
-            if (round === totalRounds) {
-                 await tournamentRef.update({
-                    status: 'completed',
-                    winnerId: winnerId,
-                    winners: [winnerId], 
-                    endTime: admin.firestore.FieldValue.serverTimestamp(),
-                });
-                return;
-            }
-
-            const siblingIndex = currentMatchIndex % 2 === 0 ? currentMatchIndex + 1 : currentMatchIndex - 1;
-            const nextRoundMatchIndex = tournament.bracket.length + Math.floor(currentMatchIndex / 2);
-            
-            const siblingMatchInfo = tournament.bracket[siblingIndex];
-            let opponentId: string | null = null;
-
-            if (siblingMatchInfo && siblingMatchInfo.bye) {
-                opponentId = siblingMatchInfo.players[0];
-            } else if (siblingMatchInfo && siblingMatchInfo.matchId) {
-                const siblingMatchDoc = await db.collection('matches').doc(siblingMatchInfo.matchId).get();
-                const siblingMatch = siblingMatchDoc.data();
-                if (siblingMatch && siblingMatch.winnerId) {
-                    opponentId = siblingMatch.winnerId;
-                }
-            }
-
             const batch = db.batch();
 
-            if (opponentId) {
-                // We have two players, create the next match.
-                const winnerProfile = await getUserProfile(winnerId);
-                const opponentProfile = await getUserProfile(opponentId);
+            try {
+                const tournamentDoc = await tournamentRef.get();
+                if (!tournamentDoc.exists) { throw new Error("Tournament not found"); }
+    
+                const tournament = tournamentDoc.data()!;
+                if (!tournament.bracket) { throw new Error("Tournament bracket not found"); }
+                
+                const currentMatchIndex = tournament.bracket.findIndex((m: any) => m && m.matchId === matchId);
+                if (currentMatchIndex === -1) { throw new Error("Match not found in bracket"); }
+    
+                const totalPlayers = tournament.playerIds.length;
+                const totalRounds = Math.ceil(Math.log2(totalPlayers));
+    
+                if (round === totalRounds) {
+                     batch.update(tournamentRef, {
+                        status: 'completed',
+                        winnerId: winnerId,
+                        winners: [winnerId], 
+                        endTime: admin.firestore.FieldValue.serverTimestamp(),
+                    });
+                } else {
+                    // Corrected bracket logic
+                    const numMatchesInR1 = Math.pow(2, totalRounds - 1);
+                    const currentRoundMatchesStart = numMatchesInR1 - Math.pow(2, totalRounds - round);
+                    const relativeIndex = currentMatchIndex - currentRoundMatchesStart;
 
-                const newMatchRef = db.collection('matches').doc();
-                const newMatch = {
-                    id: newMatchRef.id, tournamentId, round: round + 1, status: 'pending',
-                    createdAt: admin.firestore.FieldValue.serverTimestamp(),
-                    players: { 
-                        [winnerId]: winnerProfile,
-                        [opponentId]: opponentProfile
-                    },
-                    playerIds: [winnerId, opponentId],
-                    betAmount: tournament.entryFee,
-                };
-                batch.set(newMatchRef, newMatch);
+                    const nextRoundMatchesStart = numMatchesInR1 - Math.pow(2, totalRounds - (round + 1));
+                    const nextRoundSlotIndex = nextRoundMatchesStart + Math.floor(relativeIndex / 2);
 
-                const newBracket = [...tournament.bracket];
-                while(newBracket.length <= nextRoundMatchIndex) { newBracket.push(null); }
-                newBracket[nextRoundMatchIndex] = { matchId: newMatchRef.id, players: [winnerId, opponentId] };
-                batch.update(tournamentRef, { bracket: newBracket });
+                    const existingNextRoundSlot = tournament.bracket[nextRoundSlotIndex];
+                    const newBracket = [...tournament.bracket];
 
-            } else {
-                // Opponent not determined yet, wait.
-                // Create a placeholder for the next match with only our current winner.
-                const newBracket = [...tournament.bracket];
-                if (!newBracket[nextRoundMatchIndex]) {
-                    newBracket[nextRoundMatchIndex] = { matchId: null, players: [winnerId] };
-                    batch.update(tournamentRef, { bracket: newBracket });
+                    if (existingNextRoundSlot && existingNextRoundSlot.players && existingNextRoundSlot.players.length === 1) {
+                        // Opponent found, create match
+                        const opponentId = existingNextRoundSlot.players[0];
+                        const winnerProfile = await getUserProfile(winnerId);
+                        const opponentProfile = await getUserProfile(opponentId);
+
+                        const newMatchRef = db.collection('matches').doc();
+                        const newMatch = {
+                            id: newMatchRef.id, tournamentId, round: round + 1, status: 'pending',
+                            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                            players: { 
+                                [winnerId]: winnerProfile,
+                                [opponentId]: opponentProfile
+                            },
+                            playerIds: [winnerId, opponentId],
+                            betAmount: tournament.entryFee,
+                        };
+                        batch.set(newMatchRef, newMatch);
+                        
+                        newBracket[nextRoundSlotIndex] = { matchId: newMatchRef.id, players: [winnerId, opponentId] };
+                        batch.update(tournamentRef, { bracket: newBracket });
+
+                    } else {
+                        // I'm the first, create/update placeholder
+                        if (!newBracket[nextRoundSlotIndex]) {
+                             newBracket[nextRoundSlotIndex] = { matchId: null, players: [winnerId] };
+                             batch.update(tournamentRef, { bracket: newBracket });
+                        } else {
+                            functions.logger.warn("Unexpected state in bracket", { tournamentId, matchId });
+                        }
+                    }
                 }
+                
+                // Mark current match as processed
+                batch.update(change.after.ref, { processed: true });
+                await batch.commit();
+
+            } catch (error) {
+                 functions.logger.error("Error in advanceWinner", error);
             }
-            await batch.commit();
         }
         return null;
     });
 
-export const dailyLoginBonus = functions.https.onCall(async (data: any, context: functions.https.CallableContext) => {
+
+export const newDailyLoginBonus = functions.https.onCall(async (data: any, context: functions.https.CallableContext) => {
     if (!context.auth) {
         throw new functions.https.HttpsError('unauthenticated', 'You must be logged in to claim a bonus.');
     }
@@ -185,16 +191,21 @@ export const dailyLoginBonus = functions.https.onCall(async (data: any, context:
 
     try {
         const result = await db.runTransaction(async (transaction) => {
-            // 1. All reads first
             const userDoc = await transaction.get(userRef);
             const configDoc = await transaction.get(configRef);
 
-            // 2. Pre-condition checks
             if (!userDoc.exists()) {
-                return { error: 'not-found', message: 'User profile not found.' };
+                throw new functions.https.HttpsError('not-found', 'User profile not found.');
             }
+
+            if (!configDoc.exists()) {
+                functions.logger.error('Bonus configuration not set. Please create the document \'bonus_config/settings\'');
+                throw new functions.https.HttpsError('failed-precondition', 'Bonus configuration is not set.');
+            }
+
             const userData = userDoc.data()!;
-            const today = new Date().toISOString().split('T')[0];
+            const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+            
             if (userData.lastLoginDate === today) {
                 return { success: true, message: 'Daily bonus already claimed for today.' };
             }
@@ -203,26 +214,29 @@ export const dailyLoginBonus = functions.https.onCall(async (data: any, context:
                 if (!dateString) return false;
                 const yesterday = new Date();
                 yesterday.setDate(yesterday.getDate() - 1);
-                return dateString === yesterday.toISOString().split('T')[0];
+                return yesterday.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' }) === dateString;
             };
             const currentStreak = isYesterday(userData.lastLoginDate) ? (userData.loginStreak || 0) + 1 : 1;
 
-            if (!configDoc.exists() || !configDoc.data()!.enabled) {
-                 // Just update login date and streak, but return a "disabled" message
+            const config = configDoc.data()!;
+            if (!config.enabled) {
                 transaction.update(userRef, { lastLoginDate: today, loginStreak: currentStreak });
                 return { success: true, message: 'The daily bonus system is currently disabled.' };
             }
 
-            // 3. Logic and writes
-            const config = configDoc.data()!;
-            
             let totalBonus = Number(config.dailyBonus) || 0;
-            if (config.streakBonus && config.streakBonus[currentStreak]) {
-                const streakBonusAmount = Number(config.streakBonus[currentStreak]) || 0;
-                totalBonus += streakBonusAmount;
+
+            if (config.streakBonus && typeof config.streakBonus === 'object' && config.streakBonus !== null) {
+                const streakBonusForDay = config.streakBonus[String(currentStreak)];
+                if (streakBonusForDay) {
+                    const streakBonusAmount = Number(streakBonusForDay) || 0;
+                    totalBonus += streakBonusAmount;
+                }
+            } else if (config.streakBonus) {
+                functions.logger.warn(`'streakBonus' field in 'bonus_config/settings' is not a valid object: ${JSON.stringify(config.streakBonus)}`);
             }
 
-            const updateData = {
+            const updateData: any = {
                 lastLoginDate: today,
                 loginStreak: currentStreak,
             };
@@ -248,20 +262,13 @@ export const dailyLoginBonus = functions.https.onCall(async (data: any, context:
             }
         });
 
-        // 4. Handle results outside the transaction
-        if (result.error) {
-            if (result.error === 'not-found') {
-                throw new functions.https.HttpsError('not-found', result.message);
-            }
-        }
-
-        return { success: result.success, message: result.message };
+        return result;
 
     } catch (error) {
-        console.error('Error in dailyLoginBonus function:', error);
+        functions.logger.error('Error in newDailyLoginBonus function:', error);
         if (error instanceof functions.https.HttpsError) {
             throw error;
         }
-        throw new functions.https.HttpsError('internal', 'An unexpected error occurred while claiming the bonus.');
+        throw new functions.https.HttpsError('internal', 'An unexpected error occurred while claiming the bonus. Please check the function logs for more details.');
     }
 });

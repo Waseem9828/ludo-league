@@ -51,24 +51,22 @@ service cloud.firestore {
 
     // KYC
     match /kycApplications/{kycId} {
-      allow create: if isOwner(request.resource.data.userId); // User can create
-      allow read: if isOwner(resource.data.userId) || isKycAdmin(); // Owner or KYC admin can read
-      allow list, update: if isKycAdmin(); // Only KYC admin can list all and update
+      allow create: if isOwner(request.resource.data.userId);
+      allow read: if isOwner(resource.data.userId) || isKycAdmin();
+      allow update: if isKycAdmin();
     }
 
     // Deposits
     match /depositRequests/{depositId} {
         allow create: if isOwner(request.resource.data.userId);
-        allow get: if isOwner(resource.data.userId) || isDepositAdmin();
-        allow list: if (request.auth.uid == request.query.where.userId) || isDepositAdmin();
+        allow read: if isOwner(resource.data.userId) || isDepositAdmin();
         allow update: if isDepositAdmin();
     }
 
     // Withdrawals
     match /withdrawalRequests/{withdrawalId} {
         allow create: if isOwner(request.resource.data.userId);
-        allow get: if isOwner(resource.data.userId) || isWithdrawalAdmin();
-        allow list: if (request.auth.uid == request.query.where.userId) || isWithdrawalAdmin();
+        allow read: if isOwner(resource.data.userId) || isWithdrawalAdmin();
         allow update: if isWithdrawalAdmin();
     }
     

@@ -769,7 +769,8 @@ exports.onResultSubmit = functions.firestore
     }
 });
 
-exports.dailyLoginBonus = functions.https.onCall(async (data, context) => {
+
+exports.newDailyLoginBonus = functions.https.onCall(async (data, context) => {
     if (!context.auth) {
         throw new functions.https.HttpsError('unauthenticated', 'You must be logged in to claim a bonus.');
     }
@@ -780,16 +781,21 @@ exports.dailyLoginBonus = functions.https.onCall(async (data, context) => {
 
     try {
         const result = await db.runTransaction(async (transaction) => {
-            // 1. All reads first
             const userDoc = await transaction.get(userRef);
             const configDoc = await transaction.get(configRef);
 
-            // 2. Pre-condition checks
             if (!userDoc.exists()) {
-                return { error: 'not-found', message: 'User profile not found.' };
+                throw new functions.https.HttpsError('not-found', 'User profile not found.');
             }
+
+            if (!configDoc.exists()) {
+                functions.logger.error("Bonus configuration not set. Please create the document 'bonus_config/settings'");
+                throw new functions.https.HttpsError('failed-precondition', 'Bonus configuration is not set.');
+            }
+
             const userData = userDoc.data();
-            const today = new Date().toISOString().split('T')[0];
+            const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+
             if (userData.lastLoginDate === today) {
                 return { success: true, message: 'Daily bonus already claimed for today.' };
             }
@@ -798,23 +804,26 @@ exports.dailyLoginBonus = functions.https.onCall(async (data, context) => {
                 if (!dateString) return false;
                 const yesterday = new Date();
                 yesterday.setDate(yesterday.getDate() - 1);
-                return dateString === yesterday.toISOString().split('T')[0];
+                return yesterday.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' }) === dateString;
             };
             const currentStreak = isYesterday(userData.lastLoginDate) ? (userData.loginStreak || 0) + 1 : 1;
 
-            if (!configDoc.exists() || !configDoc.data().enabled) {
-                 // Just update login date and streak, but return a "disabled" message
+            const config = configDoc.data();
+            if (!config.enabled) {
                 transaction.update(userRef, { lastLoginDate: today, loginStreak: currentStreak });
                 return { success: true, message: 'The daily bonus system is currently disabled.' };
             }
 
-            // 3. Logic and writes
-            const config = configDoc.data();
-            
             let totalBonus = Number(config.dailyBonus) || 0;
-            if (config.streakBonus && config.streakBonus[currentStreak]) {
-                const streakBonusAmount = Number(config.streakBonus[currentStreak]) || 0;
-                totalBonus += streakBonusAmount;
+
+            if (config.streakBonus && typeof config.streakBonus === 'object' && config.streakBonus !== null) {
+                const streakBonusForDay = config.streakBonus[String(currentStreak)];
+                if (streakBonusForDay) {
+                    const streakBonusAmount = Number(streakBonusForDay) || 0;
+                    totalBonus += streakBonusAmount;
+                }
+            } else if (config.streakBonus) {
+                functions.logger.warn(`'streakBonus' field in 'bonus_config/settings' is not a valid object: ${JSON.stringify(config.streakBonus)}`);
             }
 
             const updateData = {
@@ -843,29 +852,21 @@ exports.dailyLoginBonus = functions.https.onCall(async (data, context) => {
             }
         });
 
-        // 4. Handle results outside the transaction
-        if (result.error) {
-            if (result.error === 'not-found') {
-                throw new functions.https.HttpsError('not-found', result.message);
-            }
-        }
-
-        return { success: result.success, message: result.message };
+        return result;
 
     } catch (error) {
-        console.error('Error in dailyLoginBonus function:', error);
+        functions.logger.error('Error in newDailyLoginBonus function:', error);
         if (error instanceof functions.https.HttpsError) {
             throw error;
         }
-        throw new functions.https.HttpsError('internal', 'An unexpected error occurred while claiming the bonus.');
+        throw new functions.https.HttpsError('internal', 'An unexpected error occurred while claiming the bonus. Please check the function logs for more details.');
     }
 });
 
 
 exports.distributeTournamentWinnings = functions.https.onCall(async (data, context) => {
-    const callerClaims = context.auth.token;
-    if (!callerClaims || (callerClaims.role !== 'matchAdmin' && callerClaims.role !== 'superAdmin')) {
-        throw new HttpsError('permission-denied', 'Only match admins or super admins can perform this action.');
+    if (context.auth?.token.admin !== true) {
+        throw new HttpsError('permission-denied', 'Only admins can perform this action.');
     }
 
     const { tournamentId, prizeDistribution } = data;
@@ -888,27 +889,13 @@ exports.distributeTournamentWinnings = functions.https.onCall(async (data, conte
         if (tournamentData.status !== 'completed') {
             throw new HttpsError('failed-precondition', 'Tournament is not completed yet.');
         }
-
-        const totalToDistribute = Object.values(prizeDistribution).reduce((sum, val) => sum + Number(val), 0);
-        if (totalToDistribute > tournamentData.prizePool) {
-            throw new HttpsError('invalid-argument', 'Prize distribution total exceeds tournament prize pool.');
+        
+        if (!Array.isArray(tournamentData.winners)) {
+            throw new HttpsError(
+                'failed-precondition',
+                'Tournament winners list is missing or invalid.'
+            );
         }
-
-        const matchesSnapshot = await db.collection(`tournaments/${tournamentId}/matches`).get();
-        const playerWins = {};
-
-        tournamentData.playerIds.forEach(id => {
-            playerWins[id] = 0;
-        });
-
-        matchesSnapshot.forEach(matchDoc => {
-            const matchData = matchDoc.data();
-            if (matchData.winnerId && playerWins.hasOwnProperty(matchData.winnerId)) {
-                playerWins[matchData.winnerId]++;
-            }
-        });
-
-        const sortedPlayers = Object.entries(playerWins).sort(([, winsA], [, winsB]) => winsB - winsA);
 
         const batch = db.batch();
         
@@ -928,22 +915,27 @@ exports.distributeTournamentWinnings = functions.https.onCall(async (data, conte
             });
         }
         
-        let rank = 1;
-        for (const [playerId, wins] of sortedPlayers) {
-            const prizeAmount = prizeDistribution[String(rank)];
-            if (prizeAmount > 0) {
+        for (const rankStr in prizeDistribution) {
+            const rank = parseInt(rankStr, 10);
+            const winnerId = tournamentData.winners[rank - 1]; 
+            const amount = Number(prizeDistribution[rankStr]);
+
+            if (!amount || amount <= 0) continue;
+
+            if (winnerId) {
+                const userRef = db.collection('users').doc(winnerId);
                 const transactionRef = db.collection('transactions').doc();
+                batch.set(userRef, { walletBalance: admin.firestore.FieldValue.increment(amount) }, { merge: true });
                 batch.set(transactionRef, {
-                    userId: playerId,
+                    userId: winnerId,
                     type: 'winnings',
-                    amount: prizeAmount,
+                    amount: amount,
                     status: 'completed',
                     createdAt: admin.firestore.FieldValue.serverTimestamp(),
                     relatedTournamentId: tournamentId,
                     description: `Rank ${rank} prize in ${tournamentData.name}.`,
                 });
             }
-            rank++;
         }
         
         batch.update(tournamentRef, { prizeDistributed: true });
@@ -983,7 +975,7 @@ exports.onMatchComplete = functions.firestore
             await db.runTransaction(async (transaction) => {
                 const progressDoc = await transaction.get(progressRef);
                 let progressData;
-                if (!progressDoc.exists) {
+                if (!progressDoc.exists()) {
                     progressData = { progress: 0, completed: false, claimed: false };
                 } else {
                     progressData = progressDoc.data();

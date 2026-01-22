@@ -1,4 +1,5 @@
 
+
 const functions = require('firebase-functions');
 const admin = require('firebase-admin');
 const { HttpsError } = require('firebase-functions/v1/https');
@@ -68,7 +69,7 @@ exports.setRole = functions.https.onCall(async (data, context) => {
     );
   }
 
-  const allowedRoles = ["depositAdmin", "withdrawalAdmin", "matchAdmin", "superAdmin", "none"];
+  const allowedRoles = ["kycAdmin", "depositAdmin", "withdrawalAdmin", "matchAdmin", "superAdmin", "none"];
   if (!allowedRoles.includes(role)) {
     throw new functions.https.HttpsError(
       "invalid-argument",
@@ -76,17 +77,19 @@ exports.setRole = functions.https.onCall(async (data, context) => {
     );
   }
 
-  // 3. Set Custom Claim
+  // 3. Set Custom Claim & Firestore field
   try {
-    if (role === 'none') {
-        // Remove all admin-related claims
-        await admin.auth().setCustomUserClaims(uid, { role: null, admin: null });
-        return { message: `Success! User ${uid} has had their roles removed.` };
+    const isNowAdmin = role !== 'none';
+    
+    await admin.auth().setCustomUserClaims(uid, { role: isNowAdmin ? role : null, admin: isNowAdmin ? true : null });
+    await db.collection('users').doc(uid).update({ isAdmin: isNowAdmin, role: isNowAdmin ? role : null });
+
+    if (isNowAdmin) {
+      return { message: `Success! User ${uid} has been made a ${role}.` };
     } else {
-        // Set the specific role and the general admin flag
-        await admin.auth().setCustomUserClaims(uid, { role: role, admin: true });
-        return { message: `Success! User ${uid} has been made a ${role}.` };
+      return { message: `Success! User ${uid} has had their roles removed.` };
     }
+
   } catch (error) {
     console.error("Error setting custom claims:", error);
     throw new functions.https.HttpsError(
@@ -120,8 +123,8 @@ exports.listUsers = functions.https.onCall(async (data, context) => {
 });
 
 exports.getAdminDashboardStats = functions.https.onCall(async (data, context) => {
-    if (!context.auth || !context.auth.token.admin) {
-        throw new HttpsError('permission-denied', 'Only admins can access dashboard stats.');
+    if (!context.auth || context.auth.token.role !== 'superAdmin') {
+        throw new HttpsError('permission-denied', 'Only super admins can access dashboard stats.');
     }
 
     try {
@@ -145,8 +148,8 @@ exports.getAdminDashboardStats = functions.https.onCall(async (data, context) =>
 });
 
 exports.getAdminUserStats = functions.https.onCall(async (data, context) => {
-    if (!context.auth || !context.auth.token.admin) {
-        throw new HttpsError('permission-denied', 'Only admins can access user stats.');
+    if (!context.auth || context.auth.token.role !== 'superAdmin') {
+        throw new HttpsError('permission-denied', 'Only super admins can access user stats.');
     }
 
     try {
@@ -182,6 +185,11 @@ exports.onTransactionCreate = functions.firestore
         return null;
     }
     
+    if (userId === 'platform') {
+        // This is a platform transaction, like commission. No user balance to update.
+        return null;
+    }
+    
     const userRef = db.collection('users').doc(userId);
 
     try {
@@ -194,7 +202,7 @@ exports.onTransactionCreate = functions.firestore
             const updateData = {};
 
             // Update wallet balance for relevant transaction types
-            const balanceAffectingTypes = ['deposit', 'withdrawal', 'entry-fee', 'winnings', 'refund', 'admin-credit', 'admin-debit', 'referral-bonus', 'tournament-fee', 'daily_bonus', 'withdrawal_refund'];
+            const balanceAffectingTypes = ['deposit', 'withdrawal', 'entry-fee', 'winnings', 'refund', 'admin-credit', 'admin-debit', 'referral-bonus', 'tournament-fee', 'daily_bonus', 'withdrawal_refund', 'task-reward'];
             if (balanceAffectingTypes.includes(type)) {
                 const currentBalance = userData.walletBalance || 0;
                 const newBalance = currentBalance + amount;
@@ -236,7 +244,25 @@ exports.onDepositRequestUpdate = functions.firestore
 
   // Check if the deposit just got approved
   if (after.status === 'approved' && before.status !== 'approved') {
-    const { userId, amount } = after;
+    const { userId, amount, utr, targetUpiRef } = after;
+
+    if (!targetUpiRef) {
+        console.error(`Deposit request ${context.params.depositId} is missing targetUpiRef.`);
+        // Optionally, mark the deposit as failed or require manual intervention.
+        return;
+    }
+
+    // --- Create Transaction First ---
+    // This will trigger onTransactionCreate to update the wallet balance.
+    const transactionRef = db.collection('transactions').doc();
+    await transactionRef.set({
+        userId: userId,
+        type: 'deposit',
+        amount: amount,
+        status: 'completed',
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        description: `Deposit approved via UTR: ${utr}`,
+    });
 
     // Send a notification to the user
     await sendNotification(
@@ -246,47 +272,41 @@ exports.onDepositRequestUpdate = functions.firestore
         '/wallet'
     );
     
-    // --- UPI Limit Management ---
-    const activeUpiRef = db.collection('upiConfiguration').doc('active');
-    const activeUpiSnap = await activeUpiRef.get();
+    // --- UPI Limit Management (Robust Version) ---
+    const upiConfigDocRef = db.collection('upiConfiguration').doc(targetUpiRef);
+    const upiConfigSnap = await upiConfigDocRef.get();
 
-    if(activeUpiSnap.exists()) {
-        const activeUpiData = activeUpiSnap.data();
-        if (activeUpiData.activeUpiRef) {
-            const activeUpiConfigDocRef = db.collection('upiConfiguration').doc(activeUpiData.activeUpiRef);
-            const upiConfigSnap = await activeUpiConfigDocRef.get();
-            if(upiConfigSnap.exists()) {
-                const upiConfigData = upiConfigSnap.data();
-                const newReceivedAmount = (upiConfigData.currentReceived || 0) + amount;
+    if (upiConfigSnap.exists()) {
+        const upiConfigData = upiConfigSnap.data();
+        const newReceivedAmount = (upiConfigData.currentReceived || 0) + amount;
 
-                if (newReceivedAmount >= upiConfigData.paymentLimit) {
-                    // Limit reached, find a new UPI to activate
-                    const nextUpiQuery = db.collection('upiConfiguration').where('isActive', '==', false).where('id', '!=', activeUpiData.activeUpiRef).limit(1);
-                    const nextUpiSnapshot = await nextUpiQuery.get();
-                    
-                    if(!nextUpiSnapshot.empty) {
-                        const nextUpiDoc = nextUpiSnapshot.docs[0];
-                        const batch = db.batch();
-                        // Deactivate current
-                        batch.update(activeUpiConfigDocRef, { isActive: false, currentReceived: newReceivedAmount });
-                        // Activate next
-                        batch.update(nextUpiDoc.ref, { isActive: true });
-                        // Update the global active reference
-                        batch.set(activeUpiRef, { activeUpiId: nextUpiDoc.data().upiId, activeUpiRef: nextUpiDoc.id, updatedAt: admin.firestore.FieldValue.serverTimestamp() });
-                        
-                        await batch.commit();
-                        console.log(`UPI limit reached for ${upiConfigData.upiId}. Switched to ${nextUpiDoc.data().upiId}.`);
-                    } else {
-                        // No other UPIs available, just update the current one
-                        await activeUpiConfigDocRef.update({ currentReceived: newReceivedAmount });
-                        console.log("UPI limit reached, but no alternative UPIs available.");
-                    }
-                } else {
-                    // Limit not reached, just update the current amount
-                    await activeUpiConfigDocRef.update({ currentReceived: newReceivedAmount });
-                }
-                await change.after.ref.update({ processedWithUpiId: upiConfigData.upiId });
+        if (newReceivedAmount >= upiConfigData.paymentLimit) {
+            // Limit reached, find a new UPI to activate
+            const nextUpiQuery = db.collection('upiConfiguration').where('isActive', '==', false).limit(1);
+            const nextUpiSnapshot = await nextUpiQuery.get();
+            
+            const batch = db.batch();
+            // Deactivate current
+            batch.update(upiConfigDocRef, { isActive: false, currentReceived: newReceivedAmount });
+
+            if(!nextUpiSnapshot.empty) {
+                const nextUpiDoc = nextUpiSnapshot.docs[0];
+                const activeUpiRef = db.collection('upiConfiguration').doc('active');
+                
+                // Activate next
+                batch.update(nextUpiDoc.ref, { isActive: true });
+                // Update the global active reference
+                batch.set(activeUpiRef, { activeUpiId: nextUpiDoc.data().upiId, activeUpiRef: nextUpiDoc.id, updatedAt: admin.firestore.FieldValue.serverTimestamp() });
+                
+                console.log(`UPI limit reached for ${upiConfigData.upiId}. Switched to ${nextUpiDoc.data().upiId}.`);
+            } else {
+                console.log("UPI limit reached, but no alternative UPIs available. Deactivating current UPI.");
             }
+            await batch.commit();
+
+        } else {
+            // Limit not reached, just update the current amount
+            await upiConfigDocRef.update({ currentReceived: newReceivedAmount });
         }
     }
     // --- End UPI Limit Management ---
@@ -350,20 +370,43 @@ exports.onWithdrawalRequestUpdate = functions.firestore
 .onUpdate(async (change, context) => {
     const after = change.after.data();
     const before = change.before.data();
+    const { userId, amount } = after;
 
     if (after.status === 'approved' && before.status !== 'approved') {
+        const transactionRef = db.collection('transactions').doc();
+        await transactionRef.set({
+            userId: userId,
+            type: 'withdrawal',
+            amount: -amount,
+            status: 'completed',
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+            description: `Withdrawal of ₹${amount}`,
+            relatedId: context.params.withdrawalId,
+        });
+
         await sendNotification(
-            after.userId,
-            'Withdrawal Processed!',
-            `Your withdrawal request of ₹${after.amount} has been approved.`,
+            userId,
+            'Withdrawal Approved!',
+            `Your withdrawal request of ₹${amount} has been approved.`,
             '/wallet'
         );
-    }
-     if (after.status === 'rejected' && before.status !== 'rejected') {
+    } else if (after.status === 'rejected' && before.status !== 'rejected') {
+        // Refund the amount to the user's wallet
+        const transactionRef = db.collection('transactions').doc();
+        await transactionRef.set({
+            userId: userId,
+            type: 'withdrawal_refund',
+            amount: amount, // Positive amount to credit back
+            status: 'completed',
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+            description: `Refund for rejected withdrawal request of ₹${amount}`,
+            relatedId: context.params.withdrawalId,
+        });
+        
         await sendNotification(
-            after.userId,
+            userId,
             'Withdrawal Rejected',
-            `Your withdrawal request of ₹${after.amount} was rejected. Reason: ${after.rejectionReason || 'Not specified'}.`,
+            `Your withdrawal request of ₹${amount} was rejected. Reason: ${after.rejectionReason || 'Not specified'}.`,
             '/wallet'
         );
     }
@@ -403,7 +446,10 @@ const findAndCreateMatch = async (entry, queueName) => {
             const matchRef = db.collection('matches').doc();
             newMatchRefId = matchRef.id;
 
-            const prizePool = entryFee * 1.8;
+            const commissionConfigSnap = await db.doc('matchCommission/settings').get();
+            const commissionPercentage = commissionConfigSnap.exists() && commissionConfigSnap.data().percentage ? commissionConfigSnap.data().percentage : 10;
+            const prizePool = entryFee * 2 * (1 - commissionPercentage / 100);
+
             const newMatchData = {
                 id: newMatchRefId,
                 creatorId: creator.userId,
@@ -469,18 +515,16 @@ exports.onRoomCodeSeekerWrite = functions.firestore
   });
 
 
-exports.onMatchCreate = functions.firestore
-  .document('matches/{matchId}')
+exports.onTournamentCreate = functions.firestore
+  .document('tournaments/{tournamentId}')
   .onCreate(async (snap, context) => {
-    const match = snap.data();
-    const creatorId = match.creatorId;
-
-    // Get all users' FCM tokens except the creator
+    const tournament = snap.data();
+    
     const usersSnapshot = await db.collection('users').get();
     const tokens = [];
     usersSnapshot.forEach(doc => {
       const user = doc.data();
-      if (doc.id !== creatorId && user.fcmToken) {
+      if (user.fcmToken) {
         tokens.push(user.fcmToken);
       }
     });
@@ -491,30 +535,27 @@ exports.onMatchCreate = functions.firestore
 
     const payload = {
       notification: {
-        title: 'New Match Available!',
-        body: `A new match for ₹${match.prizePool} has been created. Tap to join now!`,
-        clickAction: `/lobby`,
+        title: 'New Tournament Alert!',
+        body: `${tournament.name} is now open for registration with a prize pool of ₹${tournament.prizePool}!`,
+        clickAction: `/tournaments/${snap.id}`,
       },
     };
 
     try {
       const response = await admin.messaging().sendEachForMulticast({ tokens, ...payload });
-      if (response.failureCount > 0) {
-        console.log('Failed to send notifications to some devices:', response.failureCount);
-      }
+      console.log(`Sent tournament notification. Success: ${response.successCount}, Failure: ${response.failureCount}`);
       return response;
     } catch (error) {
-      console.error('Error sending notifications:', error);
+      console.error('Error sending tournament notifications:', error);
       return null;
     }
-  });
-
+});
 
 // New, advanced onResultSubmit function
 exports.onResultSubmit = functions.firestore
   .document('matches/{matchId}/results/{userId}')
   .onCreate(async (snap, context) => {
-    const matchId = context.params.matchId;
+    const { matchId, userId } = context.params;
     const matchRef = db.collection('matches').doc(matchId);
     
     try {
@@ -530,6 +571,12 @@ exports.onResultSubmit = functions.firestore
         if (['completed', 'disputed', 'cancelled'].includes(freshMatchData.status)) {
           console.log(`Match ${matchId} is already concluded with status: ${freshMatchData.status}. No action taken.`);
           return; // Exit transaction if match is already resolved.
+        }
+        
+        // Notify other players
+        const otherPlayerIds = freshMatchData.playerIds.filter(pId => pId !== userId);
+        for(const pId of otherPlayerIds) {
+            await sendNotification(pId, "Result Submitted", `${freshMatchData.players[userId]?.name || 'Opponent'} has submitted their match result.`, `/match/${matchId}`);
         }
 
         const expectedResults = freshMatchData.playerIds.length;
@@ -585,9 +632,9 @@ exports.onResultSubmit = functions.firestore
   });
 
   exports.declareWinnerAndDistribute = functions.https.onCall(async (data, context) => {
-    // Use an existing check or implement a new one for admin privileges.
-    if (!context.auth || context.auth.token.admin !== true) {
-        throw new HttpsError('permission-denied', 'Only admins can call this function.');
+    const callerClaims = context.auth.token;
+    if (!callerClaims || (callerClaims.role !== 'matchAdmin' && callerClaims.role !== 'superAdmin')) {
+        throw new HttpsError('permission-denied', 'Only match admins or super admins can call this function.');
     }
 
     const { matchId, winnerId } = data;
@@ -600,6 +647,7 @@ exports.onResultSubmit = functions.firestore
     try {
         let winningPlayerName = 'Unknown Player';
         let prizePoolAmount = 0;
+        let playerIds = [];
 
         await db.runTransaction(async (transaction) => {
             const matchDoc = await transaction.get(matchRef);
@@ -607,6 +655,7 @@ exports.onResultSubmit = functions.firestore
                 throw new HttpsError('not-found', 'Match not found.');
             }
             const matchData = matchDoc.data();
+            playerIds = matchData.playerIds;
 
             if (matchData.prizeDistributed) {
                 throw new HttpsError('failed-precondition', 'Winnings have already been distributed for this match.');
@@ -624,7 +673,9 @@ exports.onResultSubmit = functions.firestore
             }
             
             prizePoolAmount = matchData.prizePool;
-            const commission = (matchData.entryFee * matchData.playerIds.length) * 0.10;
+            const commissionConfigSnap = await db.doc('matchCommission/settings').get();
+            const commissionPercentage = commissionConfigSnap.exists() && commissionConfigSnap.data().percentage ? commissionConfigSnap.data().percentage : 10;
+            const commission = (matchData.entryFee * matchData.playerIds.length) * (commissionPercentage / 100);
 
             const winningsTransactionRef = db.collection('transactions').doc();
             transaction.set(winningsTransactionRef, {
@@ -645,7 +696,7 @@ exports.onResultSubmit = functions.firestore
                 status: 'completed',
                 createdAt: admin.firestore.FieldValue.serverTimestamp(),
                 relatedMatchId: matchId,
-                description: `10% commission from match ${matchId}`,
+                description: `${commissionPercentage}% commission from match ${matchId}`,
             });
 
             for (const playerId of matchData.playerIds) {
@@ -675,6 +726,13 @@ exports.onResultSubmit = functions.firestore
             });
         });
         
+        // Send notifications outside the transaction
+        for (const pId of playerIds) {
+            const title = pId === winnerId ? "You Won!" : "Match Result";
+            const body = pId === winnerId ? `Congratulations, you won ₹${prizePoolAmount}!` : `Match resolved. ${winningPlayerName} is the winner.`;
+            await sendNotification(pId, title, body, `/match/${matchId}`);
+        }
+
         return { 
             success: true, 
             message: `Successfully declared ${winningPlayerName} as winner and distributed prize of ₹${prizePoolAmount}.`
@@ -689,7 +747,8 @@ exports.onResultSubmit = functions.firestore
     }
 });
 
-exports.dailyLoginBonus = functions.https.onCall(async (data, context) => {
+
+exports.newDailyLoginBonus = functions.https.onCall(async (data, context) => {
     if (!context.auth) {
         throw new functions.https.HttpsError('unauthenticated', 'You must be logged in to claim a bonus.');
     }
@@ -700,16 +759,21 @@ exports.dailyLoginBonus = functions.https.onCall(async (data, context) => {
 
     try {
         const result = await db.runTransaction(async (transaction) => {
-            // 1. All reads first
             const userDoc = await transaction.get(userRef);
             const configDoc = await transaction.get(configRef);
 
-            // 2. Pre-condition checks
-            if (!userDoc.exists) {
-                return { error: 'not-found', message: 'User profile not found.' };
+            if (!userDoc.exists()) {
+                throw new functions.https.HttpsError('not-found', 'User profile not found.');
             }
+
+            if (!configDoc.exists()) {
+                functions.logger.error("Bonus configuration not set. Please create the document 'bonus_config/settings'");
+                throw new functions.https.HttpsError('failed-precondition', 'Bonus configuration is not set.');
+            }
+
             const userData = userDoc.data();
-            const today = new Date().toISOString().split('T')[0];
+            const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+
             if (userData.lastLoginDate === today) {
                 return { success: true, message: 'Daily bonus already claimed for today.' };
             }
@@ -718,23 +782,26 @@ exports.dailyLoginBonus = functions.https.onCall(async (data, context) => {
                 if (!dateString) return false;
                 const yesterday = new Date();
                 yesterday.setDate(yesterday.getDate() - 1);
-                return dateString === yesterday.toISOString().split('T')[0];
+                return yesterday.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' }) === dateString;
             };
             const currentStreak = isYesterday(userData.lastLoginDate) ? (userData.loginStreak || 0) + 1 : 1;
 
-            if (!configDoc.exists() || !configDoc.data().enabled) {
-                 // Just update login date and streak, but return a "disabled" message
+            const config = configDoc.data();
+            if (!config.enabled) {
                 transaction.update(userRef, { lastLoginDate: today, loginStreak: currentStreak });
                 return { success: true, message: 'The daily bonus system is currently disabled.' };
             }
 
-            // 3. Logic and writes
-            const config = configDoc.data();
-            
             let totalBonus = Number(config.dailyBonus) || 0;
-            if (config.streakBonus && config.streakBonus[currentStreak]) {
-                const streakBonusAmount = Number(config.streakBonus[currentStreak]) || 0;
-                totalBonus += streakBonusAmount;
+
+            if (config.streakBonus && typeof config.streakBonus === 'object' && config.streakBonus !== null) {
+                const streakBonusForDay = config.streakBonus[String(currentStreak)];
+                if (streakBonusForDay) {
+                    const streakBonusAmount = Number(streakBonusForDay) || 0;
+                    totalBonus += streakBonusAmount;
+                }
+            } else if (config.streakBonus) {
+                functions.logger.warn(`'streakBonus' field in 'bonus_config/settings' is not a valid object: ${JSON.stringify(config.streakBonus)}`);
             }
 
             const updateData = {
@@ -763,27 +830,20 @@ exports.dailyLoginBonus = functions.https.onCall(async (data, context) => {
             }
         });
 
-        // 4. Handle results outside the transaction
-        if (result.error) {
-            if (result.error === 'not-found') {
-                throw new functions.https.HttpsError('not-found', result.message);
-            }
-        }
+        return result;
 
-        return { success: result.success, message: result.message };
-
-    } catch(error) {
-        console.error('Error in dailyLoginBonus:', error);
-        if (error instanceof HttpsError) {
+    } catch (error) {
+        functions.logger.error('Error in newDailyLoginBonus function:', error);
+        if (error instanceof functions.https.HttpsError) {
             throw error;
         }
-        throw new HttpsError('internal', 'An unexpected error occurred while claiming the bonus.');
+        throw new functions.https.HttpsError('internal', 'An unexpected error occurred while claiming the bonus. Please check the function logs for more details.');
     }
 });
 
 
 exports.distributeTournamentWinnings = functions.https.onCall(async (data, context) => {
-    if (!context.auth || !context.auth.token.admin) {
+    if (context.auth?.token.admin !== true) {
         throw new HttpsError('permission-denied', 'Only admins can perform this action.');
     }
 
@@ -807,47 +867,53 @@ exports.distributeTournamentWinnings = functions.https.onCall(async (data, conte
         if (tournamentData.status !== 'completed') {
             throw new HttpsError('failed-precondition', 'Tournament is not completed yet.');
         }
-
-        const totalToDistribute = Object.values(prizeDistribution).reduce((sum, val) => sum + Number(val), 0);
-        if (totalToDistribute > tournamentData.prizePool) {
-            throw new HttpsError('invalid-argument', 'Prize distribution total exceeds tournament prize pool.');
+        
+        if (!Array.isArray(tournamentData.winners)) {
+            throw new HttpsError(
+                'failed-precondition',
+                'Tournament winners list is missing or invalid.'
+            );
         }
 
-        const matchesSnapshot = await db.collection(`tournaments/${tournamentId}/matches`).get();
-        const playerWins = {};
-
-        tournamentData.playerIds.forEach(id => {
-            playerWins[id] = 0;
-        });
-
-        matchesSnapshot.forEach(matchDoc => {
-            const matchData = matchDoc.data();
-            if (matchData.winnerId && playerWins.hasOwnProperty(matchData.winnerId)) {
-                playerWins[matchData.winnerId]++;
-            }
-        });
-
-        // Changed from TypeScript to JavaScript for sorting
-
-        const sortedPlayers = Object.entries(playerWins).sort(([, winsA], [, winsB]) => winsB - winsA);
-
         const batch = db.batch();
-        let rank = 1;
-        for (const [playerId, wins] of sortedPlayers) {
-            const prizeAmount = prizeDistribution[String(rank)];
-            if (prizeAmount > 0) {
+        
+        const totalCollected = tournamentData.entryFee * tournamentData.filledSlots;
+        const commission = totalCollected - tournamentData.prizePool;
+
+        if (commission > 0) {
+            const commissionTransactionRef = db.collection('transactions').doc();
+            batch.set(commissionTransactionRef, {
+                userId: 'platform',
+                type: 'tournament_commission',
+                amount: commission,
+                status: 'completed',
+                createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                relatedTournamentId: tournamentId,
+                description: `Commission from ${tournamentData.name}`,
+            });
+        }
+        
+        for (const rankStr in prizeDistribution) {
+            const rank = parseInt(rankStr, 10);
+            const winnerId = tournamentData.winners[rank - 1]; 
+            const amount = Number(prizeDistribution[rankStr]);
+
+            if (!amount || amount <= 0) continue;
+
+            if (winnerId) {
+                const userRef = db.collection('users').doc(winnerId);
                 const transactionRef = db.collection('transactions').doc();
+                batch.set(userRef, { walletBalance: admin.firestore.FieldValue.increment(amount) }, { merge: true });
                 batch.set(transactionRef, {
-                    userId: playerId,
+                    userId: winnerId,
                     type: 'winnings',
-                    amount: prizeAmount,
+                    amount: amount,
                     status: 'completed',
                     createdAt: admin.firestore.FieldValue.serverTimestamp(),
                     relatedTournamentId: tournamentId,
                     description: `Rank ${rank} prize in ${tournamentData.name}.`,
                 });
             }
-            rank++;
         }
         
         batch.update(tournamentRef, { prizeDistributed: true });

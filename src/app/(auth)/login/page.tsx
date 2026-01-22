@@ -9,7 +9,8 @@ import { Mail, Lock, Loader2 } from 'lucide-react';
 import { GoogleIcon } from "@/components/icons/GoogleIcon";
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { sendPasswordReset, signInWithEmail, signInWithGoogle } from '@/firebase/auth/client';
+import { signInWithEmail, signInWithGoogle } from '@/firebase/auth/client';
+import { getAuth, sendPasswordResetEmail } from 'firebase/auth'; // Corrected import
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import Image from 'next/image';
 
@@ -68,113 +69,119 @@ export default function LoginPage() {
         setIsGoogleLoading(false);
     }
   };
-  
-    const handlePasswordReset = async () => {
+
+  const handlePasswordReset = async () => {
     if (!resetEmail) {
-      toast({ title: 'Please enter your email.', variant: 'destructive'});
+      toast({ title: 'Please enter your email.', variant: 'destructive' });
       return;
     }
     setIsLoading(true);
+    const auth = getAuth();
     try {
-      await sendPasswordReset(resetEmail);
-      toast({ title: 'Password Reset Email Sent', description: 'Please check your inbox to reset your password.'});
+      await sendPasswordResetEmail(auth, resetEmail);
+      toast({ title: 'Password Reset Email Sent', description: 'Please check your inbox to reset your password.' });
       setResetDialogOpen(false);
       setResetEmail('');
-    } catch(error: any) {
-      toast({ title: 'Error', description: error.message, variant: 'destructive'});
+    } catch (error: any) {
+      console.error("Password Reset Error:", error);
+      if (error.code === 'auth/user-not-found') {
+        toast({ title: "Error", description: "No user found with this email address.", variant: "destructive" });
+      } else {
+        toast({ title: "Error", description: "Failed to send password reset email. Please try again.", variant: "destructive" });
+      }
     } finally {
       setIsLoading(false);
     }
   }
 
   const isButtonDisabled = isLoading || isGoogleLoading || cooldown > 0;
-  
+
   return (
     <>
-       <div 
+      <div
         className="w-full h-full bg-card/80 dark:bg-card/60 backdrop-blur-lg rounded-2xl shadow-2xl border border-border/20 p-8 text-foreground flex flex-col justify-center"
-       >
-            {/* Header */}
-            <div className="text-center mb-8">
-                <div className="inline-block p-3 bg-primary/10 rounded-full mb-4 border border-primary/20">
-                    <Image src="/icon-192x192.png" alt="Ludo League Logo" width={40} height={40} />
-                </div>
-                <h1 className="text-3xl font-bold tracking-tighter">Welcome Back</h1>
-                <p className="text-muted-foreground mt-1">Log in to continue your streak.</p>
-            </div>
-
-            {/* Google Sign-in */}
-            <div className="mb-6">
-                <Button 
-                    onClick={handleGoogleLogin} 
-                    disabled={isButtonDisabled} 
-                    variant="outline"
-                    className="w-full h-12 border-border font-semibold shadow-sm transition-all duration-300 transform hover:scale-105"
-                    suppressHydrationWarning
-                >
-                    {isGoogleLoading 
-                        ? <Loader2 className="h-5 w-5 mr-3 animate-spin"/> 
-                        : cooldown > 0 
-                        ? `Try again in ${cooldown}s`
-                        : <><GoogleIcon className="h-5 w-5 mr-3" /> Continue with Google</>
-                    }
-                </Button>
-            </div>
-
-            {/* Separator */}
-            <div className="flex items-center my-6">
-                <hr className="w-full border-border/50" />
-                <span className="px-4 text-muted-foreground text-sm">OR</span>
-                <hr className="w-full border-border/50" />
-            </div>
-
-            {/* Email Form */}
-            <form onSubmit={handleEmailLogin} className="space-y-4">
-                <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground"/>
-                    <Input 
-                        type="email" 
-                        placeholder="Email" 
-                        value={email} 
-                        onChange={e => setEmail(e.target.value)} 
-                        required 
-                        className="bg-background/50 border-border h-12 pl-10 focus:ring-primary focus:border-primary"
-                        suppressHydrationWarning
-                    />
-                </div>
-                <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground"/>
-                    <Input 
-                        type="password" 
-                        placeholder="Password" 
-                        value={password} 
-                        onChange={e => setPassword(e.target.value)} 
-                        required 
-                        className="bg-background/50 border-border h-12 pl-10 focus:ring-primary focus:border-primary"
-                        suppressHydrationWarning
-                    />
-                </div>
-                 <div className="text-right">
-                    <button type="button" onClick={() => setResetDialogOpen(true)} className="text-sm font-medium text-primary hover:underline" suppressHydrationWarning>
-                      Forgot Password?
-                    </button>
-                  </div>
-                <Button type="submit" disabled={isButtonDisabled} className="w-full h-12 font-bold text-lg transition-all duration-300 transform hover:scale-105" suppressHydrationWarning>
-                    {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : cooldown > 0 ? `Try again in ${cooldown}s` : "Login with Email"}
-                </Button>
-            </form>
-
-            {/* Footer Link */}
-            <div className="text-center mt-6">
-                <p className="text-sm text-muted-foreground">
-                    Don&apos;t have an account?{" "}
-                    <Link href="/signup" className="font-semibold text-primary hover:underline">
-                        Sign Up
-                    </Link>
-                </p>
-            </div>
+      >
+        {/* Header */}
+        <div className="text-center mb-8">
+          <div className="inline-block p-3 bg-primary/10 rounded-full mb-4 border border-primary/20">
+            <Image src="/icon-192x192.png" alt="Ludo League Logo" width={40} height={40} />
+          </div>
+          <h1 className="text-3xl font-bold tracking-tighter">Welcome Back</h1>
+          <p className="text-muted-foreground mt-1">Log in to continue your streak.</p>
         </div>
-         <Dialog open={isResetDialogOpen} onOpenChange={setResetDialogOpen}>
+
+        {/* Google Sign-in */}
+        <div className="mb-6">
+          <Button
+            onClick={handleGoogleLogin}
+            disabled={isButtonDisabled}
+            variant="outline"
+            className="w-full h-12 border-border font-semibold shadow-sm transition-all duration-300 transform hover:scale-105"
+            suppressHydrationWarning
+          >
+            {isGoogleLoading
+              ? <Loader2 className="h-5 w-5 mr-3 animate-spin" />
+              : cooldown > 0
+                ? `Try again in ${cooldown}s`
+                : <><GoogleIcon className="h-5 w-5 mr-3" /> Continue with Google</>
+            }
+          </Button>
+        </div>
+
+        {/* Separator */}
+        <div className="flex items-center my-6">
+          <hr className="w-full border-border/50" />
+          <span className="px-4 text-muted-foreground text-sm">OR</span>
+          <hr className="w-full border-border/50" />
+        </div>
+
+        {/* Email Form */}
+        <form onSubmit={handleEmailLogin} className="space-y-4">
+          <div className="relative">
+            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+            <Input
+              type="email"
+              placeholder="Email"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              required
+              className="bg-background/50 border-border h-12 pl-10 focus:ring-primary focus:border-primary"
+              suppressHydrationWarning
+            />
+          </div>
+          <div className="relative">
+            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+            <Input
+              type="password"
+              placeholder="Password"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              required
+              className="bg-background/50 border-border h-12 pl-10 focus:ring-primary focus:border-primary"
+              suppressHydrationWarning
+            />
+          </div>
+          <div className="text-right">
+            <button type="button" onClick={() => setResetDialogOpen(true)} className="text-sm font-medium text-primary hover:underline" suppressHydrationWarning>
+              Forgot Password?
+            </button>
+          </div>
+          <Button type="submit" disabled={isButtonDisabled} className="w-full h-12 font-bold text-lg transition-all duration-300 transform hover:scale-105" suppressHydrationWarning>
+            {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : cooldown > 0 ? `Try again in ${cooldown}s` : "Login with Email"}
+          </Button>
+        </form>
+
+        {/* Footer Link */}
+        <div className="text-center mt-6">
+          <p className="text-sm text-muted-foreground">
+            Don&apos;t have an account?{" "}
+            <Link href="/signup" className="font-semibold text-primary hover:underline">
+              Sign Up
+            </Link>
+          </p>
+        </div>
+      </div>
+      <Dialog open={isResetDialogOpen} onOpenChange={setResetDialogOpen}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Reset Password</DialogTitle>
@@ -200,11 +207,11 @@ export default function LoginPage() {
           </div>
           <DialogFooter>
             <DialogClose asChild>
-                <Button type="button" variant="secondary" suppressHydrationWarning>Cancel</Button>
+              <Button type="button" variant="secondary" suppressHydrationWarning>Cancel</Button>
             </DialogClose>
             <Button type="button" onClick={handlePasswordReset} disabled={isLoading} suppressHydrationWarning>
-                {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Mail className="mr-2 h-4 w-4" />}
-                Send Reset Link
+              {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Mail className="mr-2 h-4 w-4" />}
+              Send Reset Link
             </Button>
           </DialogFooter>
         </DialogContent>
