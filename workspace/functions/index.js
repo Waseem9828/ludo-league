@@ -731,9 +731,10 @@ exports.dailyLoginBonus = functions.https.onCall(async (data, context) => {
             // 3. Logic and writes
             const config = configDoc.data();
             
-            let totalBonus = config.dailyBonus || 0;
+            let totalBonus = Number(config.dailyBonus) || 0;
             if (config.streakBonus && config.streakBonus[currentStreak]) {
-                totalBonus += config.streakBonus[currentStreak] || 0;
+                const streakBonusAmount = Number(config.streakBonus[currentStreak]) || 0;
+                totalBonus += streakBonusAmount;
             }
 
             const updateData = {
@@ -771,12 +772,12 @@ exports.dailyLoginBonus = functions.https.onCall(async (data, context) => {
 
         return { success: result.success, message: result.message };
 
-    } catch (error) {
-        console.error('Error in dailyLoginBonus function:', error);
-        if (error instanceof functions.https.HttpsError) {
+    } catch(error) {
+        console.error('Error in dailyLoginBonus:', error);
+        if (error instanceof HttpsError) {
             throw error;
         }
-        throw new functions.https.HttpsError('internal', 'An unexpected error occurred while claiming the bonus.');
+        throw new HttpsError('internal', 'An unexpected error occurred while claiming the bonus.');
     }
 });
 

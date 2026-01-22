@@ -199,7 +199,7 @@ export const dailyLoginBonus = functions.https.onCall(async (data: any, context:
                 return { success: true, message: 'Daily bonus already claimed for today.' };
             }
 
-            const isYesterday = (dateString: string | undefined) => {
+            const isYesterday = (dateString: string | undefined): boolean => {
                 if (!dateString) return false;
                 const yesterday = new Date();
                 yesterday.setDate(yesterday.getDate() - 1);
@@ -216,9 +216,10 @@ export const dailyLoginBonus = functions.https.onCall(async (data: any, context:
             // 3. Logic and writes
             const config = configDoc.data()!;
             
-            let totalBonus = config.dailyBonus || 0;
+            let totalBonus = Number(config.dailyBonus) || 0;
             if (config.streakBonus && config.streakBonus[currentStreak]) {
-                totalBonus += config.streakBonus[currentStreak] || 0;
+                const streakBonusAmount = Number(config.streakBonus[currentStreak]) || 0;
+                totalBonus += streakBonusAmount;
             }
 
             const updateData = {

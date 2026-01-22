@@ -779,7 +779,7 @@ exports.dailyLoginBonus = functions.https.onCall(async (data, context) => {
             const configDoc = await transaction.get(configRef);
 
             // 2. Pre-condition checks
-            if (!userDoc.exists) {
+            if (!userDoc.exists()) {
                 return { error: 'not-found', message: 'User profile not found.' };
             }
             const userData = userDoc.data();
@@ -805,9 +805,10 @@ exports.dailyLoginBonus = functions.https.onCall(async (data, context) => {
             // 3. Logic and writes
             const config = configDoc.data();
             
-            let totalBonus = config.dailyBonus || 0;
+            let totalBonus = Number(config.dailyBonus) || 0;
             if (config.streakBonus && config.streakBonus[currentStreak]) {
-                totalBonus += config.streakBonus[currentStreak] || 0;
+                const streakBonusAmount = Number(config.streakBonus[currentStreak]) || 0;
+                totalBonus += streakBonusAmount;
             }
 
             const updateData = {
@@ -1029,10 +1030,10 @@ exports.claimTaskReward = functions.https.onCall(async (data, context) => {
             const progressDoc = await transaction.get(taskProgressRef);
             const taskDoc = await transaction.get(taskRef);
 
-            if (!progressDoc.exists) {
+            if (!progressDoc.exists()) {
                 throw new functions.https.HttpsError('not-found', 'Task progress not found. Play some games to start!');
             }
-            if (!taskDoc.exists) {
+            if (!taskDoc.exists()) {
                 throw new functions.https.HttpsError('not-found', 'Task definition not found.');
             }
             
