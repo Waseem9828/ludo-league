@@ -691,49 +691,55 @@ exports.onResultSubmit = functions.firestore
 
 exports.dailyLoginBonus = functions.https.onCall(async (data, context) => {
     if (!context.auth) {
-        throw new HttpsError('unauthenticated', 'You must be logged in to claim a bonus.');
+        throw new functions.https.HttpsError('unauthenticated', 'You must be logged in to claim a bonus.');
     }
+
     const userId = context.auth.uid;
     const userRef = db.doc(`users/${userId}`);
+    const configRef = db.doc('bonus_config/settings');
 
     try {
-        let message = '';
-        await db.runTransaction(async (transaction) => {
+        const result = await db.runTransaction(async (transaction) => {
+            // 1. All reads first
             const userDoc = await transaction.get(userRef);
-            const configDoc = await transaction.get(db.doc('bonus_config/settings'));
+            const configDoc = await transaction.get(configRef);
 
+            // 2. Pre-condition checks
             if (!userDoc.exists) {
-                throw new HttpsError('not-found', 'User profile not found.');
+                return { error: 'not-found', message: 'User profile not found.' };
             }
             const userData = userDoc.data();
-
-            const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
+            const today = new Date().toISOString().split('T')[0];
             if (userData.lastLoginDate === today) {
-                message = "Daily bonus already claimed for today.";
-                return; // Exit transaction early
+                return { success: true, message: 'Daily bonus already claimed for today.' };
             }
-            
-            if (!configDoc.exists() || !configDoc.data().enabled) {
-                message = "The daily bonus system is currently disabled.";
-                return;
-            }
-            
-            const config = configDoc.data();
-            
+
             const isYesterday = (dateString) => {
                 if (!dateString) return false;
                 const yesterday = new Date();
                 yesterday.setDate(yesterday.getDate() - 1);
                 return dateString === yesterday.toISOString().split('T')[0];
             };
+            const currentStreak = isYesterday(userData.lastLoginDate) ? (userData.loginStreak || 0) + 1 : 1;
 
-            const lastLogin = userData.lastLoginDate;
-            const currentStreak = isYesterday(lastLogin) ? (userData.loginStreak || 0) + 1 : 1;
+            if (!configDoc.exists() || !configDoc.data().enabled) {
+                 // Just update login date and streak, but return a "disabled" message
+                transaction.update(userRef, { lastLoginDate: today, loginStreak: currentStreak });
+                return { success: true, message: 'The daily bonus system is currently disabled.' };
+            }
+
+            // 3. Logic and writes
+            const config = configDoc.data();
             
             let totalBonus = config.dailyBonus || 0;
             if (config.streakBonus && config.streakBonus[currentStreak]) {
                 totalBonus += config.streakBonus[currentStreak] || 0;
             }
+
+            const updateData = {
+                lastLoginDate: today,
+                loginStreak: currentStreak,
+            };
 
             if (totalBonus > 0) {
                 const bonusTransactionRef = db.collection('transactions').doc();
@@ -745,30 +751,32 @@ exports.dailyLoginBonus = functions.https.onCall(async (data, context) => {
                     createdAt: admin.firestore.FieldValue.serverTimestamp(),
                     description: `Daily login bonus (Streak: ${currentStreak} day${currentStreak > 1 ? 's' : ''}).`,
                 });
+            }
+            
+            transaction.update(userRef, updateData);
 
-                transaction.update(userRef, {
-                    lastLoginDate: today,
-                    loginStreak: currentStreak,
-                });
-                
-                message = `₹${totalBonus} daily bonus claimed! Your current streak is ${currentStreak} day${currentStreak > 1 ? 's' : ''}.`;
+            if (totalBonus > 0) {
+                return { success: true, message: `₹${totalBonus} daily bonus claimed! Your current streak is ${currentStreak} day${currentStreak > 1 ? 's' : ''}.` };
             } else {
-                 transaction.update(userRef, {
-                    lastLoginDate: today,
-                    loginStreak: currentStreak,
-                });
-                message = "Logged in! No bonus to claim today, but your streak is updated.";
+                return { success: true, message: "Logged in! No bonus to claim today, but your streak is updated." };
             }
         });
-        
-        return { success: true, message: message };
 
-    } catch(error) {
-        console.error('Error in dailyLoginBonus:', error);
-        if (error instanceof HttpsError) {
+        // 4. Handle results outside the transaction
+        if (result.error) {
+            if (result.error === 'not-found') {
+                throw new functions.https.HttpsError('not-found', result.message);
+            }
+        }
+
+        return { success: result.success, message: result.message };
+
+    } catch (error) {
+        console.error('Error in dailyLoginBonus function:', error);
+        if (error instanceof functions.https.HttpsError) {
             throw error;
         }
-        throw new HttpsError('internal', 'An unexpected error occurred while claiming the bonus.');
+        throw new functions.https.HttpsError('internal', 'An unexpected error occurred while claiming the bonus.');
     }
 });
 
@@ -854,5 +862,3 @@ exports.distributeTournamentWinnings = functions.https.onCall(async (data, conte
         throw new HttpsError('internal', 'An unexpected error occurred.', error);
     }
 });
-
-    

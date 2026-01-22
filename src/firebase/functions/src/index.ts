@@ -190,7 +190,7 @@ export const dailyLoginBonus = functions.https.onCall(async (data: any, context:
             const configDoc = await transaction.get(configRef);
 
             // 2. Pre-condition checks
-            if (!userDoc.exists) {
+            if (!userDoc.exists()) {
                 return { error: 'not-found', message: 'User profile not found.' };
             }
             const userData = userDoc.data()!;
