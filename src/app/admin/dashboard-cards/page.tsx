@@ -33,6 +33,7 @@ import Image from 'next/image';
 import { compressImage } from '@/lib/image-utils';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
 
 interface DashboardCardImage {
   id: string;
