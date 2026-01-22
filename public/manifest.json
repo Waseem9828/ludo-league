@@ -1,10 +1,11 @@
+
 {
   "name": "Ludo League",
   "short_name": "Ludo League",
-  "description": "A platform for competitive Ludo matches.",
-  "start_url": "/dashboard",
+  "description": "Play Ludo League Online at LudoLeague.online. Join multiplayer Ludo matches, compete with real players, and enjoy classic Ludo gameplay on web browsers.",
+  "start_url": "/",
   "display": "standalone",
-  "background_color": "#1F5FA8",
+  "background_color": "#E8EEF4",
   "theme_color": "#1F5FA8",
   "icons": [
     {

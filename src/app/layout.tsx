@@ -10,6 +10,7 @@ import { Inter } from 'next/font/google';
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 
 export const metadata: Metadata = {
+  metadataBase: new URL('https://www.ludoleague.online'),
   title: 'Ludo League Online – Play Ludo League Games & Compete in Real Matches',
   description: 'Play Ludo League Online at LudoLeague.online. Join multiplayer Ludo matches, compete with real players, and enjoy classic Ludo gameplay on web browsers.',
   keywords: 'ludo league online, play ludo league, online ludo game, multiplayer ludo, ludo league dashboard',
@@ -30,7 +31,7 @@ export const metadata: Metadata = {
       siteName: 'Ludo League',
       images: [
         {
-          url: 'https://www.ludoleague.online/og-image.png',
+          url: '/og-image.png',
           width: 1200,
           height: 630,
         },

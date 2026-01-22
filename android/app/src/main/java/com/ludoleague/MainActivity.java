@@ -1,3 +1,4 @@
+
 package com.ludoleague;
 
 import androidx.appcompat.app.AppCompatActivity;
@@ -21,7 +22,7 @@ public class MainActivity extends AppCompatActivity {
         myWebView.setWebViewClient(new WebViewClient());
 
         // Load your Next.js app URL here
-        myWebView.loadUrl("https://studio--studio-4431476254-c1156.us-central1.hosted.app");
+        myWebView.loadUrl("https://www.ludoleague.online");
     }
 
     @Override

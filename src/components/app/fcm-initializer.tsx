@@ -12,12 +12,13 @@ export function FcmInitializer() {
   const { user } = useUser();
 
   useEffect(() => {
-    if (typeof window === 'undefined' || !messaging || !user) {
+    if (typeof window === 'undefined' || !user) {
       return;
     }
 
     const requestPermissionAndGetToken = async () => {
       try {
+        if (!messaging) return;
         const permission = await Notification.requestPermission();
         if (permission === 'granted') {
           console.log('Notification permission granted.');
@@ -41,18 +42,20 @@ export function FcmInitializer() {
 
     requestPermissionAndGetToken();
 
-    const unsubscribe = onMessage(messaging, (payload) => {
-      console.log('Message received. ', payload);
-      
-      toast({
-        title: payload.notification?.title || 'New Notification',
-        description: payload.notification?.body || '',
+    if (messaging) {
+      const unsubscribe = onMessage(messaging, (payload) => {
+        console.log('Message received. ', payload);
+        
+        toast({
+          title: payload.notification?.title || 'New Notification',
+          description: payload.notification?.body || '',
+        });
       });
-    });
 
-    return () => {
-      unsubscribe();
-    };
+      return () => {
+        unsubscribe();
+      };
+    }
 
   }, [user, toast]);
 
