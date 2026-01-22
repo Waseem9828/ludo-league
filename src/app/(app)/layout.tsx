@@ -58,7 +58,7 @@ function AppLayoutContent({ children }: { children: React.ReactNode }) {
             <AppHeader />
         </div>
         <PromotionBanner />
-        <div className='py-4 px-4 bg-background rounded-t-[2.5rem] min-h-[calc(100vh-88px)]'>{children}</div>
+        <div className='py-4 px-4 bg-background rounded-t-[3.5rem] min-h-[calc(100vh-88px)]'>{children}</div>
         <Toaster />
         <FirebaseErrorListener />
         <FcmInitializer />
