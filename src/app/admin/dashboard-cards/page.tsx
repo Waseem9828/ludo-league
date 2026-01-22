@@ -21,7 +21,8 @@ import {
   query,
   where,
   QueryDocumentSnapshot,
-  writeBatch
+  writeBatch,
+  updateDoc
 } from 'firebase/firestore';
 import { useFirestore, useStorage } from '@/firebase';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
