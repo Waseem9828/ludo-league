@@ -1,4 +1,3 @@
-
 import imageCompression from 'browser-image-compression';
 
 const defaultOptions = {
@@ -18,7 +17,7 @@ export const compressImage = async (file: File): Promise<File> => {
         console.log(`Compressed ${file.name} from ${file.size / 1024 / 1024} MB to ${compressedFile.size / 1024 / 1024} MB`);
         return compressedFile;
     } catch (error) {
-        console.error(`Could not compress image ${file.name}, returning original file.`, error);
+        // console.error(`Could not compress image ${file.name}, returning original file.`, error);
         // If compression fails, return the original file
         return file;
     }
