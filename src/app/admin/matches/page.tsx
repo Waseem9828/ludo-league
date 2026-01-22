@@ -1,17 +1,17 @@
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import { useFirestore } from "@/firebase";
 import { collection, query, onSnapshot, orderBy, where, Timestamp, getDocs } from "firebase/firestore";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Swords, Crown, Loader2, Wallet, Users, DollarSign } from "lucide-react";
 import type { Match, MatchPlayer, Transaction } from '@/lib/types';
 import { useAdminOnly } from '@/hooks/useAdminOnly';
-import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 
@@ -34,6 +34,7 @@ export default function MatchesDashboardPage() {
     const [matches, setMatches] = useState<Match[]>([]);
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [loading, setLoading] = useState(true);
+    const [filter, setFilter] = useState('disputed'); // Default to disputed view
 
     useEffect(() => {
         if (!firestore) return;
@@ -74,6 +75,11 @@ export default function MatchesDashboardPage() {
         return { totalMatchesToday, totalAmountToday, commissionToday };
     }, [matches, transactions]);
 
+    const filteredMatches = useMemo(() => {
+        if (filter === 'all') return matches;
+        return matches.filter(m => m.status === filter);
+    }, [matches, filter]);
+
     const handleMatchClick = (matchId: string) => {
         router.push(`/admin/matches/${matchId}`);
     }
@@ -91,79 +97,94 @@ export default function MatchesDashboardPage() {
             <Card>
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2"><Users /> Match History</CardTitle>
-                    <CardDescription>Browse the history of all matches played. Data is updated in real-time.</CardDescription>
+                    <CardDescription>Browse and manage all matches played. Default view shows disputed matches.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                    {loading ? <div className="flex justify-center items-center h-64"><Loader2 className="h-8 w-8 animate-spin text-primary"/></div>
-                    :
-                    <>
-                        <div className="hidden md:block">
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>Players</TableHead>
-                                        <TableHead>Prize</TableHead>
-                                        <TableHead>Winner</TableHead>
-                                        <TableHead>Status</TableHead>
-                                        <TableHead>Date</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {matches.map((match) => (
-                                        <TableRow key={match.id} onClick={() => handleMatchClick(match.id)} className="cursor-pointer">
-                                            <TableCell className="flex items-center gap-4">
-                                                <div className="flex items-center -space-x-2">
-                                                    {Object.values(match.players || {})?.map((p: MatchPlayer) => (
-                                                        <Avatar key={`${match.id}-${p.id}`} className="h-8 w-8 border-2 border-background">
+                    <Tabs defaultValue="disputed" value={filter} onValueChange={setFilter} className="w-full">
+                        <TabsList className="grid w-full grid-cols-3 md:grid-cols-6">
+                            <TabsTrigger value="disputed">Disputed</TabsTrigger>
+                            <TabsTrigger value="in-progress">In Progress</TabsTrigger>
+                            <TabsTrigger value="waiting">Waiting</TabsTrigger>
+                            <TabsTrigger value="completed">Completed</TabsTrigger>
+                            <TabsTrigger value="cancelled">Cancelled</TabsTrigger>
+                            <TabsTrigger value="all">All</TabsTrigger>
+                        </TabsList>
+                    </Tabs>
+                    
+                    <div className="mt-4">
+                        {loading ? <div className="flex justify-center items-center h-64"><Loader2 className="h-8 w-8 animate-spin text-primary"/></div>
+                        : filteredMatches.length === 0 ? <div className="text-center py-10 text-muted-foreground"><p>No {filter} matches found.</p></div>
+                        :
+                        <>
+                            <div className="hidden md:block border rounded-lg">
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>Players</TableHead>
+                                            <TableHead>Prize</TableHead>
+                                            <TableHead>Winner</TableHead>
+                                            <TableHead>Status</TableHead>
+                                            <TableHead>Date</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {filteredMatches.map((match) => (
+                                            <TableRow key={match.id} onClick={() => handleMatchClick(match.id)} className="cursor-pointer hover:bg-muted/50">
+                                                <TableCell className="flex items-center gap-4">
+                                                    <div className="flex items-center -space-x-2">
+                                                        {Object.values(match.players || {})?.map((p: MatchPlayer) => (
+                                                            <Avatar key={`${match.id}-${p.id}`} className="h-8 w-8 border-2 border-background">
+                                                                <AvatarImage src={p.avatarUrl} />
+                                                                <AvatarFallback>{p.name?.charAt(0)}</AvatarFallback>
+                                                            </Avatar>
+                                                        ))}
+                                                    </div>
+                                                    <span className="font-medium">{Object.values(match.players || {})?.map((p: MatchPlayer) => p.name).join(' vs ')}</span>
+                                                </TableCell>
+                                                <TableCell className="font-semibold">₹{match.prizePool.toLocaleString('en-IN')}</TableCell>
+                                                <TableCell>
+                                                    {match.winnerId ? 
+                                                        Object.values(match.players || {})?.find((p: MatchPlayer) => p.id === match.winnerId)?.name : 'N/A'}
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Badge variant={match.status === 'completed' ? 'default' : match.status === 'disputed' ? 'destructive' : 'secondary'} className={cn({'bg-green-100 text-green-800': match.status === 'completed', 'bg-yellow-100 text-yellow-800': ['in-progress', 'waiting'].includes(match.status as string)})}>{match.status}</Badge>
+                                                </TableCell>
+                                                <TableCell>{match.createdAt?.toDate ? match.createdAt.toDate().toLocaleString() : 'N/A'}</TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            </div>
+
+                            <div className="grid gap-4 md:hidden">
+                                {filteredMatches.map((match) => (
+                                    <Card key={match.id} className="p-4" onClick={() => handleMatchClick(match.id)}>
+                                        <div className="flex justify-between items-start">
+                                            <p className="font-bold text-lg">Prize: ₹{match.prizePool.toLocaleString('en-IN')}</p>
+                                            <Badge variant={match.status === 'completed' ? 'default' : match.status === 'disputed' ? 'destructive' : 'secondary'} className={cn({'bg-green-100 text-green-800': match.status === 'completed', 'bg-yellow-100 text-yellow-800': ['in-progress', 'waiting'].includes(match.status as string)})}>{match.status}</Badge>
+                                        </div>
+                                        <p className="text-sm text-muted-foreground mb-3">{match.createdAt?.toDate ? match.createdAt.toDate().toLocaleString() : 'N/A'}</p>
+                                        
+                                        <div className="space-y-3">
+                                            {Object.values(match.players || {})?.map((p: MatchPlayer) => (
+                                                <div key={`${match.id}-${p.id}`} className="flex items-center justify-between p-2 rounded-md bg-muted/50">
+                                                    <div className="flex items-center gap-2">
+                                                        <Avatar className="h-8 w-8">
                                                             <AvatarImage src={p.avatarUrl} />
                                                             <AvatarFallback>{p.name?.charAt(0)}</AvatarFallback>
                                                         </Avatar>
-                                                    ))}
+                                                        <span className="font-medium">{p.name}</span>
+                                                    </div>
+                                                    {match.winnerId === p.id && <Crown className="h-5 w-5 text-yellow-500"/>}
                                                 </div>
-                                                <span className="font-medium">{Object.values(match.players || {})?.map((p: MatchPlayer) => p.name).join(' vs ')}</span>
-                                            </TableCell>
-                                            <TableCell className="font-semibold">₹{match.prizePool.toLocaleString('en-IN')}</TableCell>
-                                            <TableCell>
-                                                {match.winnerId ? 
-                                                    Object.values(match.players || {})?.find((p: MatchPlayer) => p.id === match.winnerId)?.name : 'N/A'}
-                                            </TableCell>
-                                            <TableCell>
-                                                <Badge variant={match.status === 'completed' ? 'default' : match.status === 'disputed' ? 'destructive' : 'secondary'} className={cn({'bg-green-100 text-green-800': match.status === 'completed', 'bg-yellow-100 text-yellow-800': match.status === 'in-progress' || match.status === 'waiting'})}>{match.status}</Badge>
-                                            </TableCell>
-                                            <TableCell>{match.createdAt?.toDate ? match.createdAt.toDate().toLocaleString() : new Date().toLocaleString()}</TableCell>
-                                        </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
-                        </div>
-
-                        <div className="grid gap-4 md:hidden">
-                            {matches.map((match) => (
-                                <Card key={match.id} className="p-4" onClick={() => handleMatchClick(match.id)}>
-                                    <div className="flex justify-between items-start">
-                                        <p className="font-bold text-lg">Prize: ₹{match.prizePool.toLocaleString('en-IN')}</p>
-                                        <Badge variant={match.status === 'completed' ? 'default' : match.status === 'disputed' ? 'destructive' : 'secondary'} className={cn({'bg-green-100 text-green-800': match.status === 'completed', 'bg-yellow-100 text-yellow-800': match.status === 'in-progress' || match.status === 'waiting'})}>{match.status}</Badge>
-                                    </div>
-                                    <p className="text-sm text-muted-foreground mb-3">{match.createdAt?.toDate ? match.createdAt.toDate().toLocaleString() : new Date().toLocaleString()}</p>
-                                    
-                                    <div className="space-y-3">
-                                        {Object.values(match.players || {})?.map((p: MatchPlayer) => (
-                                            <div key={`${match.id}-${p.id}`} className="flex items-center justify-between p-2 rounded-md bg-muted/50">
-                                                <div className="flex items-center gap-2">
-                                                    <Avatar className="h-8 w-8">
-                                                        <AvatarImage src={p.avatarUrl} />
-                                                        <AvatarFallback>{p.name?.charAt(0)}</AvatarFallback>
-                                                    </Avatar>
-                                                    <span className="font-medium">{p.name}</span>
-                                                </div>
-                                                {match.winnerId === p.id && <Crown className="h-5 w-5 text-yellow-500"/>}
-                                            </div>
-                                        ))}
-                                    </div>
-                                </Card>
-                            ))}
-                        </div>
-                    </>}
+                                            ))}
+                                        </div>
+                                    </Card>
+                                ))}
+                            </div>
+                        </>
+                        }
+                    </div>
                 </CardContent>
             </Card>
         </div>
