@@ -192,6 +192,8 @@
           "type": "string",
           "description": "The ID of the user who submitted the application."
         },
+        "userName": { "type": "string" },
+        "userAvatar": { "type": "string", "format": "uri" },
         "status": {
           "type": "string",
           "enum": ["pending", "approved", "rejected"],
@@ -211,10 +213,15 @@
           "type": "string",
           "description": "Reason for rejection, if applicable."
         },
-        "aadhaarPanUrl": {
+        "aadhaarUrl": {
           "type": "string",
           "format": "uri",
-          "description": "URL to the uploaded Aadhaar/PAN card image."
+          "description": "URL to the uploaded Aadhaar card image."
+        },
+        "panUrl": {
+          "type": "string",
+          "format": "uri",
+          "description": "URL to the uploaded PAN card image."
         },
         "selfieUrl": {
           "type": "string",
@@ -247,7 +254,6 @@
         "userId",
         "status",
         "submittedAt",
-        "aadhaarPanUrl",
         "selfieUrl",
         "fullName",
         "dateOfBirth"
@@ -290,7 +296,7 @@
         "type": "object",
         "properties": {
             "userId": {"type": "string"},
-            "type": {"type": "string", "enum": ["deposit", "withdrawal", "entry-fee", "winnings", "refund", "tournament-fee", "referral-bonus", "admin-credit", "admin-debit", "match_commission", "tournament_commission", "daily_bonus", "withdrawal_refund"]},
+            "type": {"type": "string", "enum": ["deposit", "withdrawal", "entry-fee", "winnings", "refund", "tournament-fee", "referral-bonus", "admin-credit", "admin-debit", "match_commission", "tournament_commission", "daily_bonus", "withdrawal_refund", "task-reward"]},
             "amount": {"type": "number", "description": "Positive for credit, negative for debit."},
             "status": {"type": "string", "enum": ["completed", "pending", "rejected", "failed"]},
             "createdAt": {"type": "string", "format": "date-time"},
@@ -306,6 +312,8 @@
         "type": "object",
         "properties": {
             "userId": {"type": "string"},
+            "userName": { "type": "string" },
+            "userAvatar": { "type": "string", "format": "uri" },
             "amount": {"type": "number"},
             "utr": {"type": "string"},
             "screenshotUrl": {"type": "string", "format": "uri"},
@@ -314,7 +322,8 @@
             "createdAt": {"type": "string", "format": "date-time"},
             "reviewedBy": {"type": "string", "description": "Admin user ID."},
             "reviewedAt": {"type": "string", "format": "date-time"},
-            "processedWithUpiId": {"type": "string"}
+            "targetUpiId": { "type": "string", "description": "The UPI ID the user was instructed to pay."},
+            "targetUpiRef": { "type": "string", "description": "The document ID of the UPI configuration used for this deposit." }
         },
         "required": ["userId", "amount", "utr", "screenshotUrl", "status", "createdAt"]
     },
@@ -324,6 +333,8 @@
         "type": "object",
         "properties": {
             "userId": {"type": "string"},
+            "userName": { "type": "string" },
+            "userAvatar": { "type": "string", "format": "uri" },
             "amount": {"type": "number"},
             "status": {"type": "string", "enum": ["pending", "approved", "rejected"]},
             "rejectionReason": {"type": "string"},
@@ -499,6 +510,61 @@
             "createdAt": { "type": "string", "format": "date-time" }
         },
         "required": ["text", "isActive", "createdAt"]
+    },
+    "DashboardCardImage": {
+        "title": "Dashboard Card Image",
+        "description": "An image for a specific card on the user dashboard.",
+        "type": "object",
+        "properties": {
+            "cardId": {
+                "type": "string",
+                "description": "The unique identifier for the dashboard card (e.g., 'wallet', 'winnings')."
+            },
+            "imageUrl": {
+                "type": "string",
+                "format": "uri",
+                "description": "The URL of the uploaded image."
+            },
+            "isActive": {
+                "type": "boolean",
+                "description": "Whether the image is currently active for the slider."
+            },
+            "createdAt": {
+                "type": "string",
+                "format": "date-time"
+            }
+        },
+        "required": ["cardId", "imageUrl", "isActive", "createdAt"]
+    },
+    "ForumPost": {
+        "title": "Forum Post",
+        "description": "A single post or thread in the community forum.",
+        "type": "object",
+        "properties": {
+            "title": { "type": "string" },
+            "content": { "type": "string" },
+            "authorId": { "type": "string" },
+            "authorName": { "type": "string" },
+            "authorAvatar": { "type": "string", "format": "uri" },
+            "createdAt": { "type": "string", "format": "date-time" },
+            "lastReplyAt": { "type": "string", "format": "date-time" },
+            "replyCount": { "type": "number" }
+        },
+        "required": ["title", "content", "authorId", "authorName", "createdAt", "lastReplyAt", "replyCount"]
+    },
+    "ForumReply": {
+        "title": "Forum Reply",
+        "description": "A reply to a forum post.",
+        "type": "object",
+        "properties": {
+            "postId": { "type": "string" },
+            "content": { "type": "string" },
+            "authorId": { "type": "string" },
+            "authorName": { "type": "string" },
+            "authorAvatar": { "type": "string", "format": "uri" },
+            "createdAt": { "type": "string", "format": "date-time" }
+        },
+        "required": ["postId", "content", "authorId", "authorName", "createdAt"]
     }
   },
   "auth": {
@@ -638,6 +704,20 @@
             "$ref": "#/backend/entities/Announcement"
         },
         "description": "Stores promotional text for the top banner ticker."
+    },
+    "/dashboardCardImages/{imageId}": {
+      "schema": {
+        "$ref": "#/backend/entities/DashboardCardImage"
+      },
+      "description": "Stores images for the user dashboard cards."
+    },
+    "/forumPosts/{postId}": {
+      "schema": { "$ref": "#/backend/entities/ForumPost" },
+      "description": "Stores all community forum posts."
+    },
+    "/forumPosts/{postId}/replies/{replyId}": {
+      "schema": { "$ref": "#/backend/entities/ForumReply" },
+      "description": "Stores replies for a specific forum post."
     }
   }
 }

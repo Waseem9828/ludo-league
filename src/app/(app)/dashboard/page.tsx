@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -14,6 +15,9 @@ import Autoplay from 'embla-carousel-autoplay';
 import { motion } from 'framer-motion';
 import { Badge } from '@/components/ui/badge';
 import { ImageSlider } from '@/components/app/ImageSlider';
+import { useToast } from '@/hooks/use-toast';
+import { httpsCallable } from 'firebase/functions';
+import { functions } from '@/firebase/functions';
 
 // Tournament Slider Component (remains the same)
 const TournamentSlider = ({ tournaments, loading }: { tournaments: Tournament[], loading: boolean }) => {
@@ -201,10 +205,45 @@ const ActionCard = ({
 
 
 export default function DashboardPage() {
-    const { userProfile } = useUser();
+    const { user, userProfile } = useUser();
     const firestore = useFirestore();
     const [tournaments, setTournaments] = useState<Tournament[]>([]);
     const [loadingTournaments, setLoadingTournaments] = useState(true);
+    const { toast } = useToast();
+    const [bonusClaimed, setBonusClaimed] = useState(false);
+
+    useEffect(() => {
+        if (user && !bonusClaimed) {
+          const claimBonus = async () => {
+            try {
+              const dailyLoginBonus = httpsCallable(functions, 'dailyLoginBonus');
+              const result = await dailyLoginBonus();
+              const data = result.data as { success: boolean, message: string };
+    
+              if (data.success && !data.message.includes('already claimed') && !data.message.includes('disabled')) {
+                toast({
+                  title: "Daily Bonus!",
+                  description: data.message,
+                  className: 'bg-green-100 text-green-800'
+                });
+              }
+              console.log('Daily bonus check:', data.message);
+    
+            } catch (error: any) {
+                if (error.code !== 'functions/already-exists') {
+                     console.error("Error claiming daily bonus:", error);
+                } else {
+                    console.log("Bonus already claimed today.");
+                }
+            } finally {
+                setBonusClaimed(true); // Ensure we only try once per session
+            }
+          };
+          
+          const timer = setTimeout(claimBonus, 2000);
+          return () => clearTimeout(timer);
+        }
+      }, [user, bonusClaimed, toast]);
 
     useEffect(() => {
         if (!firestore) return;
