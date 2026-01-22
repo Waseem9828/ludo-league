@@ -12,7 +12,6 @@ const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 export const metadata: Metadata = {
   title: 'Ludo League',
   description: 'A platform for competitive Ludo matches.',
-  manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
@@ -38,6 +37,7 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning className={`${inter.variable}`}>
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+        <link rel="manifest" href="/manifest.json" crossOrigin="use-credentials" />
       </head>
       <body className="font-sans antialiased">
         <FirebaseClientProvider>
