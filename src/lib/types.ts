@@ -325,4 +325,8 @@ export type ForumReply = {
   createdAt: Timestamp;
 };
 
+export type MatchCommission = {
+    percentage: number;
+    updatedAt: Timestamp;
+};
     

@@ -1,3 +1,4 @@
+
 'use client';
 
 import {
@@ -217,6 +218,12 @@ const adminNavItems: AdminNavItem[] = [
                 href: "/admin/upi-management",
                 role: ["superAdmin"],
 
+            },
+             {
+                title: "Commission",
+                icon: Percent,
+                href: "/admin/commission-settings",
+                role: ["superAdmin"],
             },
             {
                 title: "Global Settings",

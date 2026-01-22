@@ -1,4 +1,5 @@
 
+
 const functions = require('firebase-functions');
 const admin = require('firebase-admin');
 const { HttpsError } = require('firebase-functions/v1/https');
@@ -467,7 +468,10 @@ const findAndCreateMatch = async (entry, queueName) => {
             const matchRef = db.collection('matches').doc();
             newMatchRefId = matchRef.id;
 
-            const prizePool = entryFee * 1.8;
+            const commissionConfigSnap = await db.doc('matchCommission/settings').get();
+            const commissionPercentage = commissionConfigSnap.exists() && commissionConfigSnap.data().percentage ? commissionConfigSnap.data().percentage : 10;
+            const prizePool = entryFee * 2 * (1 - commissionPercentage / 100);
+
             const newMatchData = {
                 id: newMatchRefId,
                 creatorId: creator.userId,
@@ -691,7 +695,9 @@ exports.onResultSubmit = functions.firestore
             }
             
             prizePoolAmount = matchData.prizePool;
-            const commission = (matchData.entryFee * matchData.playerIds.length) * 0.10;
+            const commissionConfigSnap = await db.doc('matchCommission/settings').get();
+            const commissionPercentage = commissionConfigSnap.exists() && commissionConfigSnap.data().percentage ? commissionConfigSnap.data().percentage : 10;
+            const commission = (matchData.entryFee * matchData.playerIds.length) * (commissionPercentage / 100);
 
             const winningsTransactionRef = db.collection('transactions').doc();
             transaction.set(winningsTransactionRef, {
@@ -712,7 +718,7 @@ exports.onResultSubmit = functions.firestore
                 status: 'completed',
                 createdAt: admin.firestore.FieldValue.serverTimestamp(),
                 relatedMatchId: matchId,
-                description: `10% commission from match ${matchId}`,
+                description: `${commissionPercentage}% commission from match ${matchId}`,
             });
 
             for (const playerId of matchData.playerIds) {

@@ -1,4 +1,5 @@
 
+
 'use client';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -40,11 +41,15 @@ const EntryFeeCard = ({
     fee,
     onPlay,
     isLocked = false,
+    commissionPercentage
 }: {
     fee: number;
     onPlay: (fee: number) => void;
     isLocked: boolean;
+    commissionPercentage: number;
 }) => {
+
+    const prize = fee * 2 * (1 - (commissionPercentage / 100));
 
     const cardContent = (
       <div className="relative h-48 w-full overflow-hidden rounded-lg bg-[url('/entry-fee-card-background.png')] bg-cover bg-center shadow-lg text-primary-foreground p-4 flex flex-col justify-between card-premium">
@@ -56,7 +61,7 @@ const EntryFeeCard = ({
                     ₹{fee}
                 </h3>
                 <p className="text-md font-semibold mt-2">
-                    Prize: <span className="text-green-400 font-bold">₹{(fee * 1.8).toFixed(0)}</span>
+                    Prize: <span className="text-green-400 font-bold">₹{prize.toFixed(0)}</span>
                 </p>
             </div>
             
@@ -292,8 +297,25 @@ export default function LobbyPage() {
   const [hasRoomCode, setHasRoomCode] = useState(false);
   const [roomCode, setRoomCode] = useState('');
   const [selectedFee, setSelectedFee] = useState(0);
+  const [commissionPercentage, setCommissionPercentage] = useState(10);
+  const [loadingCommission, setLoadingCommission] = useState(true);
   
   const activeMatchIds = userProfile?.activeMatchIds || [];
+
+  useEffect(() => {
+    if (!firestore) return;
+    const configRef = doc(firestore, 'matchCommission', 'settings');
+    const unsubscribe = onSnapshot(configRef, (doc) => {
+        if (doc.exists()) {
+            setCommissionPercentage(doc.data().percentage || 10);
+        }
+        setLoadingCommission(false);
+    }, (error) => {
+        console.error("Error fetching commission settings: ", error);
+        setLoadingCommission(false);
+    });
+    return () => unsubscribe();
+  }, [firestore]);
   
   useEffect(() => {
     const searchingMatchFee = localStorage.getItem('searchingMatchFee');
@@ -466,7 +488,7 @@ export default function LobbyPage() {
       }
   }
   
-  if (loading) {
+  if (loading || loadingCommission) {
     return <CustomLoader />;
   }
 
@@ -486,6 +508,7 @@ export default function LobbyPage() {
             fee={fee}
             onPlay={handlePlayClick}
             isLocked={isLocked}
+            commissionPercentage={commissionPercentage}
           />
         )
       })}

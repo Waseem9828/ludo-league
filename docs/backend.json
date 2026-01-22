@@ -1,4 +1,5 @@
 
+
 {
   "entities": {
     "User": {
@@ -410,6 +411,22 @@
         },
         "required": ["activeUpiId", "activeUpiRef"]
     },
+     "MatchCommission": {
+        "title": "Match Commission",
+        "description": "Global settings for match commission.",
+        "type": "object",
+        "properties": {
+            "percentage": {
+                "type": "number",
+                "description": "The commission percentage taken by the platform on each match."
+            },
+            "updatedAt": {
+                "type": "string",
+                "format": "date-time"
+            }
+        },
+        "required": ["percentage"]
+    },
     "ReferralConfiguration": {
         "title": "Referral Configuration",
         "description": "Stores referral system settings.",
@@ -662,6 +679,12 @@
             "$ref": "#/backend/entities/UpiConfiguration"
         },
         "description": "Stores the active UPI configuration for deposits."
+    },
+     "/matchCommission/settings": {
+        "schema": {
+            "$ref": "#/backend/entities/MatchCommission"
+        },
+        "description": "Stores the global match commission settings."
     },
     "/referralConfiguration/settings": {
         "schema": {

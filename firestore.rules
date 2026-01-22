@@ -140,6 +140,10 @@ service cloud.firestore {
         allow read: if request.auth != null;
         allow write: if isSuperAdmin();
     }
+     match /matchCommission/{doc=**} {
+        allow read: if request.auth != null;
+        allow write: if isSuperAdmin();
+    }
     match /settings/global {
         allow get: if true;
         allow write: if isSuperAdmin();
