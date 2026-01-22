@@ -807,7 +807,7 @@ exports.dailyLoginBonus = functions.https.onCall(async (data, context) => {
             
             let totalBonus = config.dailyBonus || 0;
             if (config.streakBonus && config.streakBonus[currentStreak]) {
-                totalBonus += config.streakBonus[currentStreak];
+                totalBonus += config.streakBonus[currentStreak] || 0;
             }
 
             const updateData = {
