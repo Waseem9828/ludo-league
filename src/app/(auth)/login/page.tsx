@@ -169,14 +169,15 @@ export default function LoginPage() {
                 onChange={(e) => setResetEmail(e.target.value)}
                 className="col-span-3"
                 placeholder="you@example.com"
+                suppressHydrationWarning
               />
             </div>
           </div>
           <DialogFooter>
             <DialogClose asChild>
-                <Button type="button" variant="secondary">Cancel</Button>
+                <Button type="button" variant="secondary" suppressHydrationWarning>Cancel</Button>
             </DialogClose>
-            <Button type="button" onClick={handlePasswordReset} disabled={isLoading}>
+            <Button type="button" onClick={handlePasswordReset} disabled={isLoading} suppressHydrationWarning>
                 {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Mail className="mr-2 h-4 w-4" />}
                 Send Reset Link
             </Button>
