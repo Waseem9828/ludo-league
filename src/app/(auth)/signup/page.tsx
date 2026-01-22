@@ -21,6 +21,7 @@ function SignUpForm() {
   const [referralCode, setReferralCode] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+  const [cooldown, setCooldown] = useState(0);
 
    useEffect(() => {
     if (searchParams) {
@@ -35,6 +36,21 @@ function SignUpForm() {
     }
   }, [searchParams, toast]);
 
+  useEffect(() => {
+    if (cooldown > 0) {
+      const timer = setTimeout(() => setCooldown(cooldown - 1), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [cooldown]);
+
+  const handleSignupError = (error: any) => {
+    const message = error.code === 'auth/too-many-requests'
+      ? 'Too many attempts. Please wait a moment before trying again.'
+      : error.message;
+    toast({ title: "Sign Up Failed", description: message, variant: "destructive" });
+    setCooldown(10); // 10 second cooldown
+  };
+
   const handleEmailSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -43,7 +59,7 @@ function SignUpForm() {
       toast({ title: "Account Created!", description: "Welcome! You are now logged in." });
       router.push('/dashboard');
     } catch (error: any) {
-      toast({ title: "Sign Up Failed", description: error.message, variant: "destructive" });
+      handleSignupError(error);
     } finally {
         setIsLoading(false);
     }
@@ -56,11 +72,13 @@ function SignUpForm() {
       toast({ title: "Account Created!", description: "Welcome! You are now logged in." });
       router.push('/dashboard');
     } catch (error: any) {
-      toast({ title: "Sign Up Failed", description: error.message, variant: "destructive" });
+      handleSignupError(error);
     } finally {
       setIsGoogleLoading(false);
     }
   };
+
+  const isButtonDisabled = isLoading || isGoogleLoading || cooldown > 0;
 
   return (
     <div className="w-full h-full bg-card/80 dark:bg-card/60 backdrop-blur-lg rounded-2xl shadow-2xl border border-border/20 p-8 text-foreground flex flex-col justify-center">
@@ -77,13 +95,16 @@ function SignUpForm() {
         <div className="mb-6">
             <Button 
                 onClick={handleGoogleSignUp} 
-                disabled={isLoading || isGoogleLoading} 
+                disabled={isButtonDisabled} 
                 variant="outline"
                 className="w-full h-12 border-border font-semibold shadow-sm transition-all duration-300 transform hover:scale-105"
                 suppressHydrationWarning
             >
-                 {isGoogleLoading ? <Loader2 className="h-5 w-5 mr-3 animate-spin"/> : <GoogleIcon className="h-5 w-5 mr-3" />}
-                Sign up with Google
+                 {isGoogleLoading 
+                    ? <Loader2 className="h-5 w-5 mr-3 animate-spin"/> 
+                    : cooldown > 0
+                    ? `Try again in ${cooldown}s`
+                    : <><GoogleIcon className="h-5 w-5 mr-3" />Sign up with Google</>}
             </Button>
         </div>
 
@@ -143,8 +164,8 @@ function SignUpForm() {
                     suppressHydrationWarning
                 />
             </div>
-            <Button type="submit" disabled={isLoading || isGoogleLoading} className="w-full h-12 font-bold text-lg transition-all duration-300 transform hover:scale-105" suppressHydrationWarning>
-                {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : "Sign Up with Email"}
+            <Button type="submit" disabled={isButtonDisabled} className="w-full h-12 font-bold text-lg transition-all duration-300 transform hover:scale-105" suppressHydrationWarning>
+                {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : cooldown > 0 ? `Try again in ${cooldown}s` : "Sign Up with Email"}
             </Button>
         </form>
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -22,6 +22,23 @@ export default function LoginPage() {
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [isResetDialogOpen, setResetDialogOpen] = useState(false);
   const [resetEmail, setResetEmail] = useState('');
+  const [cooldown, setCooldown] = useState(0);
+
+  useEffect(() => {
+    if (cooldown > 0) {
+      const timer = setTimeout(() => setCooldown(cooldown - 1), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [cooldown]);
+
+  const handleLoginError = (error: any) => {
+    // Avoid showing generic "Firebase: Error (auth/too-many-requests)."
+    const message = error.code === 'auth/too-many-requests'
+      ? 'Too many failed attempts. Please wait a moment before trying again.'
+      : error.message;
+    toast({ title: "Login Failed", description: message, variant: "destructive" });
+    setCooldown(10); // Start a 10-second cooldown
+  };
 
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -31,7 +48,7 @@ export default function LoginPage() {
       toast({ title: "Login Successful!", description: "Welcome back!" });
       router.push('/dashboard');
     } catch (error: any) {
-      toast({ title: "Login Failed", description: error.message, variant: "destructive" });
+      handleLoginError(error);
     } finally {
         setIsLoading(false);
     }
@@ -44,7 +61,7 @@ export default function LoginPage() {
       toast({ title: "Login Successful!", description: "Welcome!" });
       router.push('/dashboard');
     } catch (error: any) {
-      toast({ title: "Google Login Failed", description: error.message, variant: "destructive" });
+      handleLoginError(error);
     } finally {
         setIsGoogleLoading(false);
     }
@@ -67,6 +84,8 @@ export default function LoginPage() {
       setIsLoading(false);
     }
   }
+
+  const isButtonDisabled = isLoading || isGoogleLoading || cooldown > 0;
   
   return (
     <>
@@ -86,13 +105,17 @@ export default function LoginPage() {
             <div className="mb-6">
                 <Button 
                     onClick={handleGoogleLogin} 
-                    disabled={isLoading || isGoogleLoading} 
+                    disabled={isButtonDisabled} 
                     variant="outline"
                     className="w-full h-12 border-border font-semibold shadow-sm transition-all duration-300 transform hover:scale-105"
                     suppressHydrationWarning
                 >
-                    {isGoogleLoading ? <Loader2 className="h-5 w-5 mr-3 animate-spin"/> : <GoogleIcon className="h-5 w-5 mr-3" />}
-                    Continue with Google
+                    {isGoogleLoading 
+                        ? <Loader2 className="h-5 w-5 mr-3 animate-spin"/> 
+                        : cooldown > 0 
+                        ? `Try again in ${cooldown}s`
+                        : <><GoogleIcon className="h-5 w-5 mr-3" /> Continue with Google</>
+                    }
                 </Button>
             </div>
 
@@ -134,8 +157,8 @@ export default function LoginPage() {
                       Forgot Password?
                     </button>
                   </div>
-                <Button type="submit" disabled={isLoading || isGoogleLoading} className="w-full h-12 font-bold text-lg transition-all duration-300 transform hover:scale-105" suppressHydrationWarning>
-                    {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : "Login with Email"}
+                <Button type="submit" disabled={isButtonDisabled} className="w-full h-12 font-bold text-lg transition-all duration-300 transform hover:scale-105" suppressHydrationWarning>
+                    {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : cooldown > 0 ? `Try again in ${cooldown}s` : "Login with Email"}
                 </Button>
             </form>
 
