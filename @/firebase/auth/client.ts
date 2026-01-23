@@ -1,4 +1,3 @@
-
 'use client';
 
 import {
@@ -11,7 +10,7 @@ import {
   sendPasswordResetEmail,
 } from 'firebase/auth';
 import { doc, setDoc, getDocs, query, where, collection, limit, getDoc, serverTimestamp } from 'firebase/firestore';
-import { auth, db } from '@/firebase';
+import { auth, db } from '../index';
 
 
 const generateReferralCode = (name: string) => {

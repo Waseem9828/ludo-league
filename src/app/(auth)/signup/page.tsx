@@ -51,6 +51,8 @@ function SignUpForm() {
         message = 'This email address is already in use. Please log in or use a different email.';
     } else if (error.code === 'auth/weak-password') {
         message = 'The password is too weak. It should be at least 6 characters long.';
+    } else if (error.code === 'auth/invalid-referral-code') {
+        message = 'The referral code you entered is invalid. Please check the code and try again.';
     }
     toast({ title: "Sign Up Failed", description: message, variant: "destructive" });
     setCooldown(10); // 10 second cooldown

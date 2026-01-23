@@ -21,6 +21,71 @@ async function getUserProfile(userId: string) {
     };
 }
 
+export const claimTaskReward = functions.https.onCall(async (data, context) => {
+  if (!context.auth) {
+    throw new functions.https.HttpsError('unauthenticated', 'You must be logged in to claim a reward.');
+  }
+
+  const { taskId } = data;
+  if (!taskId) {
+    throw new functions.https.HttpsError('invalid-argument', 'The function must be called with a "taskId".');
+  }
+
+  const userId = context.auth.uid;
+  const taskRef = db.collection('tasks').doc(taskId);
+  const userTaskRef = db.collection('user_tasks').doc(userId).collection('tasks').doc(taskId);
+  const userRef = db.collection('users').doc(userId);
+
+  try {
+    const result = await db.runTransaction(async (transaction) => {
+      const taskDoc = await transaction.get(taskRef);
+      if (!taskDoc.exists) {
+        throw new functions.https.HttpsError('not-found', 'The specified task does not exist.');
+      }
+      const taskData = taskDoc.data()!;
+
+      const userTaskDoc = await transaction.get(userTaskRef);
+      if (!userTaskDoc.exists) {
+        throw new functions.https.HttpsError('failed-precondition', 'You have not started this task yet.');
+      }
+      const userTaskData = userTaskDoc.data()!;
+
+      if (userTaskData.claimed) {
+        return { success: false, message: 'You have already claimed the reward for this task.' };
+      }
+
+      if (userTaskData.progress < taskData.target) {
+        throw new functions.https.HttpsError('failed-precondition', 'You have not completed the task requirements yet.');
+      }
+
+      // All checks passed, let's give the reward
+      transaction.update(userTaskRef, { claimed: true });
+      transaction.update(userRef, { walletBalance: admin.firestore.FieldValue.increment(taskData.reward) });
+
+      const transactionRef = db.collection('transactions').doc();
+      transaction.set(transactionRef, {
+        userId: userId,
+        amount: taskData.reward,
+        type: 'task_reward',
+        status: 'completed',
+        description: `Reward for completing task: ${taskData.title}`,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+      return { success: true, message: `₹${taskData.reward} has been added to your wallet.` };
+    });
+
+    return result;
+  } catch (error) {
+    console.error('Error claiming task reward:', error);
+    if (error instanceof functions.https.HttpsError) {
+      throw error;
+    }
+    throw new functions.https.HttpsError('internal', 'An unexpected error occurred while claiming the reward.');
+  }
+});
+
+
 export const distributeWinnings = functions.https.onCall(async (data: any, context: functions.https.CallableContext) => {
     if (context.auth?.token.admin !== true) {
         throw new functions.https.HttpsError('permission-denied', 'Admin access required.');
@@ -60,7 +125,7 @@ export const distributeWinnings = functions.https.onCall(async (data: any, conte
             const userRef = db.collection('users').doc(winnerId);
             const transactionRef = db.collection('transactions').doc();
 
-            batch.set(userRef, { walletBalance: admin.firestore.FieldValue.increment(amount) }, { merge: true });
+            batch.update(userRef, { walletBalance: admin.firestore.FieldValue.increment(amount) }, { merge: true });
 
             batch.set(transactionRef, {
                 userId: winnerId,
@@ -180,7 +245,7 @@ export const advanceWinner = functions.firestore
     });
 
 
-export const newDailyLoginBonus = functions.https.onCall(async (data: any, context: functions.https.CallableContext) => {
+export const newDailyLoginBonus = functions.https.onCall(async (data: any, context: functions.https..CallableContext) => {
     if (!context.auth) {
         throw new functions.https.HttpsError('unauthenticated', 'You must be logged in to claim a bonus.');
     }
@@ -272,3 +337,67 @@ export const newDailyLoginBonus = functions.https.onCall(async (data: any, conte
         throw new functions.https.HttpsError('internal', 'An unexpected error occurred while claiming the bonus. Please check the function logs for more details.');
     }
 });
+
+export const processMatchResult = functions.firestore
+    .document('matches/{matchId}/results/{userId}')
+    .onCreate(async (snap, context) => {
+        const { matchId } = context.params;
+        const matchRef = db.collection('matches').doc(matchId);
+
+        try {
+            await db.runTransaction(async (transaction) => {
+                const matchDoc = await transaction.get(matchRef);
+                if (!matchDoc.exists) {
+                    console.error(`Match ${matchId} not found.`);
+                    return;
+                }
+                const matchData = matchDoc.data()!;
+
+                // Prevent processing if a winner is already decided
+                if (matchData.winnerId) {
+                    return;
+                }
+
+                const resultsCollectionRef = matchRef.collection('results');
+                const resultsSnapshot = await transaction.get(resultsCollectionRef);
+
+                if (resultsSnapshot.size < 2) {
+                    // Wait for the other player to submit their result
+                    return;
+                }
+
+                const results = resultsSnapshot.docs.map(doc => doc.data());
+                const player1Result = results[0];
+                const player2Result = results[1];
+
+                let winnerId: string | null = null;
+                let loserId: string | null = null;
+                let status = 'completed';
+
+                if (player1Result.status === 'win' && player2Result.status === 'loss') {
+                    winnerId = player1Result.userId;
+                    loserId = player2Result.userId;
+                } else if (player1Result.status === 'loss' && player2Result.status === 'win') {
+                    winnerId = player2Result.userId;
+                    loserId = player1Result.userId;
+                } else {
+                    // Disputed match (both won, both lost, or other scenarios)
+                    status = 'disputed';
+                }
+
+                const matchUpdateData: any = {
+                    status: status,
+                    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                };
+
+                if (winnerId) {
+                    matchUpdateData.winnerId = winnerId;
+                    matchUpdateData.loserId = loserId;
+                }
+
+                transaction.update(matchRef, matchUpdateData);
+            });
+        } catch (error) {
+            console.error(`Error processing match result for match ${matchId}:`, error);
+        }
+    });

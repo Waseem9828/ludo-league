@@ -1,0 +1,49 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function isOwner(userId) {
+      return request.auth != null && request.auth.uid == userId;
+    }
+
+    // ========= Profile Pictures =========
+    match /profile-pictures/{userId}/{fileName} {
+      // Allow read for anyone (if you want profile pics to be public)
+      allow read: if true;
+      // Allow write ONLY if the user is uploading their own picture
+      allow write: if isOwner(userId);
+    }
+
+    // ========= KYC Documents =========
+    match /kyc-documents/{userId}/{fileName} {
+      // Disallow public reads
+      allow read: if isOwner(userId);
+      // Allow write ONLY if the user is uploading their own document
+      allow write: if isOwner(userId);
+    }
+
+    // ========= Match Results Screenshots =========
+    match /match-results/{matchId}/{userId}/{fileName} {
+        allow read, write: if isOwner(userId);
+    }
+
+     // ========= Deposit Screenshots =========
+    match /deposits/{userId}/{fileName} {
+        allow read, write: if isOwner(userId);
+    }
+    
+    // ========= Admin-Uploaded Content (e.g., banners, news images) =========
+    match /banners/{fileName} {
+      allow read: if true; // Publicly readable
+      allow write: if request.auth.token.admin == true; // Only admins can upload
+    }
+     match /news/{fileName} {
+      allow read: if true;
+      allow write: if request.auth.token.admin == true;
+    }
+    match /dashboard-images/{fileName} {
+        allow read: if true;
+        allow write: if request.auth.token.admin == true;
+    }
+  }
+}

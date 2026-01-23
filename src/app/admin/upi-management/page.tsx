@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
@@ -69,7 +68,6 @@ import { useAdminOnly } from '@/hooks/useAdminOnly';
 import { Progress } from '@/components/ui/progress';
 import { Alert, AlertTitle, AlertDescription as AlertDescriptionComponent } from '@/components/ui/alert';
 
-
 interface UpiData {
   id: string;
   upiId: string;
@@ -123,14 +121,14 @@ const UpiCard = ({ upi, onSetActive, onDelete, onEdit, isSaving }: { upi: UpiDat
   </div>
 );
 
-function AddUpiDialog({ onAdd, isSaving }: { onAdd: (id: string, limit: number) => void, isSaving: boolean }) {
+function AddUpiDialog({ onAdd, isSaving }: { onAdd: (id: string, limit: number) => Promise<boolean>, isSaving: boolean }) {
     const [upiId, setUpiId] = useState('');
     const [limit, setLimit] = useState(50000);
     const [open, setOpen] = useState(false);
 
-    const handleAdd = () => {
-        onAdd(upiId, limit);
-        if(!isSaving) { 
+    const handleAdd = async () => {
+        const success = await onAdd(upiId, limit);
+        if (success) {
             setUpiId('');
             setLimit(50000);
             setOpen(false);
@@ -253,11 +251,11 @@ export default function UpiManagementPage() {
     }
   };
 
-  const handleAddUpi = async (upiId: string, limit: number) => {
-    if (!db) return;
+  const handleAddUpi = async (upiId: string, limit: number): Promise<boolean> => {
+    if (!db) return false;
     if (!upiId.trim() || limit <= 0) {
       toast({ variant: 'destructive', title: 'Validation Error', description: 'UPI ID and a valid limit are required.' });
-      return;
+      return false;
     }
     setIsSaving(true);
     try {
@@ -271,9 +269,11 @@ export default function UpiManagementPage() {
       }
 
       toast({ title: 'Success', description: 'New UPI ID added successfully.', className: 'bg-green-100 text-green-800' });
+      return true;
     } catch (error) {
       console.error('Error adding new UPI ID:', error);
       toast({ variant: 'destructive', title: 'Error', description: 'Failed to add new UPI ID.' });
+      return false;
     } finally {
       setIsSaving(false);
     }
