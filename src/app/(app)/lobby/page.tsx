@@ -25,6 +25,7 @@ import {
   DialogTitle,
   DialogClose,
   DialogFooter,
+  DialogTrigger,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -299,7 +300,6 @@ export default function LobbyPage() {
   const [selectedFee, setSelectedFee] = useState(0);
   const [commissionPercentage, setCommissionPercentage] = useState(10);
   const [loadingCommission, setLoadingCommission] = useState(true);
-  const [showCreateMatch, setShowCreateMatch] = useState(true);
   
   const activeMatchIds = userProfile?.activeMatchIds || [];
 
@@ -593,53 +593,44 @@ export default function LobbyPage() {
       
         <div className="flex justify-between items-center">
             <h2 className="text-2xl font-bold tracking-tight">Create New Match</h2>
-            <Button variant="outline" size="sm" onClick={() => setShowCreateMatch(!showCreateMatch)}>
-                {showCreateMatch ? "Hide" : "Show"}
-            </Button>
-        </div>
-
-      <AnimatePresence>
-        {showCreateMatch && (
-            <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
-                transition={{ duration: 0.5, ease: 'easeInOut' }}
-                className="overflow-hidden"
-            >
-                <Tabs defaultValue="low" className="w-full pt-6">
-                    <TabsList className="grid w-full grid-cols-3">
-                        <TabsTrigger value="low">Low Stakes</TabsTrigger>
-                        <TabsTrigger value="medium">Medium Stakes</TabsTrigger>
-                        <TabsTrigger value="high">High Stakes</TabsTrigger>
-                    </TabsList>
-                    <TabsContent value="low" className="pt-4">
-                        <FeeTier fees={lowStakes} tier="low" />
-                    </TabsContent>
-                    <TabsContent value="medium" className="pt-4">
-                        <FeeTier fees={mediumStakes} tier="medium" />
-                    </TabsContent>
-                    <TabsContent value="high" className="pt-4">
-                        <FeeTier fees={highStakes} tier="high" />
-                    </TabsContent>
-                </Tabs>
-                <div className="prose prose-sm dark:prose-invert max-w-none text-card-foreground p-6 border rounded-lg bg-card mt-6">
-                    <h3 className="font-bold text-lg">How to Play</h3>
-                    <ol className="space-y-2 mt-4">
-                        <li>Select an entry fee and click <span className="font-mono bg-primary/10 text-primary px-1.5 py-0.5 rounded-sm">Play</span>.</li>
+            <Dialog>
+                <DialogTrigger asChild>
+                    <Button variant="outline" size="sm">
+                        <Info className="mr-2 h-4 w-4"/> How to Play
+                    </Button>
+                </DialogTrigger>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>How to Play</DialogTitle>
+                    </DialogHeader>
+                    <ol className="space-y-3 mt-4 text-sm text-muted-foreground list-decimal list-inside">
+                        <li>Select an entry fee and click <strong>Play</strong>.</li>
                         <li>Wait for us to find a suitable opponent for you.</li>
                         <li>Once a match is found, you will be automatically redirected to the match room.</li>
-                        <li>Copy the room code from the a new one and use it to play in your Ludo King app.</li>
+                        <li>Copy the room code and use it to play in your Ludo King app.</li>
                         <li>After the game, take a screenshot of the win/loss screen.</li>
                         <li>Come back to the app and submit your result with the screenshot to claim your winnings.</li>
                     </ol>
-                </div>
-            </motion.div>
-        )}
-      </AnimatePresence>
+                </DialogContent>
+            </Dialog>
+        </div>
+
+        <Tabs defaultValue="low" className="w-full pt-6">
+            <TabsList className="grid w-full grid-cols-3">
+                <TabsTrigger value="low">Low Stakes</TabsTrigger>
+                <TabsTrigger value="medium">Medium Stakes</TabsTrigger>
+                <TabsTrigger value="high">High Stakes</TabsTrigger>
+            </TabsList>
+            <TabsContent value="low" className="pt-4">
+                <FeeTier fees={lowStakes} tier="low" />
+            </TabsContent>
+            <TabsContent value="medium" className="pt-4">
+                <FeeTier fees={mediumStakes} tier="medium" />
+            </TabsContent>
+            <TabsContent value="high" className="pt-4">
+                <FeeTier fees={highStakes} tier="high" />
+            </TabsContent>
+        </Tabs>
     </div>
   );
 }
-
-
-
