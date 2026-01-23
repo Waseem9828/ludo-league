@@ -5,9 +5,9 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Swords, Loader2, Info, Lock, Wallet, Users, User, Shield, BarChart, X, Trophy } from "lucide-react";
+import { Swords, Loader2, Info, Lock, Wallet, Users, User, Shield, BarChart, X, Trophy, CircleDotDashed } from "lucide-react";
 import { useUser, useFirestore } from "@/firebase";
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { doc, setDoc, deleteDoc, collection, onSnapshot, query, getDoc } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import type { Match } from "@/lib/types";
@@ -35,6 +35,7 @@ import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { motion, AnimatePresence } from 'framer-motion';
 import CustomLoader from '@/components/CustomLoader';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 
 const EntryFeeCard = ({
@@ -282,6 +283,42 @@ const ActiveMatchesAlert = ({ activeMatchIds }: { activeMatchIds: string[] }) =>
     )
 }
 
+const OngoingMatchCard = ({ match }: { match: any }) => (
+    <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3 }}
+    >
+        <Card className="p-3 bg-muted/40 hover:bg-muted/80 transition-colors">
+            <div className="flex items-center justify-between gap-2">
+                {/* Player 1 */}
+                <div className="flex items-center gap-2 w-[40%]">
+                    <Avatar className="h-8 w-8 border-2 border-primary/50">
+                        <AvatarImage src={match.player1.avatarUrl} />
+                        <AvatarFallback>{match.player1.name.charAt(0)}</AvatarFallback>
+                    </Avatar>
+                    <span className="text-sm font-semibold truncate">{match.player1.name}</span>
+                </div>
+
+                {/* Match Info */}
+                <div className="flex-grow text-center px-1">
+                    <div className="text-xs text-muted-foreground">Prize</div>
+                    <div className="font-bold text-md text-green-500">₹{match.prize.toFixed(0)}</div>
+                </div>
+
+                {/* Player 2 */}
+                <div className="flex items-center gap-2 w-[40%] justify-end text-right">
+                     <span className="text-sm font-semibold truncate order-2">{match.player2.name}</span>
+                    <Avatar className="h-8 w-8 border-2 border-primary/50 order-1">
+                        <AvatarImage src={match.player2.avatarUrl} />
+                        <AvatarFallback>{match.player2.name.charAt(0)}</AvatarFallback>
+                    </Avatar>
+                </div>
+            </div>
+        </Card>
+    </motion.div>
+);
+
 
 export default function LobbyPage() {
   const { user, userProfile, loading } = useUser();
@@ -301,6 +338,33 @@ export default function LobbyPage() {
   const [loadingCommission, setLoadingCommission] = useState(true);
   
   const activeMatchIds = userProfile?.activeMatchIds || [];
+
+  const playerNames = ["Aarav", "Vivaan", "Aditya", "Vihaan", "Arjun", "Sai", "Reyansh", "Ayaan", "Krishna", "Ishaan", "Saanvi", "Aadhya", "Kiara", "Diya", "Pari", "Ananya", "Riya", "Sitara", "Avni", "Mahi", "Rohan", "Kabir", "Zoya", "Myra", "Shanaya"];
+  const fees = [50, 100, 150, 200, 250, 500, 750, 1000, 1500, 2000, 2500, 5000, 10000, 15000, 20000, 25000, 30000, 40000, 50000];
+
+  const mockMatches = useMemo(() => [...Array(50)].map((_, i) => {
+    const p1Index = Math.floor(Math.random() * playerNames.length);
+    let p2Index = Math.floor(Math.random() * playerNames.length);
+    while (p1Index === p2Index) {
+        p2Index = Math.floor(Math.random() * playerNames.length);
+    }
+    const entryFee = fees[Math.floor(Math.random() * fees.length)];
+    const prize = entryFee * 2 * (1 - (commissionPercentage / 100));
+
+    return {
+        id: i,
+        player1: {
+            name: playerNames[p1Index],
+            avatarUrl: `https://api.dicebear.com/8.x/bottts/svg?seed=${playerNames[p1Index]}${i}`
+        },
+        player2: {
+            name: playerNames[p2Index],
+            avatarUrl: `https://api.dicebear.com/8.x/adventurer/svg?seed=${playerNames[p2Index]}${i+50}`
+        },
+        entryFee,
+        prize
+    };
+  }), [commissionPercentage, fees, playerNames]);
 
   useEffect(() => {
     if (!firestore) return;
@@ -590,6 +654,21 @@ export default function LobbyPage() {
 
         {activeMatchIds.length > 0 && <ActiveMatchesAlert activeMatchIds={activeMatchIds} />}
 
+        <div className="space-y-4">
+            <h2 className="text-2xl font-bold tracking-tight flex items-center gap-2">
+                <CircleDotDashed className="h-6 w-6 text-primary animate-pulse" />
+                Live Matches
+            </h2>
+            <ScrollArea className="h-[50vh] md:h-[400px] w-full pr-4">
+                <div className="space-y-2">
+                    {mockMatches.map((match) => (
+                        <OngoingMatchCard key={match.id} match={match} />
+                    ))}
+                </div>
+            </ScrollArea>
+        </div>
+
+
       <Tabs defaultValue="low" className="w-full">
         <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="low">Low Stakes</TabsTrigger>
@@ -621,3 +700,4 @@ export default function LobbyPage() {
     </div>
   );
 }
+
