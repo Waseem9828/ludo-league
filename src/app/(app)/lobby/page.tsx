@@ -5,7 +5,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Swords, Loader2, Info, Lock, Wallet, Users, User, Shield, BarChart, X, Trophy, CircleDotDashed } from "lucide-react";
+import { Swords, Loader2, Info, Lock, Wallet, Users, User, Shield, BarChart, X, Trophy, CircleDotDashed, PlusCircle } from "lucide-react";
 import { useUser, useFirestore } from "@/firebase";
 import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { doc, setDoc, deleteDoc, collection, onSnapshot, query, getDoc } from "firebase/firestore";
@@ -336,6 +336,7 @@ export default function LobbyPage() {
   const [selectedFee, setSelectedFee] = useState(0);
   const [commissionPercentage, setCommissionPercentage] = useState(10);
   const [loadingCommission, setLoadingCommission] = useState(true);
+  const [showCreateMatch, setShowCreateMatch] = useState(false);
   
   const activeMatchIds = userProfile?.activeMatchIds || [];
 
@@ -655,10 +656,16 @@ export default function LobbyPage() {
         {activeMatchIds.length > 0 && <ActiveMatchesAlert activeMatchIds={activeMatchIds} />}
 
         <div className="space-y-4">
-            <h2 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-                <CircleDotDashed className="h-6 w-6 text-primary animate-pulse" />
-                Live Matches
-            </h2>
+            <div className="flex justify-between items-center">
+                <h2 className="text-2xl font-bold tracking-tight flex items-center gap-2">
+                    <CircleDotDashed className="h-6 w-6 text-primary animate-pulse" />
+                    Live Matches
+                </h2>
+                <Button variant="outline" onClick={() => setShowCreateMatch(!showCreateMatch)}>
+                    {showCreateMatch ? <X className="mr-2 h-4 w-4" /> : <PlusCircle className="mr-2 h-4 w-4" />}
+                    {showCreateMatch ? "Hide" : "Create New Match"}
+                </Button>
+            </div>
             <ScrollArea className="h-[50vh] md:h-[400px] w-full pr-4">
                 <div className="space-y-2">
                     {mockMatches.map((match) => (
@@ -669,35 +676,47 @@ export default function LobbyPage() {
         </div>
 
 
-      <Tabs defaultValue="low" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="low">Low Stakes</TabsTrigger>
-            <TabsTrigger value="medium">Medium Stakes</TabsTrigger>
-            <TabsTrigger value="high">High Stakes</TabsTrigger>
-        </TabsList>
-        <TabsContent value="low" className="pt-4">
-            <FeeTier fees={lowStakes} tier="low" />
-        </TabsContent>
-        <TabsContent value="medium" className="pt-4">
-            <FeeTier fees={mediumStakes} tier="medium" />
-        </TabsContent>
-        <TabsContent value="high" className="pt-4">
-            <FeeTier fees={highStakes} tier="high" />
-        </TabsContent>
-      </Tabs>
-
-       <div className="prose prose-sm dark:prose-invert max-w-none text-card-foreground p-6 border rounded-lg bg-card">
-        <h3 className="font-bold text-lg">How to Play</h3>
-          <ol className="space-y-2 mt-4">
-            <li>Select an entry fee and click <span className="font-mono bg-primary/10 text-primary px-1.5 py-0.5 rounded-sm">Play</span>.</li>
-            <li>Wait for us to find a suitable opponent for you.</li>
-            <li>Once a match is found, you will be automatically redirected to the match room.</li>
-            <li>Copy the room code from the a new one and use it to play in your Ludo King app.</li>
-            <li>After the game, take a screenshot of the win/loss screen.</li>
-            <li>Come back to the app and submit your result with the screenshot to claim your winnings.</li>
-          </ol>
-        </div>
+      <AnimatePresence>
+        {showCreateMatch && (
+            <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.5, ease: 'easeInOut' }}
+                className="overflow-hidden"
+            >
+                <Tabs defaultValue="low" className="w-full pt-6">
+                    <TabsList className="grid w-full grid-cols-3">
+                        <TabsTrigger value="low">Low Stakes</TabsTrigger>
+                        <TabsTrigger value="medium">Medium Stakes</TabsTrigger>
+                        <TabsTrigger value="high">High Stakes</TabsTrigger>
+                    </TabsList>
+                    <TabsContent value="low" className="pt-4">
+                        <FeeTier fees={lowStakes} tier="low" />
+                    </TabsContent>
+                    <TabsContent value="medium" className="pt-4">
+                        <FeeTier fees={mediumStakes} tier="medium" />
+                    </TabsContent>
+                    <TabsContent value="high" className="pt-4">
+                        <FeeTier fees={highStakes} tier="high" />
+                    </TabsContent>
+                </Tabs>
+                <div className="prose prose-sm dark:prose-invert max-w-none text-card-foreground p-6 border rounded-lg bg-card mt-6">
+                    <h3 className="font-bold text-lg">How to Play</h3>
+                    <ol className="space-y-2 mt-4">
+                        <li>Select an entry fee and click <span className="font-mono bg-primary/10 text-primary px-1.5 py-0.5 rounded-sm">Play</span>.</li>
+                        <li>Wait for us to find a suitable opponent for you.</li>
+                        <li>Once a match is found, you will be automatically redirected to the match room.</li>
+                        <li>Copy the room code from the a new one and use it to play in your Ludo King app.</li>
+                        <li>After the game, take a screenshot of the win/loss screen.</li>
+                        <li>Come back to the app and submit your result with the screenshot to claim your winnings.</li>
+                    </ol>
+                </div>
+            </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
+
 
