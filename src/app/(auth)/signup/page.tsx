@@ -75,8 +75,7 @@ function SignUpForm() {
     setIsLoading(true);
     try {
       await signUpWithEmail(email, password, displayName, referralCode);
-      toast({ title: "Account Created!", description: "Welcome! You are now logged in." });
-      router.push('/dashboard');
+      toast({ title: "Account Created!", description: "Welcome! You are now being redirected." });
     } catch (error: any) {
       handleSignupError(error);
     } finally {
@@ -88,8 +87,7 @@ function SignUpForm() {
     setIsGoogleLoading(true);
     try {
       await signInWithGoogle(referralCode);
-      toast({ title: "Account Created!", description: "Welcome! You are now logged in." });
-      router.push('/dashboard');
+      toast({ title: "Account Created!", description: "Welcome! You are now being redirected." });
     } catch (error: any) {
       handleSignupError(error);
     } finally {

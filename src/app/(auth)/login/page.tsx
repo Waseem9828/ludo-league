@@ -49,6 +49,9 @@ export default function LoginPage() {
         case 'auth/too-many-requests':
             message = 'Too many failed login attempts. Please reset your password or try again later.';
             break;
+        case 'auth/internal-error':
+            message = 'An internal error occurred on the authentication server. Please try again later.';
+            break;
         default:
             console.error('Unhandled login error:', error);
             message = `An unexpected error occurred: ${error.code}. Please ensure Email/Password sign-in is enabled in your Firebase project.`;
@@ -63,8 +66,7 @@ export default function LoginPage() {
     setIsLoading(true);
     try {
       await signInWithEmail(email, password);
-      toast({ title: "Login Successful!", description: "Welcome back!" });
-      router.push('/dashboard');
+      toast({ title: "Login Successful!", description: "Welcome back! Redirecting..." });
     } catch (error: any) {
       handleLoginError(error);
     } finally {
@@ -76,8 +78,7 @@ export default function LoginPage() {
     setIsGoogleLoading(true);
     try {
       await signInWithGoogle();
-      toast({ title: "Login Successful!", description: "Welcome!" });
-      router.push('/dashboard');
+      toast({ title: "Login Successful!", description: "Welcome! Redirecting..." });
     } catch (error: any) {
       handleLoginError(error);
     } finally {

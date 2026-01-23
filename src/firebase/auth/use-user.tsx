@@ -12,7 +12,6 @@ import { initializeApp, getApps } from "firebase/app";
 import { useFirestore } from "@/firebase";
 import { doc, onSnapshot, DocumentSnapshot } from "firebase/firestore";
 import type { UserProfile, UserContextType } from "@/lib/types";
-import { useRouter, usePathname } from 'next/navigation';
 
 // Initialize Firebase
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
@@ -32,13 +31,10 @@ export const UserProvider = ({ children }: UserProviderProps) => {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const firestore = useFirestore();
-  const router = useRouter();
-  const pathname = usePathname();
 
   // Listen for user authentication state changes
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      setLoading(true);
       if (firebaseUser) {
         setUser(firebaseUser);
         const tokenResult = await firebaseUser.getIdTokenResult();
@@ -53,14 +49,6 @@ export const UserProvider = ({ children }: UserProviderProps) => {
 
     return () => unsubscribe();
   }, []);
-
-  // Redirect non-admins from admin routes
-  useEffect(() => {
-    if (!loading && pathname && pathname.startsWith("/admin") && !isAdmin) {
-      console.log("Redirecting: Not an admin.", {pathname, isAdmin});
-      router.push("/dashboard");
-    }
-  }, [pathname, loading, router, isAdmin]);
 
   // Listen for user profile changes in Firestore
   useEffect(() => {
@@ -85,19 +73,6 @@ export const UserProvider = ({ children }: UserProviderProps) => {
       setUserProfile(null); // Clear profile if no user
     }
   }, [user, firestore]);
-
-  // Check for KYC status and redirect if needed
-  useEffect(() => {
-    if (!loading && userProfile && pathname) {
-      const { kycStatus } = userProfile;
-      const isKycPending = kycStatus === 'pending';
-      const onKycPage = pathname.startsWith("/kyc");
-      
-      if (!isKycPending && !onKycPage && !isAdmin) {
-         // console.log("Redirect check: ", { kycStatus, onKycPage });
-      }
-    }
-  }, [pathname, loading, userProfile, isAdmin]);
   
 
   const value = useMemo(
