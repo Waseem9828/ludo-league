@@ -1,96 +1,120 @@
-
 'use client';
 
 import {
-  createContext,
-  useContext,
   useEffect,
   useState,
+  createContext,
+  useContext,
+  useMemo,
   type ReactNode,
 } from 'react';
-import type { User } from 'firebase/auth';
-import { useAuth, useFirestore } from '@/firebase/provider';
-import { doc, onSnapshot, DocumentSnapshot } from 'firebase/firestore';
-import type { UserProfile } from '@/lib/types';
-import { getAuth, onAuthStateChanged } from 'firebase/auth';
-import { firebaseApp } from '@/firebase';
+import {
+  onAuthStateChanged,
+  getAuth,
+  type User as FirebaseUser,
+} from 'firebase/auth';
+import { app } from '@/firebase/config';
+import { useFirestore } from '@/firebase';
+import { doc, onSnapshot, type DocumentSnapshot } from 'firebase/firestore';
+import type { UserProfile, UserContextType } from '@/lib/types';
 
+const auth = getAuth(app);
 
-type UserContextValue = {
-  user: User | null;
-  userProfile: UserProfile | null; 
-  isAdmin: boolean;
-  loading: boolean;
-};
+export const UserContext = createContext<UserContextType | undefined>(undefined);
 
-const UserContext = createContext<UserContextValue | undefined>(undefined);
+interface UserProviderProps {
+  children: React.ReactNode;
+}
 
-export function UserProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const firestore = useFirestore();
-  const [authLoading, setAuthLoading] = useState(true);
-
+export const UserProvider = ({ children }: UserProviderProps) => {
+  const [user, setUser] = useState<FirebaseUser | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [profileLoading, setProfileLoading] = useState(true);
+  const [loading, setLoading] = useState(true); // The one and only loading state.
+  const firestore = useFirestore();
 
   useEffect(() => {
-    const auth = getAuth(firebaseApp);
-    const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
-        setUser(user);
-        setAuthLoading(false);
-    });
+    let profileUnsubscribe: (() => void) | null = null;
 
-    return () => unsubscribeAuth();
-  }, []);
+    const authUnsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      // First, if a profile listener is active from a previous user, clean it up.
+      if (profileUnsubscribe) {
+        profileUnsubscribe();
+      }
 
-  useEffect(() => {
-    if (!authLoading && user && firestore) {
-      const userProfileRef = doc(firestore, 'users', user.uid);
-      
-      const unsubscribeProfile = onSnapshot(userProfileRef, 
-        (profileDoc: DocumentSnapshot) => {
-          if (profileDoc.exists()) {
-            const profileData = profileDoc.data() as UserProfile;
-            setUserProfile({ ...profileData });
-            setIsAdmin(profileData.isAdmin === true);
+      setLoading(true); // Always start loading when auth state changes.
+
+      if (firebaseUser) {
+        setUser(firebaseUser);
+
+        // Can't get profile without firestore.
+        // This case is handled because the effect depends on `firestore`.
+        // If firestore is null, we'll remain in a loading state until it's available and the effect re-runs.
+        if (!firestore) return;
+
+        const userRef = doc(firestore, 'users', firebaseUser.uid);
+        profileUnsubscribe = onSnapshot(userRef, async (docSnap: DocumentSnapshot) => {
+          if (docSnap.exists()) {
+            const profile = docSnap.data() as UserProfile;
+            setUserProfile(profile);
+
+            // Securely check for admin status via custom claims.
+            try {
+              const tokenResult = await firebaseUser.getIdTokenResult(true); // force refresh
+              setIsAdmin(!!tokenResult.claims.admin);
+            } catch (error) {
+              console.error('Error fetching custom claims:', error);
+              setIsAdmin(false);
+            }
           } else {
+            // This can happen if the user doc isn't created yet after signup.
             setUserProfile(null);
             setIsAdmin(false);
           }
-          setProfileLoading(false);
-        },
-        (error) => {
+          // Only once we have the profile (or know it doesn't exist) are we done loading.
+          setLoading(false);
+        }, (error) => {
           console.error("Error listening to user profile:", error);
           setUserProfile(null);
           setIsAdmin(false);
-          setProfileLoading(false);
-        }
-      );
-      
-      return () => unsubscribeProfile();
+          setLoading(false);
+        });
 
-    } else if (!authLoading && !user) {
-      // No user is authenticated.
-      setUserProfile(null);
-      setIsAdmin(false);
-      setProfileLoading(false);
-    }
-  }, [user, authLoading, firestore]);
+      } else {
+        // No user is logged in.
+        setUser(null);
+        setUserProfile(null);
+        setIsAdmin(false);
+        setLoading(false); // We are done loading, there's just no user.
+      }
+    });
 
-  const loading = authLoading || profileLoading;
+    // Cleanup function for the auth listener.
+    return () => {
+      authUnsubscribe();
+      if (profileUnsubscribe) {
+        profileUnsubscribe();
+      }
+    };
+  }, [firestore]); // This effect depends on firestore, so it will re-run if firestore becomes available.
 
-  return (
-    <UserContext.Provider value={{ user, userProfile, isAdmin, loading }}>
-      {children}
-    </UserContext.Provider>
+  const value = useMemo(
+    () => ({
+      user,
+      loading,
+      userProfile,
+      isAdmin,
+    }),
+    [user, loading, userProfile, isAdmin]
   );
-}
 
-export function useUser() {
+  return <UserContext.Provider value={value}>{children}</UserContext.Provider>;
+};
+
+export const useUser = () => {
   const context = useContext(UserContext);
   if (context === undefined) {
     throw new Error('useUser must be used within a UserProvider');
   }
   return context;
-}
+};
