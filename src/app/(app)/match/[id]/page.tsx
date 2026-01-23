@@ -197,71 +197,91 @@ const JoinMatchButton = ({ match, userProfile, isActionLoading, handleJoinMatch 
     );
 }
 
-const RoomCodeManager = ({ match }: { match: Match }) => {
-  const firestore = useFirestore();
-  const { toast } = useToast();
-  const [roomCode, setRoomCode] = useState(match.roomCode || '');
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  
-  useEffect(() => {
-    setRoomCode(match.roomCode || '');
-  }, [match.roomCode]);
-
-  const handleRoomCodeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value.replace(/[^0-9]/g, ''); // Allow only numbers
-    if (value.length <= 8) {
-      setRoomCode(value);
-    }
-  };
-
-  const handleSaveRoomCode = async () => {
-    if (!/^\d{8}$/.test(roomCode)) {
-      toast({ title: 'Invalid Room Code', description: 'Room code must be exactly 8 digits.', variant: 'destructive' });
-      return;
-    }
-    if (!firestore) return;
-    
-    setIsSubmitting(true);
-    try {
-      const matchRef = doc(firestore, 'matches', match.id);
-      await updateDoc(matchRef, { 
-          roomCode: roomCode,
-          ...(!match.roomCode && { status: 'in-progress' })
-      });
-      toast({ title: 'Room code saved!', className: 'bg-green-100 text-green-800' });
-    } catch (error: any) {
-      toast({ title: 'Error saving code', description: error.message, variant: 'destructive' });
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  // The match is full, but no room code has been provided yet
-  if (!match.roomCode) {
-    return (
-      <Card>
-        <CardHeader><CardTitle>Enter Room Code</CardTitle><CardDescription>The match is full. One player must create a room in Ludo King and enter the 8-digit code below to start.</CardDescription></CardHeader>
-        <CardContent className="space-y-2">
-          <Label htmlFor="room-code">Ludo King Room Code</Label>
-          <Input id="room-code" value={roomCode} onChange={handleRoomCodeChange} placeholder="8-digit code" type="text" inputMode="numeric" maxLength={8} pattern="\d{8}"/>
-        </CardContent>
-        <CardFooter><Button onClick={handleSaveRoomCode} disabled={isSubmitting} className="w-full bg-gradient-primary">{isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Submit & Start</Button></CardFooter>
-      </Card>
-    );
-  }
-
-  // Room code exists
-  return (
+const WaitingForRoomCodeCard = () => (
     <Card>
-        <CardHeader>
-            <CardTitle className="flex items-center gap-2"><Gamepad2 className="h-5 w-5 text-primary"/> Play Now!</CardTitle>
-            <CardDescription>Use the room code to join the match in your Ludo King app. If the code is wrong, any player can edit it.</CardDescription>
+        <CardHeader className='items-center text-center'>
+            <Loader2 className="h-8 w-8 animate-spin text-primary mb-2" />
+            <CardTitle>Waiting for Room Code</CardTitle>
+            <CardDescription>The match creator is entering the Ludo King room code. The page will update automatically.</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-             <OpenLudoKingButton />
-        </CardContent>
     </Card>
-  );
+);
+
+const RoomCodeManager = ({ match, isCreator }: { match: Match; isCreator: boolean }) => {
+    const firestore = useFirestore();
+    const { toast } = useToast();
+    const [roomCode, setRoomCode] = useState(match.roomCode || '');
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
+    useEffect(() => {
+        setRoomCode(match.roomCode || '');
+    }, [match.roomCode]);
+
+    const handleRoomCodeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const value = e.target.value.replace(/[^0-9]/g, '');
+        if (value.length <= 8) {
+            setRoomCode(value);
+        }
+    };
+
+    const handleSaveRoomCode = async () => {
+        if (!/^\d{8}$/.test(roomCode)) {
+            toast({ title: 'Invalid Room Code', description: 'Room code must be exactly 8 digits.', variant: 'destructive' });
+            return;
+        }
+        if (!firestore) return;
+
+        setIsSubmitting(true);
+        try {
+            const matchRef = doc(firestore, 'matches', match.id);
+            await updateDoc(matchRef, {
+                roomCode: roomCode,
+                status: 'in-progress'
+            });
+            toast({ title: 'Room code saved!', className: 'bg-green-100 text-green-800' });
+        } catch (error: any) {
+            toast({ title: 'Error saving code', description: error.message, variant: 'destructive' });
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    if (!match.roomCode) {
+        if (isCreator) {
+            return (
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Enter Room Code</CardTitle>
+                        <CardDescription>The match is full. Create a room in Ludo King and enter the 8-digit code below to start.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-2">
+                        <Label htmlFor="room-code">Ludo King Room Code</Label>
+                        <Input id="room-code" value={roomCode} onChange={handleRoomCodeChange} placeholder="8-digit code" type="text" inputMode="numeric" maxLength={8} pattern="\d{8}" />
+                    </CardContent>
+                    <CardFooter>
+                        <Button onClick={handleSaveRoomCode} disabled={isSubmitting} className="w-full bg-gradient-primary">
+                            {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            Submit & Start Match
+                        </Button>
+                    </CardFooter>
+                </Card>
+            );
+        } else {
+            return <WaitingForRoomCodeCard />;
+        }
+    }
+
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2"><Gamepad2 className="h-5 w-5 text-primary" /> Play Now!</CardTitle>
+                <CardDescription>Use the room code to join the match in your Ludo King app. If the code is wrong, the creator can edit it.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                <OpenLudoKingButton />
+            </CardContent>
+        </Card>
+    );
 };
 
 
@@ -276,7 +296,7 @@ const MatchRules = () => (
     </Card>
 );
 
-const IdAndCodeCard = ({ match, id }: { match: Match, id: string }) => {
+const IdAndCodeCard = ({ match, id, isCreator }: { match: Match, id: string, isCreator: boolean }) => {
     const { toast } = useToast();
     const firestore = useFirestore();
     const [roomCode, setRoomCode] = useState(match.roomCode || '');
@@ -344,27 +364,29 @@ const IdAndCodeCard = ({ match, id }: { match: Match, id: string }) => {
                             <p className="text-sm font-mono text-muted-foreground">{match.roomCode}</p>
                             <div className="flex items-center">
                                 <Button variant="ghost" size="icon" onClick={() => handleCopy(match.roomCode!, 'Room Code')}><Copy className="h-4 w-4" /></Button>
-                                <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-                                    <DialogTrigger asChild>
-                                        <Button variant="ghost" size="icon"><Edit className="h-4 w-4"/></Button>
-                                    </DialogTrigger>
-                                    <DialogContent>
-                                        <DialogHeader>
-                                            <DialogTitle>Edit Room Code</DialogTitle>
-                                        </DialogHeader>
-                                        <div className="py-4">
-                                            <Label htmlFor="room-code-edit">8-digit Room Code</Label>
-                                            <Input id="room-code-edit" value={roomCode} onChange={handleRoomCodeChange} maxLength={8} />
-                                        </div>
-                                        <DialogFooter>
-                                            <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
-                                            <Button onClick={handleSaveRoomCode} disabled={isSubmitting}>
-                                                {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Save className="h-4 w-4 mr-2" />}
-                                                Save
-                                            </Button>
-                                        </DialogFooter>
-                                    </DialogContent>
-                                </Dialog>
+                                {isCreator && (
+                                    <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+                                        <DialogTrigger asChild>
+                                            <Button variant="ghost" size="icon"><Edit className="h-4 w-4"/></Button>
+                                        </DialogTrigger>
+                                        <DialogContent>
+                                            <DialogHeader>
+                                                <DialogTitle>Edit Room Code</DialogTitle>
+                                            </DialogHeader>
+                                            <div className="py-4">
+                                                <Label htmlFor="room-code-edit">8-digit Room Code</Label>
+                                                <Input id="room-code-edit" value={roomCode} onChange={handleRoomCodeChange} maxLength={8} />
+                                            </div>
+                                            <DialogFooter>
+                                                <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
+                                                <Button onClick={handleSaveRoomCode} disabled={isSubmitting}>
+                                                    {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Save className="h-4 w-4 mr-2" />}
+                                                    Save
+                                                </Button>
+                                            </DialogFooter>
+                                        </DialogContent>
+                                    </Dialog>
+                                )}
                             </div>
                         </div>
                     </div>
@@ -468,7 +490,6 @@ export default function MatchPage() {
             winRate: userProfile.winRate || 0,
         };
 
-        // All players are now present, ready to start
         const isNowFull = Object.keys(currentMatch.players).length + 1 === currentMatch.maxPlayers;
 
         transaction.update(matchRef, { 
@@ -554,15 +575,14 @@ export default function MatchPage() {
   const isConcluded = ['completed', 'disputed', 'cancelled'].includes(match.status);
 
   const showJoinButton = match.status === 'waiting' && !isPlayer && !isMatchFull;
-  const showRoomCodeStage = isPlayer && isMatchFull && match.status !== 'completed' && match.status !== 'disputed' && match.status !== 'cancelled';
+  const showRoomCodeStage = isPlayer && isMatchFull && !isConcluded;
   const showMatchConcluded = isConcluded;
 
   const ActionArea = () => {
       if (showJoinButton) return <JoinMatchButton {...{match, userProfile, isActionLoading, handleJoinMatch}} />
-      if (showRoomCodeStage) return <RoomCodeManager match={match} />
+      if (showRoomCodeStage) return <RoomCodeManager match={match} isCreator={isCreator} />
       if (showMatchConcluded) return <MatchConcludedCard match={match} />
-      // If waiting for players
-      if (match.status === 'waiting') {
+      if (match.status === 'waiting' && isPlayer) {
         return (
           <Card>
             <CardHeader className='items-center text-center'>
@@ -622,7 +642,7 @@ export default function MatchPage() {
                         </CardFooter>
                     )}
                  </Card>
-                <IdAndCodeCard id={id} match={match}/>
+                <IdAndCodeCard id={id} match={match} isCreator={isCreator}/>
                 <MatchRules />
             </div>
         </div>
