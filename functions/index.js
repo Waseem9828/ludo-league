@@ -92,7 +92,7 @@ exports.setRole = functions.https.onCall(async (data, context) => {
       if (!allowedRoles.includes(role)) {
         throw new functions.https.HttpsError(
           "invalid-argument",
-          \`The 'role' must be one of the following: ${allowedRoles.join(", ")}\`
+          `The 'role' must be one of the following: ${allowedRoles.join(", ")}`
         );
       }
   
@@ -105,9 +105,9 @@ exports.setRole = functions.https.onCall(async (data, context) => {
       await db.collection('users').doc(uid).update({ role: role });
   
       if (role !== 'none') {
-        return { message: \`Success! User ${uid} has been made a ${role}.\` };
+        return { message: `Success! User ${uid} has been made a ${role}.` };
       } else {
-        return { message: \`Success! User ${uid} has had their roles removed.\` };
+        return { message: `Success! User ${uid} has had their roles removed.` };
       }
   
     } catch (error) {

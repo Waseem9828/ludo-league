@@ -6,7 +6,7 @@
     "dev": "NODE_ENV=development next dev",
     "build": "NODE_ENV=production next build --debug",
     "start": "next start -p ${PORT:=9002}",
-    "lint": "next lint",
+    "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "fix-cors": "node set-storage-cors.js"
   },

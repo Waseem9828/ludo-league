@@ -448,7 +448,7 @@ export default function LobbyPage() {
                             </DialogHeader>
                             <ol className="space-y-3 mt-4 text-sm text-muted-foreground list-decimal list-inside">
                                 <li>Click <strong>Create New Match</strong> and select your entry fee. Your match will be listed publicly.</li>
-                                <li>Wait for an opponent to join your match from the "Open Battles" list.</li>
+                                <li>Wait for an opponent to join your match from the &quot;Open Battles&quot; list.</li>
                                 <li>Once an opponent joins, the match page will ask for a Ludo King room code. Create one and enter it.</li>
                                 <li>Play the game in your Ludo King app.</li>
                                 <li>After the game, take a screenshot of the win/loss screen.</li>

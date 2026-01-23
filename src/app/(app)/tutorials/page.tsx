@@ -58,20 +58,20 @@ export default function TutorialsPage() {
             </TutorialItem>
              <TutorialItem title="How to Deposit Money?" icon={UploadCloud}>
                 <ol>
-                    <li>Navigate to the <strong>Wallet</strong> page and select the 'Deposit' tab.</li>
+                    <li>Navigate to the <strong>Wallet</strong> page and select the &apos;Deposit&apos; tab.</li>
                     <li>Enter the amount you wish to deposit (minimum ₹100).</li>
-                    <li>Scan the QR code with your UPI app or use the 'Pay with UPI' button.</li>
+                    <li>Scan the QR code with your UPI app or use the &apos;Pay with UPI&apos; button.</li>
                     <li>After successful payment, enter the UTR/Transaction ID and upload a screenshot of the payment.</li>
-                    <li>Click 'Submit Deposit Request'. Our team will verify it shortly.</li>
+                    <li>Click &apos;Submit Deposit Request&apos;. Our team will verify it shortly.</li>
                 </ol>
             </TutorialItem>
             <TutorialItem title="How to Withdraw Winnings?" icon={DownloadCloud}>
                  <ol>
-                    <li>First, ensure your <strong>KYC is approved</strong>. You can't withdraw without it.</li>
-                    <li>Go to the <strong>Wallet</strong> page and select the 'Withdraw' tab.</li>
+                    <li>First, ensure your <strong>KYC is approved</strong>. You can&apos;t withdraw without it.</li>
+                    <li>Go to the <strong>Wallet</strong> page and select the &apos;Withdraw&apos; tab.</li>
                     <li>Your verified bank details or UPI ID will be shown.</li>
                     <li>Enter the amount you wish to withdraw (minimum ₹300).</li>
-                    <li>Click 'Request Withdrawal'. Your request will be processed within 24 hours.</li>
+                    <li>Click &apos;Request Withdrawal&apos;. Your request will be processed within 24 hours.</li>
                 </ol>
             </TutorialItem>
             <TutorialItem title="How does KYC Verification work?" icon={ShieldCheck}>

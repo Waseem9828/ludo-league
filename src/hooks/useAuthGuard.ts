@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect } from 'react';
@@ -10,64 +11,58 @@ export const useAuthGuard = () => {
   const { settings, loading: settingsLoading } = useSettings();
   const pathname = usePathname();
   const router = useRouter();
-  
-  const isAuthPage = pathname === '/login' || pathname === '/signup';
-  const isAdminPage = pathname?.startsWith('/admin') ?? false;
-  const isMaintenancePage = pathname === '/maintenance';
-  const isLandingPage = pathname === '/';
-  
+
   const isAuthenticating = userLoading || settingsLoading;
-  
+
   useEffect(() => {
-    // Wait until all loading is complete before running any logic
     if (isAuthenticating) {
-      return; 
+      return; // Wait until all data is loaded
     }
 
-    const maintenanceMode = settings?.maintenanceMode ?? false;
+    const isAuthPage = pathname === '/login' || pathname === '/signup';
+    const isLandingPage = pathname === '/';
+    const isAdminPage = pathname.startsWith('/admin');
+    const isMaintenancePage = pathname === '/maintenance';
+    const isProtectedRoute = !isAuthPage && !isLandingPage && !isMaintenancePage;
     
-    // --- Maintenance Mode Logic ---
+    const maintenanceMode = settings?.maintenanceMode ?? false;
+
+    // 1. Handle Maintenance Mode
     if (maintenanceMode) {
-      // If in maintenance mode and user is not an admin, redirect to maintenance page
       if (!isAdmin && !isMaintenancePage) {
         router.replace('/maintenance');
         return;
       }
-      // If admin is on maintenance page, redirect them to their dashboard
       if (isAdmin && isMaintenancePage) {
         router.replace('/admin/dashboard');
         return;
       }
+      // If in maintenance mode and logic reaches here, it means user is an admin on a regular page, so we allow it.
     } else {
-      // If maintenance mode is OFF and user is on the maintenance page, redirect away
+      // If maintenance is OFF, but user is on the maintenance page, redirect them.
       if (isMaintenancePage) {
-        router.replace(user ? (isAdmin ? '/admin/dashboard' : '/dashboard') : '/login');
+        router.replace(user ? '/dashboard' : '/login');
         return;
       }
     }
 
-    // --- Standard Authentication Logic ---
-
-    // If there is no user and we are on a protected page, redirect to login
-    if (!user && !isAuthPage && !isLandingPage && !isMaintenancePage) {
-      router.replace('/login');
-      return;
-    }
-    
-    // If there IS a user and we are on an auth page or the landing page, redirect to their dashboard
-    if (user && (isAuthPage || isLandingPage)) {
-      router.replace(isAdmin ? '/admin/dashboard' : '/dashboard');
-      return;
-    }
-    
-    // If a non-admin tries to access an admin page, redirect to the main dashboard
-    if (user && !isAdmin && isAdminPage) {
+    // 2. Handle Authentication
+    if (!user) {
+      // User is NOT logged in
+      if (isProtectedRoute) {
+        router.replace('/login');
+      }
+      // If not logged in and on a public page (auth, landing), do nothing.
+    } else {
+      // User IS logged in
+      if (isAuthPage || isLandingPage) {
+        router.replace(isAdmin ? '/admin/dashboard' : '/dashboard');
+      } else if (isAdminPage && !isAdmin) {
         router.replace('/dashboard');
-        return;
+      }
+      // If user is logged in and on a protected page they have access to, do nothing.
     }
-
-  }, [isAuthenticating, user, isAdmin, settings, pathname, router, isAuthPage, isAdminPage, isMaintenancePage, isLandingPage]);
-
+  }, [isAuthenticating, user, isAdmin, settings, pathname, router]);
 
   return {
     isAuthenticating,
