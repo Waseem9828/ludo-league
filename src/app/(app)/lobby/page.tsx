@@ -1,4 +1,3 @@
-
 'use client';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -173,74 +172,6 @@ const OngoingMatchCard = ({ match }: { match: any }) => {
     );
 };
 
-// --- LIST COMPONENTS ---
-
-// OpenMatchesList: Renders REAL waiting matches from Firestore
-const OpenMatchesList = () => {
-    const firestore = useFirestore();
-    const { user } = useUser();
-    const [realMatches, setRealMatches] = useState<Match[]>([]);
-    const [loading, setLoading] = useState(true);
-
-    useEffect(() => {
-        if (!firestore) return;
-        setLoading(true);
-        const q = query(
-            collection(firestore, 'matches'),
-            where('status', '==', 'waiting'),
-            orderBy('createdAt', 'desc')
-        );
-
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            const waitingMatches = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Match));
-            setRealMatches(waitingMatches);
-            setLoading(false);
-        }, (error) => {
-            console.error("Error fetching waiting matches: ", error);
-            setLoading(false);
-        });
-
-        return () => unsubscribe();
-    }, [firestore]);
-
-    const sortedMatches = useMemo(() => {
-        if (!user) return realMatches;
-        // Move user's own created match to the top
-        return [...realMatches].sort((a, b) => {
-            if (a.creatorId === user.uid) return -1;
-            if (b.creatorId === user.uid) return 1;
-            return 0;
-        });
-    }, [realMatches, user]);
-
-    if (loading) {
-        return (
-            <div className="flex justify-center p-8">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            </div>
-        );
-    }
-    
-    if (sortedMatches.length === 0) {
-        return (
-             <div className="text-center py-10 text-muted-foreground">
-                <p>No open matches available right now.</p>
-                <p className="text-sm">Be the first to create one!</p>
-            </div>
-        )
-    }
-
-    return (
-        <div className="space-y-3">
-            <AnimatePresence>
-               {sortedMatches.map(match => (
-                   <WaitingMatchCard key={match.id} match={match} />
-               ))}
-            </AnimatePresence>
-        </div>
-    )
-}
-
 // Generates a list of mock ongoing matches
 const generateMockOngoingMatches = (count: number) => {
     const names = ["Rohan", "Priya", "Amit", "Sneha", "Vikas", "Anjali", "Deepak", "Pooja", "Sanjay", "Meera", "Arjun", "Kavita"];
@@ -275,35 +206,98 @@ const generateMockOngoingMatches = (count: number) => {
 };
 
 
-const OngoingMatchesMockList = () => {
+// --- COMBINED LIST COMPONENT ---
+const CombinedLobbyList = () => {
+    const firestore = useFirestore();
+    const { user } = useUser();
+    const [realMatches, setRealMatches] = useState<Match[]>([]);
+    const [loading, setLoading] = useState(true);
     const [mockMatches, setMockMatches] = useState(() => generateMockOngoingMatches(50));
 
+    // Fetch real 'waiting' matches
+    useEffect(() => {
+        if (!firestore) return;
+        setLoading(true);
+        const q = query(
+            collection(firestore, 'matches'),
+            where('status', '==', 'waiting'),
+            orderBy('createdAt', 'desc')
+        );
+
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            const waitingMatches = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Match));
+            setRealMatches(waitingMatches);
+            setLoading(false);
+        }, (error) => {
+            console.error("Error fetching waiting matches: ", error);
+            setLoading(false);
+        });
+
+        return () => unsubscribe();
+    }, [firestore]);
+
+    // Update mock matches periodically
     useEffect(() => {
         const interval = setInterval(() => {
             setMockMatches(prevMatches => {
                 const matchesToRemove = Math.floor(Math.random() * 3) + 2; // 2 to 4
                 const newMatches = generateMockOngoingMatches(matchesToRemove);
                 
-                // Remove from bottom, add to top
                 const updatedMatches = [...newMatches, ...prevMatches.slice(0, prevMatches.length - matchesToRemove)];
                 
-                return updatedMatches.slice(0, 50); // Ensure list is always 50
+                return updatedMatches.slice(0, 50);
             });
-        }, 25000); // Update every 25 seconds
+        }, 25000);
 
         return () => clearInterval(interval);
     }, []);
 
+    const combinedAndSortedMatches = useMemo(() => {
+        // Sort real matches first (user's own match at the top)
+        const sortedRealMatches = [...realMatches].sort((a, b) => {
+            if (user && a.creatorId === user.uid) return -1;
+            if (user && b.creatorId === user.uid) return 1;
+            // Assuming createdAt is a Timestamp
+            return (b.createdAt?.toMillis() || 0) - (a.createdAt?.toMillis() || 0);
+        });
+        
+        return [...sortedRealMatches, ...mockMatches];
+
+    }, [realMatches, mockMatches, user]);
+
+    if (loading) {
+        return (
+            <div className="flex justify-center p-8">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+        );
+    }
+    
+    if (combinedAndSortedMatches.length === 0) {
+        return (
+             <div className="text-center py-10 text-muted-foreground">
+                <p>No open matches available right now.</p>
+                <p className="text-sm">Be the first to create one!</p>
+            </div>
+        )
+    }
+
     return (
         <div className="space-y-3">
             <AnimatePresence>
-               {mockMatches.map(match => (
-                   <OngoingMatchCard key={match.id} match={match} />
-               ))}
+               {combinedAndSortedMatches.map(match => {
+                   // Check if it's a real match by looking for a property mock matches don't have, like 'creatorId'
+                   if ('creatorId' in match) {
+                       return <WaitingMatchCard key={match.id} match={match as Match} />;
+                   } else {
+                       return <OngoingMatchCard key={match.id} match={match} />;
+                   }
+               })}
             </AnimatePresence>
         </div>
     )
-}
+};
+
 
 const LobbyContext = React.createContext<{ commissionPercentage: number }>({ commissionPercentage: 10 });
 const useLobbyContext = () => useContext(LobbyContext);
@@ -486,7 +480,7 @@ export default function LobbyPage() {
 
                     <Dialog>
                         <DialogTrigger asChild>
-                            <Button variant="outline" size="lg" className="w-full h-20 text-lg animate-pulse shadow-lg shadow-primary/50">
+                             <Button variant="outline" size="lg" className="w-full h-20 text-lg animate-pulse shadow-lg shadow-primary/50">
                                 <Info className="mr-2 h-6 w-6"/> How to Play
                             </Button>
                         </DialogTrigger>
@@ -507,32 +501,10 @@ export default function LobbyPage() {
                 </div>
             </div>
 
-             {/* Open Battles (Real waiting matches) */}
-             <div className='mt-8 flex flex-col'>
-                    <div className="flex items-center justify-center gap-4 mb-4">
-                    <div className="flex-grow h-px bg-border"></div>
-                    <h2 className="text-xl font-bold tracking-tight text-foreground flex items-center gap-2 flex-shrink-0">
-                        <Trophy className="text-primary"/>
-                        Open Battles
-                    </h2>
-                    <div className="flex-grow h-px bg-border"></div>
-                </div>
-                <OpenMatchesList />
-            </div>
-            
-            {/* Live Matches (Mock ongoing matches) */}
             <div className='mt-8 flex flex-col flex-grow'>
-                <div className="flex items-center justify-center gap-4 mb-4">
-                    <div className="flex-grow h-px bg-border"></div>
-                    <h2 className="text-xl font-bold tracking-tight text-foreground flex items-center gap-2 flex-shrink-0">
-                        <CircleDotDashed className="text-destructive animate-pulse"/>
-                        Live Matches
-                    </h2>
-                    <div className="flex-grow h-px bg-border"></div>
-                </div>
-                    <ScrollArea className="flex-grow pr-4">
-                        <OngoingMatchesMockList />
-                    </ScrollArea>
+                <ScrollArea className="flex-grow pr-4">
+                    <CombinedLobbyList />
+                </ScrollArea>
             </div>
         </div>
     </LobbyContext.Provider>
