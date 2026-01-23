@@ -1,4 +1,3 @@
-
 'use client';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -377,12 +376,10 @@ export default function LobbyPage() {
   const mediumStakes = Array.from({ length: 9 }, (_, i) => 1000 + i * 500);
   const highStakes = Array.from({ length: 9 }, (_, i) => 10000 + i * 5000);
 
-  const maxUnlockedAmount = userProfile?.maxUnlockedAmount || 100;
-
   const FeeTier = ({ fees, tier }: { fees: number[], tier: 'low' | 'medium' | 'high' }) => (
     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
       {fees.map(fee => {
-        const isLocked = tier === 'low' ? false : fee > maxUnlockedAmount;
+        const isLocked = false;
         return (
           <EntryFeeCard
             key={fee}
@@ -471,4 +468,3 @@ export default function LobbyPage() {
     </LobbyContext.Provider>
   );
 }
-
