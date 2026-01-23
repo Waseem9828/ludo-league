@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "NODE_ENV=development next dev",
-    "build": "NODE_ENV=production next build",
+    "build": "NODE_ENV=production next build --debug",
     "start": "next start -p ${PORT:=9002}",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
