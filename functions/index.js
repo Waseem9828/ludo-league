@@ -476,6 +476,9 @@ exports.onResultSubmit = functions.firestore
   .onCreate(async (snap, context) => {
     const { matchId, userId } = context.params;
     const matchRef = db.collection('matches').doc(matchId);
+    let shouldNotify = false;
+    let otherPlayerIds = [];
+    let submitterName = 'Opponent';
     
     try {
       await db.runTransaction(async (transaction) => {
@@ -486,26 +489,24 @@ exports.onResultSubmit = functions.firestore
         }
         const freshMatchData = freshMatchDoc.data();
 
-        // **CRITICAL FIX**: Check if the match has already been processed.
+        // Store data for notifications later
+        otherPlayerIds = freshMatchData.playerIds.filter(pId => pId !== userId);
+        submitterName = freshMatchData.players[userId]?.name || 'Opponent';
+        shouldNotify = true;
+        
         if (['completed', 'disputed', 'cancelled'].includes(freshMatchData.status)) {
           console.log(`Match ${matchId} is already concluded with status: ${freshMatchData.status}. No action taken.`);
-          return; // Exit transaction if match is already resolved.
+          shouldNotify = false; // Don't notify if already concluded
+          return; 
         }
         
-        // Notify other players
-        const otherPlayerIds = freshMatchData.playerIds.filter(pId => pId !== userId);
-        for(const pId of otherPlayerIds) {
-            await sendNotification(pId, "Result Submitted", `${freshMatchData.players[userId]?.name || 'Opponent'} has submitted their match result.`, `/match/${matchId}`);
-        }
-
         const expectedResults = freshMatchData.playerIds.length;
         const resultsCollectionRef = matchRef.collection('results');
-        // Fetch results within the transaction to ensure consistency
         const resultsSnapshot = await transaction.get(resultsCollectionRef);
 
         if (resultsSnapshot.size < expectedResults) {
             console.log(`Waiting for all players in match ${matchId} to submit results. Have ${resultsSnapshot.size}/${expectedResults}.`);
-            return;
+            return; // Will notify, but won't process result yet
         }
 
         const results = resultsSnapshot.docs.map(doc => doc.data());
@@ -516,11 +517,12 @@ exports.onResultSubmit = functions.firestore
         const screenshotUrls = results.map(r => r.screenshotUrl).filter(Boolean); 
         const uniqueUrls = new Set(screenshotUrls);
 
-        // Scenario 1: Clear Win/Loss
-        if (winClaims.length === 1 && lossClaims.length === 1 && screenshotUrls.length === expectedResults) {
+        // Scenario 1: Clear Win/Loss, and no duplicate screenshots
+        if (winClaims.length === 1 && lossClaims.length === 1 && screenshotUrls.length === expectedResults && uniqueUrls.size === screenshotUrls.length) {
             const winnerId = winClaims[0].userId;
             console.log(`Match ${matchId} completed automatically. Winner: ${winnerId}`);
-            transaction.update(matchRef, { status: 'completed', winnerId: winnerId });
+            transaction.update(matchRef, { status: 'completed', winnerId: winnerId, reviewReason: 'Automatically resolved.' });
+            shouldNotify = false; // The declareWinner function will handle notifications for this case.
             return;
         }
 
@@ -542,9 +544,15 @@ exports.onResultSubmit = functions.firestore
         console.log(`Dispute for match ${matchId}: Unclear results.`);
         transaction.update(matchRef, { status: 'disputed', reviewReason: 'Conflicting or unclear results submitted.' });
       });
+
+      // Send notifications AFTER the transaction
+      if (shouldNotify) {
+        for(const pId of otherPlayerIds) {
+            await sendNotification(pId, "Result Submitted", `${submitterName} has submitted their match result.`, `/match/${matchId}`);
+        }
+      }
     } catch (error) {
       console.error(`Error in onResultSubmit transaction for match ${matchId}:`, error);
-      // Attempt to update status to disputed as a fallback on error, but don't re-throw to prevent retries
       await matchRef.update({ status: 'disputed', reviewReason: `System error during result processing.` }).catch(e => console.error("Failed to update match status to disputed on error:", e));
     }
      return null;
@@ -562,8 +570,12 @@ exports.onResultSubmit = functions.firestore
     }
 
     const matchRef = db.collection('matches').doc(matchId);
+    const commissionConfigRef = db.doc('matchCommission/settings');
 
     try {
+        const commissionConfigSnap = await commissionConfigRef.get();
+        const commissionPercentage = commissionConfigSnap.exists() && commissionConfigSnap.data().percentage ? commissionConfigSnap.data().percentage : 10;
+        
         let winningPlayerName = 'Unknown Player';
         let prizePoolAmount = 0;
         let playerIds = [];
@@ -592,8 +604,6 @@ exports.onResultSubmit = functions.firestore
             }
             
             prizePoolAmount = matchData.prizePool;
-            const commissionConfigSnap = await db.doc('matchCommission/settings').get();
-            const commissionPercentage = commissionConfigSnap.exists() && commissionConfigSnap.data().percentage ? commissionConfigSnap.data().percentage : 10;
             const commission = (matchData.entryFee * matchData.playerIds.length) * (commissionPercentage / 100);
 
             const winningsTransactionRef = db.collection('transactions').doc();
@@ -978,12 +988,18 @@ exports.createMatch = functions.https.onCall(async (data, context) => {
     }
 
     const userRef = db.collection('users').doc(userId);
+    const commissionConfigRef = db.doc('matchCommission/settings');
     
     try {
+        // Read commission settings BEFORE the transaction
+        const commissionConfigSnap = await commissionConfigRef.get();
+        const commissionPercentage = commissionConfigSnap.exists() && commissionConfigSnap.data().percentage ? commissionConfigSnap.data().percentage : 10;
+        const prizePool = entryFee * 2 * (1 - (commissionPercentage / 100));
+
         let newMatchRefId;
         await db.runTransaction(async (transaction) => {
             const userDoc = await transaction.get(userRef);
-            if (!userDoc.exists) {
+            if (!userDoc.exists()) {
                 throw new functions.https.HttpsError("not-found", "User profile not found.");
             }
 
@@ -997,11 +1013,7 @@ exports.createMatch = functions.https.onCall(async (data, context) => {
             if ((userData.walletBalance || 0) < entryFee) {
                 throw new functions.https.HttpsError("failed-precondition", "Insufficient balance.");
             }
-
-            const commissionConfigSnap = await db.doc('matchCommission/settings').get();
-            const commissionPercentage = commissionConfigSnap.exists() && commissionConfigSnap.data().percentage ? commissionConfigSnap.data().percentage : 10;
-            const prizePool = entryFee * 2 * (1 - (commissionPercentage / 100));
-
+            
             const newPlayer = {
                 id: userId,
                 name: userData.displayName || "Player",
