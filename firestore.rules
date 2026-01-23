@@ -37,15 +37,6 @@ service cloud.firestore {
     match /users/{userId}/activity/{logId} {
         allow read: if isOwner(userId) || isAdmin();
     }
-    
-    match /roomCodeCreators/{userId} {
-        allow read, create, delete: if isOwner(userId);
-        allow list: if request.auth != null;
-    }
-    match /roomCodeSeekers/{userId} {
-        allow read, create, delete: if isOwner(userId);
-        allow list: if request.auth != null;
-    }
 
     // ========= Admin-specific Rules =========
 
@@ -73,9 +64,13 @@ service cloud.firestore {
     // Matches & Results
     match /matches/{matchId} {
       allow read, list: if request.auth != null;
-      allow create: if false; // By function
+      allow create: if request.auth != null && request.resource.data.creatorId == request.auth.uid 
+                      && request.resource.data.playerIds[0] == request.auth.uid
+                      && request.resource.data.playerIds.size() == 1;
+
       // Player can update their own status, match admin can update for resolution
-      allow update: if (request.auth != null && request.auth.uid in resource.data.playerIds) || isMatchAdmin();
+      // New player can join if match is waiting
+      allow update: if (request.auth != null && (request.auth.uid in resource.data.playerIds || resource.data.status == 'waiting')) || isMatchAdmin();
     }
     match /matches/{matchId}/results/{userId} {
       // Only players in the match and match admins can read results

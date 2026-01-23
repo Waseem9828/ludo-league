@@ -7,9 +7,9 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Swords, Loader2, Info, Lock, Wallet, Users, User, Shield, BarChart, X, Trophy, CircleDotDashed, PlusCircle } from "lucide-react";
 import { useUser, useFirestore } from "@/firebase";
 import React, { useEffect, useState, useRef, useCallback, useMemo, useContext } from "react";
-import { doc, setDoc, deleteDoc, collection, onSnapshot, query, getDoc, where, orderBy } from "firebase/firestore";
+import { doc, setDoc, deleteDoc, collection, onSnapshot, query, getDoc, where, orderBy, runTransaction, Timestamp, arrayUnion } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
-import type { Match } from "@/lib/types";
+import type { Match, MatchPlayer } from "@/lib/types";
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import {
   Collapsible,
@@ -36,143 +36,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import CustomLoader from '@/components/CustomLoader';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { EntryFeeCard } from '@/components/app/lobby/entry-fee-card';
-
-const PlayerCard = ({ name, avatarUrl, winRate }: { name: string, avatarUrl: string | null | undefined, winRate: number }) => (
-    <motion.div 
-        className="flex flex-col items-center gap-3 relative"
-        initial={{ opacity: 0, scale: 0.8 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.5, delay: 0.2 }}
-    >
-        <div className="relative">
-             <Avatar className="h-28 w-28 border-4 border-card shadow-lg">
-                <AvatarImage src={avatarUrl || ''} />
-                <AvatarFallback>{name.charAt(0)}</AvatarFallback>
-            </Avatar>
-            <motion.div 
-                 className="absolute inset-0 rounded-full border-4 border-primary"
-                 animate={{ scale: [1, 1.15, 1], opacity: [0.7, 1, 0.7] }}
-                 transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-            />
-        </div>
-        <div className="text-center">
-            <h3 className="text-lg font-bold text-foreground">{name}</h3>
-            <p className="text-sm text-muted-foreground">Win Rate: {winRate}%</p>
-        </div>
-    </motion.div>
-);
-
-const SearchingCard = () => {
-    const mockOpponents = [
-        { name: "Shadow King", avatar: "https://api.dicebear.com/8.x/lorelei/svg?seed=ShadowKing" },
-        { name: "Ludo Legend", avatar: "https://api.dicebear.com/8.x/lorelei/svg?seed=LudoLegend" },
-        { name: "Dice Master", avatar: "https://api.dicebear.com/8.x/lorelei/svg?seed=DiceMaster" },
-        { name: "Royal Pro", avatar: "https://api.dicebear.com/8.x/lorelei/svg?seed=RoyalPro" },
-        { name: "Ace Player", avatar: "https://api.dicebear.com/8.x/lorelei/svg?seed=AcePlayer" },
-    ];
-    const [index, setIndex] = useState(0);
-
-    useEffect(() => {
-        const interval = setInterval(() => {
-            setIndex(prev => (prev + 1) % mockOpponents.length);
-        }, 1500);
-        return () => clearInterval(interval);
-    }, [mockOpponents.length]);
-    
-    return (
-        <motion.div 
-            className="flex flex-col items-center gap-3 relative"
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.5, delay: 0.4 }}
-        >
-            <AnimatePresence mode="wait">
-                 <motion.div
-                    key={index}
-                    initial={{ opacity: 0, y: -20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: 20 }}
-                    transition={{ duration: 0.5 }}
-                    className="flex flex-col items-center gap-3"
-                 >
-                    <div className="relative">
-                        <Avatar className="h-28 w-28 border-4 border-dashed border-primary/50 shadow-lg">
-                            <AvatarImage src={mockOpponents[index].avatar} />
-                             <AvatarFallback>{mockOpponents[index].name.charAt(0)}</AvatarFallback>
-                        </Avatar>
-                         <motion.div 
-                            className="absolute inset-0 rounded-full border-2 border-primary/30"
-                            animate={{ rotate: 360, scale: [1, 1.1, 1] }}
-                            transition={{ duration: 4, repeat: Infinity, ease: 'linear', repeatType: 'reverse' }}
-                        />
-                    </div>
-                     <div className="text-center">
-                        <h3 className="text-lg font-bold text-foreground">{mockOpponents[index].name}</h3>
-                        <p className="text-sm text-muted-foreground">Searching...</p>
-                    </div>
-                </motion.div>
-            </AnimatePresence>
-        </motion.div>
-    );
-};
-
-
-const SearchingOverlay = ({ user, userProfile, onCancel }: { user: any, userProfile: any, onCancel: () => void }) => (
-    <AnimatePresence>
-        <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-background/80 backdrop-blur-lg z-50 flex flex-col items-center justify-center p-4 overflow-hidden"
-        >
-             {/* Animated Background */}
-             <div className="absolute inset-0 z-0 h-full w-full bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,hsl(var(--primary)/0.3),transparent_50%)]"></div>
-             
-             <motion.div 
-                className="absolute h-[300px] w-[300px] md:h-[500px] md:w-[500px] rounded-full border-2 border-primary/20"
-                animate={{ scale: [0.5, 1.5], opacity: [0, 0.8, 0] }}
-                transition={{ duration: 3, repeat: Infinity, ease: 'easeOut' }}
-             />
-
-            <motion.div
-                initial={{ y: 20, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-                transition={{ delay: 0.2, duration: 0.5 }}
-                className="flex items-center justify-around w-full max-w-md relative z-10"
-            >
-                <PlayerCard name={user.displayName} avatarUrl={user.photoURL} winRate={userProfile?.winRate || 0} />
-                <motion.div 
-                    className="text-6xl font-black text-gradient-primary mx-4"
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    transition={{ type: 'spring', stiffness: 260, damping: 20, delay: 0.6 }}
-                >VS</motion.div>
-                <SearchingCard />
-            </motion.div>
-
-            <motion.div
-                 initial={{ y: 20, opacity: 0 }}
-                 animate={{ y: 0, opacity: 1 }}
-                 transition={{ delay: 0.8, duration: 0.5 }}
-                 className="text-center mt-12 relative z-10"
-            >
-                <h2 className="text-2xl font-bold text-foreground tracking-tight">Finding the perfect opponent...</h2>
-                <p className="text-muted-foreground mt-2">This usually takes just a few moments.</p>
-            </motion.div>
-
-            <motion.div
-                 initial={{ y: 20, opacity: 0 }}
-                 animate={{ y: 0, opacity: 1 }}
-                 transition={{ delay: 1, duration: 0.5 }}
-                 className="absolute bottom-10 z-10"
-            >
-                <Button variant="ghost" className="text-muted-foreground hover:text-foreground hover:bg-card/50" onClick={onCancel}>
-                    <X className="mr-2 h-4 w-4"/> Cancel Search
-                </Button>
-            </motion.div>
-        </motion.div>
-    </AnimatePresence>
-);
 
 const ActiveMatchesAlert = ({ activeMatchIds }: { activeMatchIds: string[] }) => {
     const firestore = useFirestore();
@@ -343,16 +206,8 @@ export default function LobbyPage() {
   const firestore = useFirestore();
   const router = useRouter();
   const { toast } = useToast();
-  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  const [isSearching, setIsSearching] = useState(false);
-  const [checkedLocalStorage, setCheckedLocalStorage] = useState(false);
-  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
-  const [showRoomCodeDialog, setShowRoomCodeDialog] = useState(false);
   const [showStakesDialog, setShowStakesDialog] = useState(false);
-  const [hasRoomCode, setHasRoomCode] = useState(false);
-  const [roomCode, setRoomCode] = useState('');
-  const [selectedFee, setSelectedFee] = useState(0);
   const [commissionPercentage, setCommissionPercentage] = useState(10);
   const [loadingCommission, setLoadingCommission] = useState(true);
   
@@ -373,89 +228,13 @@ export default function LobbyPage() {
     return () => unsubscribe();
   }, [firestore]);
   
-  useEffect(() => {
-    const searchingMatchFee = localStorage.getItem('searchingMatchFee');
-    if (searchingMatchFee) {
-        setIsSearching(true);
-    }
-    setCheckedLocalStorage(true);
-  }, []);
 
-  const handleCancelSearch = useCallback(async () => {
-    if (!user || !firestore) return;
-    if (searchTimeoutRef.current) {
-        clearTimeout(searchTimeoutRef.current);
-        searchTimeoutRef.current = null;
-    }
-    setIsSearching(false);
-    localStorage.removeItem('searchingMatchFee');
-    localStorage.removeItem('previousActiveIds');
-    try {
-        // We need to check both queues to cancel, as we don't know which one the user is in client-side
-        await deleteDoc(doc(firestore, 'roomCodeCreators', user.uid));
-        await deleteDoc(doc(firestore, 'roomCodeSeekers', user.uid));
-        toast({ title: "Search Cancelled", description: "You have been removed from the matchmaking queue." });
-    } catch (error: any) {
-        console.error("Error cancelling search: ", error);
-        // Don't show error toast if one of the deletes fails, it's expected.
-    }
-  }, [user, firestore, toast]);
-
-  useEffect(() => {
-    if (isSearching) {
-        // Set a 60-second timeout
-        searchTimeoutRef.current = setTimeout(() => {
-            toast({
-                title: "No Match Found",
-                description: "We couldn't find an opponent for you at this time. Please try another entry fee or try again later.",
-                variant: "destructive",
-                duration: 5000,
-            });
-            handleCancelSearch(); // This will also clear the timeout
-        }, 60000); // 60 seconds
-    } else if (searchTimeoutRef.current) {
-        // Clear timeout if user cancels search manually or a match is found
-        clearTimeout(searchTimeoutRef.current);
-        searchTimeoutRef.current = null;
-    }
-
-    // Cleanup function to clear timeout if component unmounts
-    return () => {
-        if (searchTimeoutRef.current) {
-            clearTimeout(searchTimeoutRef.current);
-        }
-    };
-  }, [isSearching, handleCancelSearch, toast]);
-
-  useEffect(() => {
-    if (userProfile && isSearching) {
-        const previousActiveIds = JSON.parse(localStorage.getItem('previousActiveIds') || '[]');
-        const currentActiveIds = userProfile.activeMatchIds || [];
-
-        if (currentActiveIds.length > previousActiveIds.length) {
-            const newMatchId = currentActiveIds.find((id: string) => !previousActiveIds.includes(id));
-            if (newMatchId) {
-                toast({ title: "Match Found!", description: "Redirecting you to the match room." });
-                localStorage.removeItem('searchingMatchFee');
-                localStorage.removeItem('previousActiveIds');
-                if (searchTimeoutRef.current) {
-                    clearTimeout(searchTimeoutRef.current);
-                }
-                router.push(`/match/${newMatchId}`);
-            }
-        }
-         if (isSearching) {
-            localStorage.setItem('previousActiveIds', JSON.stringify(currentActiveIds));
-         }
-    }
-  }, [userProfile, isSearching, router, toast]);
-
-  const handlePlayClick = (fee: number) => {
-    if (!user || !userProfile) {
+  const handleCreateMatch = async (fee: number) => {
+    if (!user || !userProfile || !firestore) {
         toast({ title: "Please login to play.", variant: "destructive" });
         return;
     }
-    if ((userProfile as any).isBlocked) {
+     if ((userProfile as any).isBlocked) {
         toast({ title: "Your account is blocked.", variant: "destructive" });
         return;
     }
@@ -465,62 +244,68 @@ export default function LobbyPage() {
     }
      if (userProfile.walletBalance < fee) {
         toast({ title: "Insufficient Balance", description: `You need at least ₹${fee} to play.`, variant: "destructive" });
+        router.push('/wallet');
         return;
     }
+
     setShowStakesDialog(false);
-    setSelectedFee(fee);
-    setShowConfirmDialog(true);
-  };
 
-  const handleConfirmPlay = async () => {
-    setShowConfirmDialog(false);
-    setShowRoomCodeDialog(true);
-  }
+    const { id: toastId } = toast({ title: "Creating your match..." });
 
-  const enterQueue = async () => {
-      if (!user || !firestore || !userProfile) return;
-      setShowRoomCodeDialog(false);
-      
-      let queueName: string;
-      let queueData: any;
-      
-      if (hasRoomCode) {
-          if(!/^\d{8}$/.test(roomCode)) {
-              toast({ title: "Invalid Room Code", description: "Room code must be 8 digits.", variant: "destructive"});
-              return;
-          }
-          queueName = 'roomCodeCreators';
-          queueData = { roomCode };
-      } else {
-          queueName = 'roomCodeSeekers';
-          queueData = {};
-      }
+    try {
+        await runTransaction(firestore, async (transaction) => {
+            const userRef = doc(firestore, 'users', user.uid);
+            const userDoc = await transaction.get(userRef);
 
-      setIsSearching(true);
-      localStorage.setItem('searchingMatchFee', selectedFee.toString());
-      localStorage.setItem('previousActiveIds', JSON.stringify(userProfile.activeMatchIds || []));
+            if (!userDoc.exists() || (userDoc.data().walletBalance || 0) < fee) {
+                throw new Error("Insufficient balance.");
+            }
+            
+            const prizePool = fee * 2 * (1 - (commissionPercentage / 100));
 
-      try {
-        const queueRef = doc(firestore, queueName, user.uid);
-        await setDoc(queueRef, {
-            ...queueData,
-            userId: user.uid,
-            entryFee: selectedFee,
-            userName: user.displayName,
-            userAvatar: user.photoURL,
-            winRate: userProfile.winRate || 0,
-            rank: userProfile.rank || 0,
-            createdAt: new Date(),
+            const newPlayer: MatchPlayer = {
+                id: user.uid,
+                name: user.displayName || "Player",
+                avatarUrl: user.photoURL || "",
+                winRate: userProfile.winRate || 0,
+            };
+
+            const matchRef = doc(collection(firestore, 'matches'));
+            
+            transaction.set(matchRef, {
+                id: matchRef.id,
+                creatorId: user.uid,
+                status: 'waiting',
+                entryFee: fee,
+                prizePool: prizePool,
+                maxPlayers: 2,
+                playerIds: [user.uid],
+                players: { [user.uid]: newPlayer },
+                createdAt: serverTimestamp(),
+            });
+
+            const transactionRef = doc(collection(firestore, 'transactions'));
+            transaction.set(transactionRef, {
+                userId: user.uid,
+                type: 'entry-fee',
+                amount: -fee,
+                status: 'completed',
+                createdAt: serverTimestamp(),
+                relatedMatchId: matchRef.id,
+                description: `Entry fee for match ${matchRef.id}`
+            });
+
+            transaction.update(userRef, {
+                activeMatchIds: arrayUnion(matchRef.id)
+            });
         });
-        toast({ title: "Searching for a match..." });
-      } catch (error: any) {
-        console.error(`Error entering ${queueName} queue: `, error);
-        toast({ title: "Could not start search", description: error.message, variant: "destructive" });
-        setIsSearching(false);
-        localStorage.removeItem('searchingMatchFee');
-        localStorage.removeItem('previousActiveIds');
-      }
-  }
+        
+        toast({ id: toastId, title: "Match Created!", description: "Your match is now live in the Open Battles list." });
+
+    } catch (error: any) {
+         toast({ id: toastId, title: "Failed to create match", description: error.message, variant: 'destructive' });
+    }
+  };
   
   if (loading || loadingCommission) {
     return <CustomLoader />;
@@ -540,7 +325,7 @@ export default function LobbyPage() {
           <EntryFeeCard
             key={fee}
             fee={fee}
-            onPlay={handlePlayClick}
+            onPlay={handleCreateMatch}
             isLocked={isLocked}
             commissionPercentage={commissionPercentage}
           />
@@ -552,74 +337,6 @@ export default function LobbyPage() {
   return (
     <LobbyContext.Provider value={{ commissionPercentage }}>
         <div className="flex flex-col h-full">
-            {checkedLocalStorage && isSearching && user && userProfile && <SearchingOverlay user={user} userProfile={userProfile} onCancel={handleCancelSearch} />}
-
-            {/* Balance Confirmation Dialog */}
-            <Dialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
-                <DialogContent className="sm:max-w-[425px]">
-                    <DialogHeader>
-                        <DialogTitle className="flex items-center gap-2">
-                            <Wallet className="h-6 w-6 text-primary"/>
-                            Confirm Match Entry
-                        </DialogTitle>
-                        <DialogDescription>
-                            Please confirm that you want to join a match with an entry fee of ₹{selectedFee}.
-                        </DialogDescription>
-                    </DialogHeader>
-                    <div className="space-y-4 py-4">
-                        <div className="flex justify-between items-center text-sm">
-                            <span className="text-muted-foreground">Current Wallet Balance:</span>
-                            <span className="font-medium">₹{(userProfile?.walletBalance ?? 0).toFixed(2)}</span>
-                        </div>
-                        <div className="flex justify-between items-center text-sm">
-                            <span className="text-muted-foreground">Entry Fee:</span>
-                            <span className="font-medium text-destructive">- ₹{selectedFee.toFixed(2)}</span>
-                        </div>
-                        <div className="border-t border-dashed my-2"></div>
-                        <div className="flex justify-between items-center font-semibold text-md">
-                            <span className="text-muted-foreground">Estimated Balance After:</span>
-                            <span>₹{((userProfile?.walletBalance ?? 0) - selectedFee).toFixed(2)}</span>
-                        </div>
-                    </div>
-                    <DialogFooter>
-                        <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
-                        <Button onClick={handleConfirmPlay}>Confirm & Play for ₹{selectedFee}</Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
-
-            {/* Room Code Dialog */}
-            <Dialog open={showRoomCodeDialog} onOpenChange={setShowRoomCodeDialog}>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>Do you have a Ludo King room code?</DialogTitle>
-                        <DialogDescription>
-                            If you have a code, you&apos;ll be matched with someone looking for one.
-                        </DialogDescription>
-                    </DialogHeader>
-                    <div className="py-4 space-y-4">
-                        <div className="flex items-center space-x-2">
-                            <input type="radio" id="has-code" name="roomCodeOption" value="yes" checked={hasRoomCode} onChange={() => setHasRoomCode(true)} />
-                            <Label htmlFor="has-code">Yes, I have a room code</Label>
-                        </div>
-                        {hasRoomCode && (
-                            <div className="pl-6">
-                                <Label htmlFor="room-code-input">Enter 8-digit Room Code</Label>
-                                <Input id="room-code-input" value={roomCode} onChange={e => setRoomCode(e.target.value.replace(/[^0-9]/g, ''))} maxLength={8} placeholder="8-digit code" />
-                            </div>
-                        )}
-                        <div className="flex items-center space-x-2">
-                            <input type="radio" id="no-code" name="roomCodeOption" value="no" checked={!hasRoomCode} onChange={() => setHasRoomCode(false)} />
-                            <Label htmlFor="no-code">No, find a match for me</Label>
-                        </div>
-                    </div>
-                    <DialogFooter>
-                        <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
-                        <Button onClick={enterQueue}>Enter Queue</Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
-            
             <div className="flex-shrink-0 space-y-6">
                 <div className="relative w-full aspect-video rounded-lg overflow-hidden">
                     <Image src="/lobby.banner.png" alt="Lobby Banner" fill className="object-cover" priority />
@@ -637,7 +354,7 @@ export default function LobbyPage() {
                         <DialogContent className="sm:max-w-3xl">
                             <DialogHeader>
                                 <DialogTitle>Select Your Stake</DialogTitle>
-                                <DialogDescription>Choose an entry fee to find an opponent.</DialogDescription>
+                                <DialogDescription>Choose an entry fee to create an open match.</DialogDescription>
                             </DialogHeader>
                             <Tabs defaultValue="low" className="w-full pt-4">
                                 <TabsList className="grid w-full grid-cols-3">
@@ -671,10 +388,10 @@ export default function LobbyPage() {
                                 <DialogTitle>How to Play</DialogTitle>
                             </DialogHeader>
                             <ol className="space-y-3 mt-4 text-sm text-muted-foreground list-decimal list-inside">
-                                <li>Select an entry fee and click <strong>Play</strong>.</li>
-                                <li>Wait for us to find a suitable opponent for you.</li>
-                                <li>Once a match is found, you will be automatically redirected to the match room.</li>
-                                <li>Copy the room code and use it to play in your Ludo King app.</li>
+                                <li>Click <strong>Create New Match</strong> and select your entry fee. Your match will be listed publicly.</li>
+                                <li>Wait for an opponent to join your match from the "Open Battles" list.</li>
+                                <li>Once an opponent joins, the match page will ask for a Ludo King room code. Create one and enter it.</li>
+                                <li>Play the game in your Ludo King app.</li>
                                 <li>After the game, take a screenshot of the win/loss screen.</li>
                                 <li>Come back to the app and submit your result with the screenshot to claim your winnings.</li>
                             </ol>

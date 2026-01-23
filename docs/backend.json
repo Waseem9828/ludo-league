@@ -153,37 +153,6 @@
         "description": "An administrator with elevated privileges",
         "type": "object-extend"
     },
-    "RoomCodeCreator": {
-        "title": "Room Code Creator",
-        "description": "A user in the matchmaking queue who has a Ludo King room code.",
-        "type": "object",
-        "properties": {
-            "userId": {"type": "string"},
-            "entryFee": {"type": "number"},
-            "userName": {"type": "string"},
-            "userAvatar": {"type": "string", "format": "uri"},
-            "createdAt": {"type": "string", "format": "date-time"},
-            "rank": {"type": "number"},
-            "winRate": {"type": "number"},
-            "roomCode": {"type": "string"}
-        },
-        "required": ["userId", "entryFee", "createdAt", "roomCode"]
-    },
-    "RoomCodeSeeker": {
-        "title": "Room Code Seeker",
-        "description": "A user in the matchmaking queue who is looking for an opponent with a room code.",
-        "type": "object",
-        "properties": {
-            "userId": {"type": "string"},
-            "entryFee": {"type": "number"},
-            "userName": {"type": "string"},
-            "userAvatar": {"type": "string", "format": "uri"},
-            "createdAt": {"type": "string", "format": "date-time"},
-            "rank": {"type": "number"},
-            "winRate": {"type": "number"}
-        },
-        "required": ["userId", "entryFee", "createdAt"]
-    },
     "KycApplication": {
       "title": "KYC Application",
       "description": "Stores a user's KYC submission details.",
@@ -270,6 +239,19 @@
             "prizePool": {"type": "number", "description": "Total prize pool."},
             "maxPlayers": {"type": "number", "enum": [2, 4]},
             "playerIds": {"type": "array", "items": {"type": "string"}},
+            "players": {
+                "type": "object",
+                "description": "Map of player objects in the match.",
+                "additionalProperties": {
+                    "type": "object",
+                    "properties": {
+                        "id": {"type": "string"},
+                        "name": {"type": "string"},
+                        "avatarUrl": {"type": "string", "format": "uri"},
+                        "winRate": {"type": "number"}
+                    }
+                }
+            },
             "status": {"type": "string", "enum": ["waiting", "in-progress", "completed", "disputed", "cancelled"]},
             "roomCode": {"type": "string", "description": "Ludo King room code provided by the creator."},
             "createdAt": {"type": "string", "format": "date-time"},
@@ -602,18 +584,6 @@
       },
       "description": "Stores public user profile information."
     },
-    "/roomCodeCreators/{userId}": {
-      "schema": {
-        "$ref": "#/backend/entities/RoomCodeCreator"
-      },
-      "description": "Queue for users who have a room code and are waiting for an opponent."
-    },
-     "/roomCodeSeekers/{userId}": {
-      "schema": {
-        "$ref": "#/backend/entities/RoomCodeSeeker"
-      },
-      "description": "Queue for users who are looking for an opponent with a room code."
-    },
     "/kycApplications/{applicationId}": {
       "schema": {
         "$ref": "#/backend/entities/KycApplication"
@@ -744,5 +714,4 @@
     }
   }
 }
-
     

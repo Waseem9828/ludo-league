@@ -153,7 +153,7 @@ const MatchDetailsCard = ({ match }: { match: Match }) => (
     </div>
 );
 
-const JoinMatchButton = ({ match, user, userProfile, isActionLoading, handleJoinMatch }: { match: Match, user: any, userProfile: UserProfile | null, isActionLoading: boolean, handleJoinMatch: () => void}) => {
+const JoinMatchButton = ({ match, userProfile, isActionLoading, handleJoinMatch }: { match: Match, userProfile: UserProfile | null, isActionLoading: boolean, handleJoinMatch: () => void}) => {
     const hasSufficientBalance = userProfile && userProfile.walletBalance >= match.entryFee;
     const isAlreadyInMatch = userProfile && userProfile.activeMatchIds && userProfile.activeMatchIds.includes(match.id);
     const hasReachedMatchLimit = userProfile && userProfile.activeMatchIds && userProfile.activeMatchIds.length >= 5;
@@ -182,7 +182,7 @@ const JoinMatchButton = ({ match, user, userProfile, isActionLoading, handleJoin
                         <AlertTitle>Insufficient Balance</AlertTitle>
                         <AlertDescription>
                             You do not have enough funds to join this match. 
-                            <Button variant="link" className="p-0 h-auto ml-1" asChild><a href="/wallet">Add funds?</a></Button>
+                            <Button variant="link" className="p-0 h-auto ml-1" asChild><Link href="/wallet">Add funds?</Link></Button>
                         </AlertDescription>
                     </Alert>
                 )}
@@ -443,6 +443,7 @@ export default function MatchPage() {
     if (!firestore || !user || !match || !userProfile || match.status !== 'waiting') return;
 
     setIsActionLoading(true);
+    const { id: toastId } = toast({ title: "Joining match..." });
     try {
       await runTransaction(firestore, async (transaction) => {
         const matchRef = doc(firestore, 'matches', match.id);
@@ -460,14 +461,40 @@ export default function MatchPage() {
         if (Object.keys(currentMatch.players).length >= (currentMatch.maxPlayers ?? 2)) throw new Error("Match is full");
         if (currentUser.activeMatchIds && currentUser.activeMatchIds.length >= 5) throw new Error("You have reached the maximum of 5 active matches.");
 
-        const newPlayer: MatchPlayer = { id: user.uid, name: userProfile.displayName ?? 'Player', avatarUrl: userProfile.photoURL ?? '' };
-        transaction.update(matchRef, { [`players.${user.uid}`]: newPlayer });
+        const newPlayer: MatchPlayer = { 
+            id: user.uid, 
+            name: userProfile.displayName ?? 'Player', 
+            avatarUrl: userProfile.photoURL ?? '',
+            winRate: userProfile.winRate || 0,
+        };
+
+        // All players are now present, ready to start
+        const isNowFull = Object.keys(currentMatch.players).length + 1 === currentMatch.maxPlayers;
+
+        transaction.update(matchRef, { 
+            [`players.${user.uid}`]: newPlayer,
+            playerIds: arrayUnion(user.uid),
+            status: isNowFull ? 'in-progress' : 'waiting',
+        });
+
         transaction.update(userRef, { activeMatchIds: arrayUnion(match.id) });
+
+        const entryFeeTransactionRef = doc(collection(firestore, "transactions"));
+        transaction.set(entryFeeTransactionRef, {
+            userId: user.uid,
+            type: 'entry-fee',
+            amount: -match.entryFee,
+            status: 'completed',
+            createdAt: Timestamp.now(),
+            relatedMatchId: match.id,
+            description: `Entry fee for match ${match.id}`
+        });
+
       });
-      toast({ title: "Successfully Joined!", description: "You have been added to the match." });
+      toast({ id: toastId, title: "Successfully Joined!", description: "You have been added to the match." });
     } catch (error: any) {
       console.error('Error joining match:', error);
-      toast({ title: 'Error Joining Match', description: error.message, variant: 'destructive' });
+      toast({ id: toastId, title: 'Error Joining Match', description: error.message, variant: 'destructive' });
     } finally {
       setIsActionLoading(false);
     }
@@ -531,7 +558,7 @@ export default function MatchPage() {
   const showMatchConcluded = isConcluded;
 
   const ActionArea = () => {
-      if (showJoinButton) return <JoinMatchButton {...{match, user, userProfile, isActionLoading, handleJoinMatch}} />
+      if (showJoinButton) return <JoinMatchButton {...{match, userProfile, isActionLoading, handleJoinMatch}} />
       if (showRoomCodeStage) return <RoomCodeManager match={match} />
       if (showMatchConcluded) return <MatchConcludedCard match={match} />
       // If waiting for players
