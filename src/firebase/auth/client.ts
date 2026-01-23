@@ -8,6 +8,7 @@ import {
   signOut as firebaseSignOut,
   updateProfile,
   sendPasswordResetEmail,
+  type User,
 } from 'firebase/auth';
 import { doc, setDoc, getDocs, query, where, collection, limit, getDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '@/firebase';
@@ -81,16 +82,18 @@ export async function signInWithEmail(email: string, password: string) {
   return userCredential;
 }
 
-export async function signInWithGoogle(referralCode?: string) {
+export async function signInWithGoogle(referralCode?: string): Promise<{ user: User | null; isNewUser: boolean; }> {
   const provider = new GoogleAuthProvider();
   try {
     const result = await signInWithPopup(auth, provider);
     const user = result.user;
+    let isNewUser = false;
 
     const userProfileRef = doc(db, 'users', user.uid);
     const userDoc = await getDoc(userProfileRef);
 
     if (!userDoc.exists()) {
+      isNewUser = true;
       let referredBy = '';
       if (referralCode) {
           const usersRef = collection(db, 'users');
@@ -131,6 +134,7 @@ export async function signInWithGoogle(referralCode?: string) {
           activeMatchIds: [],
       }, { merge: true });
     } else {
+      isNewUser = false;
       // Existing user, just update display name, photo, and last login
       await setDoc(userProfileRef, {
           displayName: user.displayName,
@@ -139,12 +143,12 @@ export async function signInWithGoogle(referralCode?: string) {
       }, { merge: true });
     }
 
-
-    return user;
+    return { user, isNewUser };
+    
   } catch (error: any) {
     if (error.code === 'auth/popup-closed-by-user') {
       // User closed the popup, do nothing
-      return null;
+      return { user: null, isNewUser: false };
     }
     // For other errors, re-throw them
     throw error;

@@ -86,8 +86,14 @@ function SignUpForm() {
    const handleGoogleSignUp = async () => {
     setIsGoogleLoading(true);
     try {
-      await signInWithGoogle(referralCode);
-      toast({ title: "Account Created!", description: "Welcome! You are now being redirected." });
+      const { user, isNewUser } = await signInWithGoogle(referralCode);
+      if (user) {
+        if (isNewUser) {
+          toast({ title: "Account Created!", description: "Welcome! You are now being redirected." });
+        } else {
+          toast({ title: "Login Successful!", description: "Welcome back! Redirecting..." });
+        }
+      }
     } catch (error: any) {
       handleSignupError(error);
     } finally {

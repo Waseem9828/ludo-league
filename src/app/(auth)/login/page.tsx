@@ -77,8 +77,10 @@ export default function LoginPage() {
   const handleGoogleLogin = async () => {
     setIsGoogleLoading(true);
     try {
-      await signInWithGoogle();
-      toast({ title: "Login Successful!", description: "Welcome! Redirecting..." });
+      const { user } = await signInWithGoogle();
+      if (user) {
+          toast({ title: "Login Successful!", description: "Welcome back! Redirecting..." });
+      }
     } catch (error: any) {
       handleLoginError(error);
     } finally {
