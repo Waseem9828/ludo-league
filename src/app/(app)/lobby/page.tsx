@@ -1,3 +1,4 @@
+
 'use client';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -104,7 +105,7 @@ const WaitingMatchCard = ({ match }: { match: Match }) => {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 20 }}
             transition={{ duration: 0.3 }}
-            className="bg-gradient-primary p-2 rounded-full text-primary-foreground shadow-lg"
+            className="bg-gradient-primary p-2 rounded-xl text-primary-foreground shadow-lg"
         >
             <div className="flex items-center justify-between">
                 {/* Player Info */}
@@ -126,7 +127,7 @@ const WaitingMatchCard = ({ match }: { match: Match }) => {
                 <div className="flex-1 flex justify-end">
                     <Button 
                         onClick={handleJoin}
-                        className="bg-white text-primary hover:bg-gray-200 font-bold rounded-full px-6 shadow-md"
+                        className="bg-white text-primary hover:bg-gray-200 font-bold rounded-xl px-6 shadow-md"
                     >
                         Join
                     </Button>
@@ -147,7 +148,7 @@ const OngoingMatchCard = ({ match }: { match: any }) => {
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.9 }}
             transition={{ duration: 0.4, ease: 'easeOut' }}
-            className="bg-gradient-primary p-2 rounded-full text-primary-foreground shadow-lg"
+            className="bg-gradient-primary p-2 rounded-xl text-primary-foreground shadow-lg"
         >
             <div className="flex items-center justify-between">
                 {/* Left Player */}
