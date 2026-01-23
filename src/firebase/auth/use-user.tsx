@@ -30,73 +30,60 @@ export const UserProvider = ({ children }: UserProviderProps) => {
   const [user, setUser] = useState<FirebaseUser | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [loading, setLoading] = useState(true); // The one and only loading state.
+  const [loading, setLoading] = useState(true);
   const firestore = useFirestore();
 
+  // Handle auth state changes
   useEffect(() => {
-    let profileUnsubscribe: (() => void) | null = null;
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      setUser(firebaseUser);
+      setLoading(false); // Auth state is known, so we can stop initial loading
+    });
+    return () => unsubscribe();
+  }, []);
 
-    const authUnsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
-      // First, if a profile listener is active from a previous user, clean it up.
-      if (profileUnsubscribe) {
-        profileUnsubscribe();
+  // Handle user profile and custom claims
+  useEffect(() => {
+    if (!user || !firestore) {
+      // If there's no user or firestore isn't ready, clear profile data
+      setUserProfile(null);
+      setIsAdmin(false);
+      // If user is null, loading is already false from the previous effect.
+      // If user is not null but firestore is not ready, we should indicate loading.
+      if (user) {
+        setLoading(true);
       }
+      return;
+    }
 
-      setLoading(true); // Always start loading when auth state changes.
+    setLoading(true); // Start loading profile data
+    const userRef = doc(firestore, 'users', user.uid);
+    const unsubscribe = onSnapshot(userRef, async (docSnap: DocumentSnapshot) => {
+      if (docSnap.exists()) {
+        const profile = docSnap.data() as UserProfile;
+        setUserProfile(profile);
 
-      if (firebaseUser) {
-        setUser(firebaseUser);
-
-        // Can't get profile without firestore.
-        // This case is handled because the effect depends on `firestore`.
-        // If firestore is null, we'll remain in a loading state until it's available and the effect re-runs.
-        if (!firestore) return;
-
-        const userRef = doc(firestore, 'users', firebaseUser.uid);
-        profileUnsubscribe = onSnapshot(userRef, async (docSnap: DocumentSnapshot) => {
-          if (docSnap.exists()) {
-            const profile = docSnap.data() as UserProfile;
-            setUserProfile(profile);
-
-            // Securely check for admin status via custom claims.
-            try {
-              const tokenResult = await firebaseUser.getIdTokenResult(true); // force refresh
-              setIsAdmin(!!tokenResult.claims.admin);
-            } catch (error) {
-              console.error('Error fetching custom claims:', error);
-              setIsAdmin(false);
-            }
-          } else {
-            // This can happen if the user doc isn't created yet after signup.
-            setUserProfile(null);
-            setIsAdmin(false);
-          }
-          // Only once we have the profile (or know it doesn't exist) are we done loading.
-          setLoading(false);
-        }, (error) => {
-          console.error("Error listening to user profile:", error);
-          setUserProfile(null);
+        try {
+          const tokenResult = await user.getIdTokenResult(true); // force refresh
+          setIsAdmin(!!tokenResult.claims.admin);
+        } catch (error) {
+          console.error('Error fetching custom claims:', error);
           setIsAdmin(false);
-          setLoading(false);
-        });
-
+        }
       } else {
-        // No user is logged in.
-        setUser(null);
         setUserProfile(null);
         setIsAdmin(false);
-        setLoading(false); // We are done loading, there's just no user.
       }
+      setLoading(false); // Profile data loaded
+    }, (error) => {
+      console.error("Error listening to user profile:", error);
+      setUserProfile(null);
+      setIsAdmin(false);
+      setLoading(false); // Error occurred, stop loading
     });
 
-    // Cleanup function for the auth listener.
-    return () => {
-      authUnsubscribe();
-      if (profileUnsubscribe) {
-        profileUnsubscribe();
-      }
-    };
-  }, [firestore]); // This effect depends on firestore, so it will re-run if firestore becomes available.
+    return () => unsubscribe();
+  }, [user, firestore]);
 
   const value = useMemo(
     () => ({
