@@ -51,7 +51,7 @@ export default function LoginPage() {
             break;
         default:
             console.error('Unhandled login error:', error);
-            message = 'An unexpected error occurred. Please check the console for details.';
+            message = `An unexpected error occurred: ${error.code}. Please ensure Email/Password sign-in is enabled in your Firebase project.`;
             break;
     }
     toast({ title: "Login Failed", description: message, variant: "destructive" });

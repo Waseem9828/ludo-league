@@ -63,7 +63,7 @@ function SignUpForm() {
             break;
         default:
             console.error('Unhandled signup error:', error);
-            message = 'An unexpected error occurred. Please check the console for details.';
+            message = `An unexpected error occurred: ${error.code}. This can happen if the Email/Password sign-in provider is disabled in your Firebase Console.`;
             break;
     }
     toast({ title: "Sign Up Failed", description: message, variant: "destructive" });
