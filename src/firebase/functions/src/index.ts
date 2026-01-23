@@ -98,7 +98,8 @@ export const setRole = functions.https.onCall(async (data, context) => {
     const isNowAdmin = role !== 'none';
     
     await admin.auth().setCustomUserClaims(uid, { role: isNowAdmin ? role : null, admin: isNowAdmin ? true : null });
-    await db.collection('users').doc(uid).update({ isAdmin: isNowAdmin, role: isNowAdmin ? role : null });
+    await db.collection('users').doc(uid).set({ isAdmin: isNowAdmin, role: isNowAdmin ? role : null }, { merge: true });
+
 
     if (isNowAdmin) {
       return { message: `Success! User ${uid} has been made a ${role}.` };
@@ -249,114 +250,119 @@ export const onTransactionCreate = functions.firestore
 export const onDepositRequestUpdate = functions.firestore
 .document('depositRequests/{depositId}') 
 .onUpdate(async (change, context) => {
-  const after = change.after.data();
-  const before = change.before.data();
+  try {
+    const after = change.after.data();
+    const before = change.before.data();
 
-  if (after.status === 'approved' && before.status !== 'approved') {
-    const { userId, amount, utr, targetUpiRef } = after;
+    if (after.status === 'approved' && before.status !== 'approved') {
+        const { userId, amount, utr, targetUpiRef } = after;
 
-    if (!targetUpiRef) {
-        console.error(`Deposit request ${context.params.depositId} is missing targetUpiRef.`);
-        return;
-    }
-
-    const transactionRef = db.collection('transactions').doc();
-    await transactionRef.set({
-        userId: userId,
-        type: 'deposit',
-        amount: amount,
-        status: 'completed',
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        description: `Deposit approved via UTR: ${utr}`,
-    });
-
-    await sendNotification(
-        userId,
-        'Deposit Approved!',
-        `Your deposit of ₹${amount} has been approved and added to your wallet.`,
-        '/wallet'
-    );
-    
-    const upiConfigDocRef = db.collection('upiConfiguration').doc(targetUpiRef);
-    const upiConfigSnap = await upiConfigDocRef.get();
-
-    if (upiConfigSnap.exists()) {
-        const upiConfigData = upiConfigSnap.data()!;
-        const newReceivedAmount = (upiConfigData.currentReceived || 0) + amount;
-
-        if (newReceivedAmount >= upiConfigData.paymentLimit) {
-            const nextUpiQuery = db.collection('upiConfiguration').where('isActive', '==', false).limit(1);
-            const nextUpiSnapshot = await nextUpiQuery.get();
-            
-            const batch = db.batch();
-            batch.update(upiConfigDocRef, { isActive: false, currentReceived: newReceivedAmount });
-
-            if(!nextUpiSnapshot.empty) {
-                const nextUpiDoc = nextUpiSnapshot.docs[0];
-                const activeUpiRef = db.collection('upiConfiguration').doc('active');
-                
-                batch.update(nextUpiDoc.ref, { isActive: true });
-                batch.set(activeUpiRef, { activeUpiId: nextUpiDoc.data().upiId, activeUpiRef: nextUpiDoc.id, updatedAt: admin.firestore.FieldValue.serverTimestamp() });
-                
-                console.log(`UPI limit reached for ${upiConfigData.upiId}. Switched to ${nextUpiDoc.data().upiId}.`);
-            } else {
-                console.log("UPI limit reached, but no alternative UPIs available. Deactivating current UPI.");
-            }
-            await batch.commit();
-
-        } else {
-            await upiConfigDocRef.update({ currentReceived: newReceivedAmount });
-        }
-    }
-
-    const userRef = db.doc(`users/${userId}`);
-    const userDoc = await userRef.get();
-
-    if (!userDoc.exists) {
-      return null;
-    }
-    const userData = userDoc.data()!;
-    const referredBy = userData.referredBy;
-
-    if (referredBy && !userData.referralBonusPaid) {
-      try {
-        await db.runTransaction(async (transaction) => {
-          const referrerRef = db.doc(`users/${referredBy}`);
-          const referrerDoc = await transaction.get(referrerRef);
-
-          if (!referrerDoc.exists()) {
+        if (!targetUpiRef) {
+            console.error(`Deposit request ${context.params.depositId} is missing targetUpiRef.`);
             return;
-          }
+        }
 
-          const configRef = db.doc('referralConfiguration/settings');
-          const configDoc = await transaction.get(configRef);
-          const commissionPercentage = configDoc.exists() ? configDoc.data()!.commissionPercentage : 5; // Default 5%
-          
-          const commission = (amount * commissionPercentage) / 100;
-          
-          const commissionTransRef = db.collection('transactions').doc();
-          transaction.set(commissionTransRef, {
-            userId: referredBy,
-            type: 'referral-bonus',
-            amount: commission,
+        const transactionRef = db.collection('transactions').doc();
+        await transactionRef.set({
+            userId: userId,
+            type: 'deposit',
+            amount: amount,
             status: 'completed',
             createdAt: admin.firestore.FieldValue.serverTimestamp(),
-            description: `Referral commission from ${userData.displayName || userId}'s deposit.`
-          });
-          
-           transaction.update(userRef, { referralBonusPaid: true });
+            description: `Deposit approved via UTR: ${utr}`,
         });
-      } catch (error) {
-        console.error("Error processing referral commission: ", error);
-      }
+
+        await sendNotification(
+            userId,
+            'Deposit Approved!',
+            `Your deposit of ₹${amount} has been approved and added to your wallet.`,
+            '/wallet'
+        );
+        
+        const upiConfigDocRef = db.collection('upiConfiguration').doc(targetUpiRef);
+        const upiConfigSnap = await upiConfigDocRef.get();
+
+        if (upiConfigSnap.exists()) {
+            const upiConfigData = upiConfigSnap.data()!;
+            const newReceivedAmount = (upiConfigData.currentReceived || 0) + amount;
+
+            if (newReceivedAmount >= upiConfigData.paymentLimit) {
+                const nextUpiQuery = db.collection('upiConfiguration').where('isActive', '==', false).limit(1);
+                const nextUpiSnapshot = await nextUpiQuery.get();
+                
+                const batch = db.batch();
+                batch.update(upiConfigDocRef, { isActive: false, currentReceived: newReceivedAmount });
+
+                if(!nextUpiSnapshot.empty) {
+                    const nextUpiDoc = nextUpiSnapshot.docs[0];
+                    const activeUpiRef = db.collection('upiConfiguration').doc('active');
+                    
+                    batch.update(nextUpiDoc.ref, { isActive: true });
+                    batch.set(activeUpiRef, { activeUpiId: nextUpiDoc.data().upiId, activeUpiRef: nextUpiDoc.id, updatedAt: admin.firestore.FieldValue.serverTimestamp() });
+                    
+                    console.log(`UPI limit reached for ${upiConfigData.upiId}. Switched to ${nextUpiDoc.data().upiId}.`);
+                } else {
+                    console.log("UPI limit reached, but no alternative UPIs available. Deactivating current UPI.");
+                }
+                await batch.commit();
+
+            } else {
+                await upiConfigDocRef.update({ currentReceived: newReceivedAmount });
+            }
+        }
+
+        const userRef = db.doc(`users/${userId}`);
+        const userDoc = await userRef.get();
+
+        if (!userDoc.exists()) {
+        return null;
+        }
+        const userData = userDoc.data()!;
+        const referredBy = userData.referredBy;
+
+        if (referredBy && !userData.referralBonusPaid) {
+        try {
+            await db.runTransaction(async (transaction) => {
+            const referrerRef = db.doc(`users/${referredBy}`);
+            const referrerDoc = await transaction.get(referrerRef);
+
+            if (!referrerDoc.exists()) {
+                return;
+            }
+
+            const configRef = db.doc('referralConfiguration/settings');
+            const configDoc = await transaction.get(configRef);
+            const commissionPercentage = configDoc.exists() ? configDoc.data()!.commissionPercentage : 5; // Default 5%
+            
+            const commission = (amount * commissionPercentage) / 100;
+            
+            const commissionTransRef = db.collection('transactions').doc();
+            transaction.set(commissionTransRef, {
+                userId: referredBy,
+                type: 'referral-bonus',
+                amount: commission,
+                status: 'completed',
+                createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                description: `Referral commission from ${userData.displayName || userId}'s deposit.`
+            });
+            
+            transaction.update(userRef, { referralBonusPaid: true });
+            });
+        } catch (error) {
+            console.error("Error processing referral commission: ", error);
+        }
+        }
+    } else if (after.status === 'rejected' && before.status !== 'rejected') {
+        await sendNotification(
+            after.userId,
+            'Deposit Rejected',
+            `Your deposit request of ₹${after.amount} was rejected. Reason: ${after.rejectionReason || 'Not specified'}.`,
+            '/wallet'
+        );
     }
-  } else if (after.status === 'rejected' && before.status !== 'rejected') {
-     await sendNotification(
-        after.userId,
-        'Deposit Rejected',
-        `Your deposit request of ₹${after.amount} was rejected. Reason: ${after.rejectionReason || 'Not specified'}.`,
-        '/wallet'
-    );
+  } catch (error) {
+      console.error(`Error in onDepositRequestUpdate for deposit ${context.params.depositId}:`, error);
+      await change.after.ref.set({ status: 'failed', error: 'An internal error occurred during processing.' }, { merge: true }).catch();
   }
   return null;
 });
@@ -364,46 +370,51 @@ export const onDepositRequestUpdate = functions.firestore
 export const onWithdrawalRequestUpdate = functions.firestore
 .document('withdrawalRequests/{withdrawalId}')
 .onUpdate(async (change, context) => {
-    const after = change.after.data();
-    const before = change.before.data();
-    const { userId, amount } = after;
+    try {
+        const after = change.after.data();
+        const before = change.before.data();
+        const { userId, amount } = after;
 
-    if (after.status === 'approved' && before.status !== 'approved') {
-        const transactionRef = db.collection('transactions').doc();
-        await transactionRef.set({
-            userId: userId,
-            type: 'withdrawal',
-            amount: -amount,
-            status: 'completed',
-            createdAt: admin.firestore.FieldValue.serverTimestamp(),
-            description: `Withdrawal of ₹${amount}`,
-            relatedId: context.params.withdrawalId,
-        });
+        if (after.status === 'approved' && before.status !== 'approved') {
+            const transactionRef = db.collection('transactions').doc();
+            await transactionRef.set({
+                userId: userId,
+                type: 'withdrawal',
+                amount: -amount,
+                status: 'completed',
+                createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                description: `Withdrawal of ₹${amount}`,
+                relatedId: context.params.withdrawalId,
+            });
 
-        await sendNotification(
-            userId,
-            'Withdrawal Approved!',
-            `Your withdrawal request of ₹${amount} has been approved.`,
-            '/wallet'
-        );
-    } else if (after.status === 'rejected' && before.status !== 'rejected') {
-        const transactionRef = db.collection('transactions').doc();
-        await transactionRef.set({
-            userId: userId,
-            type: 'withdrawal_refund',
-            amount: amount, 
-            status: 'completed',
-            createdAt: admin.firestore.FieldValue.serverTimestamp(),
-            description: `Refund for rejected withdrawal request of ₹${amount}`,
-            relatedId: context.params.withdrawalId,
-        });
-        
-        await sendNotification(
-            userId,
-            'Withdrawal Rejected',
-            `Your withdrawal request of ₹${amount} was rejected. Reason: ${after.rejectionReason || 'Not specified'}.`,
-            '/wallet'
-        );
+            await sendNotification(
+                userId,
+                'Withdrawal Approved!',
+                `Your withdrawal request of ₹${amount} has been approved.`,
+                '/wallet'
+            );
+        } else if (after.status === 'rejected' && before.status !== 'rejected') {
+            const transactionRef = db.collection('transactions').doc();
+            await transactionRef.set({
+                userId: userId,
+                type: 'withdrawal_refund',
+                amount: amount, 
+                status: 'completed',
+                createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                description: `Refund for rejected withdrawal request of ₹${amount}`,
+                relatedId: context.params.withdrawalId,
+            });
+            
+            await sendNotification(
+                userId,
+                'Withdrawal Rejected',
+                `Your withdrawal request of ₹${amount} was rejected. Reason: ${after.rejectionReason || 'Not specified'}.`,
+                '/wallet'
+            );
+        }
+    } catch (error) {
+        console.error(`Error in onWithdrawalRequestUpdate for withdrawal ${context.params.withdrawalId}:`, error);
+        await change.after.ref.set({ status: 'failed', error: 'An internal error occurred during processing.' }, { merge: true }).catch();
     }
     return null;
 });
@@ -540,10 +551,9 @@ export const declareWinnerAndDistribute = functions.https.onCall(async (data, co
     }
 
     const matchRef = db.collection('matches').doc(matchId);
-    const commissionConfigRef = db.doc('matchCommission/settings');
-
+    
     try {
-        const commissionConfigSnap = await commissionConfigRef.get();
+        const commissionConfigSnap = await db.doc('matchCommission/settings').get();
         const commissionPercentage = commissionConfigSnap.exists() && commissionConfigSnap.data()!.percentage ? commissionConfigSnap.data()!.percentage : 10;
         
         let winningPlayerName = 'Unknown Player';
@@ -641,7 +651,8 @@ export const declareWinnerAndDistribute = functions.https.onCall(async (data, co
         if (error instanceof HttpsError) {
             throw error;
         }
-        throw new HttpsError('internal', 'An unexpected error occurred during prize distribution.', error as any);
+        const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
+        throw new HttpsError('internal', `An unexpected error occurred during prize distribution: ${errorMessage}`);
     }
 });
 
@@ -734,7 +745,7 @@ export const newDailyLoginBonus = functions.https.onCall(async (data, context) =
         if (error instanceof functions.https.HttpsError) {
             throw error;
         }
-        throw new functions.https.HttpsError('internal', 'An unexpected error occurred while claiming the bonus.', error as any);
+        throw new functions.https.HttpsError('internal', 'An unexpected error occurred while claiming the bonus. Please check the function logs for more details.');
     }
 });
 
@@ -829,56 +840,60 @@ export const distributeTournamentWinnings = functions.https.onCall(async (data, 
 export const onMatchComplete = functions.firestore
   .document('matches/{matchId}')
   .onUpdate(async (change, context) => {
-    const before = change.before.data();
-    const after = change.after.data();
+    try {
+        const before = change.before.data();
+        const after = change.after.data();
 
-    if (after.status === 'completed' && before.status !== 'completed') {
-      const { playerIds, winnerId } = after;
+        if (after.status === 'completed' && before.status !== 'completed') {
+            const { playerIds, winnerId } = after;
 
-      const tasksSnap = await db.collection('tasks').where('enabled', '==', true).get();
-      if (tasksSnap.empty) return;
+            const tasksSnap = await db.collection('tasks').where('enabled', '==', true).get();
+            if (tasksSnap.empty) return;
 
-      const tasks = tasksSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            const tasks = tasksSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
-      for (const playerId of playerIds) {
-        for (const task of tasks) {
-          const progressRef = db.doc(`user_tasks/${playerId}/tasks/${task.id}`);
-          
-          try {
-            await db.runTransaction(async (transaction) => {
-                const progressDoc = await transaction.get(progressRef);
-                let progressData;
-                if (!progressDoc.exists()) {
-                    progressData = { progress: 0, completed: false, claimed: false };
-                } else {
-                    progressData = progressDoc.data()!;
-                }
+            for (const playerId of playerIds) {
+                for (const task of tasks) {
+                    const progressRef = db.doc(`user_tasks/${playerId}/tasks/${task.id}`);
+                    
+                    try {
+                        await db.runTransaction(async (transaction) => {
+                            const progressDoc = await transaction.get(progressRef);
+                            let progressData;
+                            if (!progressDoc.exists()) {
+                                progressData = { progress: 0, completed: false, claimed: false };
+                            } else {
+                                progressData = progressDoc.data()!;
+                            }
 
-                if (progressData.completed) return;
+                            if (progressData.completed) return;
 
-                let progressMade = false;
-                if (task.type === 'PLAY_COUNT') {
-                    progressData.progress += 1;
-                    progressMade = true;
-                }
-                if (task.type === 'WIN_BASED' && playerId === winnerId) {
-                    progressData.progress += 1;
-                    progressMade = true;
-                }
+                            let progressMade = false;
+                            if (task.type === 'PLAY_COUNT') {
+                                progressData.progress += 1;
+                                progressMade = true;
+                            }
+                            if (task.type === 'WIN_BASED' && playerId === winnerId) {
+                                progressData.progress += 1;
+                                progressMade = true;
+                            }
 
-                if(progressMade) {
-                    if(progressData.progress >= task.target) {
-                        progressData.completed = true;
-                        sendNotification(playerId, 'Mission Complete!', `You have completed the mission: "${task.title}". Go to the Missions page to claim your reward!`, '/tasks');
+                            if(progressMade) {
+                                if(progressData.progress >= task.target) {
+                                    progressData.completed = true;
+                                    sendNotification(playerId, 'Mission Complete!', `You have completed the mission: "${task.title}". Go to the Missions page to claim your reward!`, '/tasks');
+                                }
+                                transaction.set(progressRef, progressData, { merge: true });
+                            }
+                        });
+                    } catch (e) {
+                        console.error(`Error updating task progress for user ${playerId}, task ${task.id}:`, e);
                     }
-                    transaction.set(progressRef, progressData, { merge: true });
                 }
-            });
-          } catch (e) {
-              console.error(`Error updating task progress for user ${playerId}, task ${task.id}:`, e);
-          }
+            }
         }
-      }
+    } catch (error) {
+        console.error(`Error in onMatchComplete for match ${context.params.matchId}:`, error);
     }
   });
 
