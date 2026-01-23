@@ -24,10 +24,14 @@ service cloud.firestore {
     function isMatchAdmin() {
       return request.auth != null && (request.auth.token.role == 'matchAdmin' || isSuperAdmin());
     }
+    function isAdmin() {
+      return request.auth != null && request.auth.token.admin == true;
+    }
 
     // --- User Profiles ---
     match /users/{userId} {
-      allow read: if request.auth != null;
+      allow get: if request.auth != null;
+      allow list: if isAdmin();
       allow update, delete: if isOwner(userId);
       allow create: if isOwner(userId);
     }
@@ -38,7 +42,6 @@ service cloud.firestore {
     }
 
     // --- Publicly Readable Data ---
-    // These are readable by anyone, even unauthenticated users, to prevent permission errors on page load.
     match /tournaments/{doc=**}   { allow read: if true; }
     match /announcements/{docId} { allow read: if true; }
     match /news/{docId}          { allow read: if true; }
@@ -47,7 +50,6 @@ service cloud.firestore {
     match /dashboardCardImages/{docId} { allow read: if true; }
     
     // --- App Settings (e.g., for QR codes) ---
-    // These should also be publicly readable to avoid errors on load.
     match /upiConfiguration/{doc=**} { allow read: if true; }
     match /referralConfiguration/settings { allow read: if true; }
     match /bonus_config/settings { allow read: if true; }
@@ -58,7 +60,7 @@ service cloud.firestore {
     match /matches/{matchId} {
       allow read: if request.auth != null;
       allow list: if request.auth != null;
-      allow update: if request.auth != null && request.resource.data.playerIds.hasAny([request.auth.uid]);
+      allow update: if (request.auth != null && request.resource.data.playerIds.hasAny([request.auth.uid])) || isAdmin();
     }
     
     // --- Match Results ---
@@ -71,16 +73,16 @@ service cloud.firestore {
     match /depositRequests/{depositId} {
         allow create: if isOwner(request.resource.data.userId);
         allow get: if isOwner(resource.data.userId) || isDepositAdmin();
-        allow list: if (request.auth.uid == request.query.where.userId) || isDepositAdmin();
+        allow list: if isDepositAdmin();
     }
     match /withdrawalRequests/{withdrawalId} {
         allow create: if isOwner(request.resource.data.userId);
         allow get: if isOwner(resource.data.userId) || isWithdrawalAdmin();
-        allow list: if (request.auth.uid == request.query.where.userId) || isWithdrawalAdmin();
+        allow list: if isWithdrawalAdmin();
     }
     match /transactions/{transactionId} {
-        allow get: if isOwner(resource.data.userId) || isSuperAdmin();
-        allow list: if (request.auth.uid == request.query.where.userId) || isSuperAdmin();
+        allow get: if isOwner(resource.data.userId) || isAdmin();
+        allow list: if isAdmin();
     }
 
 
@@ -92,12 +94,13 @@ service cloud.firestore {
 
     // --- User-Specific Private Data ---
     match /kycApplications/{kycId} {
-      allow read: if isOwner(resource.data.userId) || isKycAdmin();
+      allow get: if isOwner(resource.data.userId) || isKycAdmin();
+      allow list: if isKycAdmin();
       allow create: if isOwner(request.resource.data.userId);
     }
     
     match /supportChats/{userId}/{doc=**} {
-      allow read, write: if isOwner(userId) || isSuperAdmin();
+      allow read, write: if isOwner(userId) || isAdmin();
     }
 
     match /user_tasks/{userId}/{doc=**} {
