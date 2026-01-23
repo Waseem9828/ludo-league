@@ -1,5 +1,4 @@
 
-
 'use client';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -595,7 +594,7 @@ export default function LobbyPage() {
             <h2 className="text-2xl font-bold tracking-tight">Create New Match</h2>
             <Dialog>
                 <DialogTrigger asChild>
-                    <Button variant="outline" size="sm">
+                    <Button variant="outline" size="sm" className="animate-pulse shadow-lg shadow-primary/50">
                         <Info className="mr-2 h-4 w-4"/> How to Play
                     </Button>
                 </DialogTrigger>
