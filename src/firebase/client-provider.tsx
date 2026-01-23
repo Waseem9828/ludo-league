@@ -2,6 +2,7 @@
 
 import { UserProvider } from './auth/use-user';
 import { FirebaseProvider } from './provider';
+import { SettingsProvider } from '@/context/settings-provider';
 
 export function FirebaseClientProvider({
   children,
@@ -10,9 +11,11 @@ export function FirebaseClientProvider({
 }) {
   return (
     <FirebaseProvider>
+      <SettingsProvider>
         <UserProvider>
             {children}
         </UserProvider>
+      </SettingsProvider>
     </FirebaseProvider>
   );
 }
