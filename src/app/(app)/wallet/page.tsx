@@ -25,7 +25,7 @@ import { cn } from "@/lib/utils"
 import { ArrowDownLeft, ArrowUpRight, UploadCloud, DownloadCloud, Landmark, Wallet as WalletIcon, AlertCircle, Loader2, ScanBarcode, ExternalLink, History, ArrowLeft, AlertTriangle } from "lucide-react"
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert"
 import { useUser, useFirestore, storage } from "@/firebase"
-import { collection, query, where, onSnapshot, orderBy, addDoc, serverTimestamp, doc, limit, type QueryDocumentSnapshot, getDocs } from "firebase/firestore"
+import { collection, query, where, onSnapshot, orderBy, addDoc, serverTimestamp, doc, limit, type QueryDocumentSnapshot, runTransaction } from "firebase/firestore"
 import { useEffect, useState, useMemo } from "react"
 import type { Transaction, UpiConfiguration, DepositRequest, WithdrawalRequest } from "@/lib/types"
 import { useToast } from "@/hooks/use-toast"
@@ -247,38 +247,41 @@ export default function WalletPage() {
         toast({title: "UTR / Transaction ID is required.", variant: "destructive"});
         return;
     }
-    
-    // UTR duplicate check
-    const q = query(collection(firestore, "depositRequests"), where("utr", "==", utr));
-    const snap = await getDocs(q);
-    if(!snap.empty){
-        toast({ title: "UTR already used", description: "This transaction ID has already been submitted.", variant: "destructive" });
-        return;
-    }
 
     setIsSubmitting(true);
     const { id: toastId } = toast({ title: 'Submitting deposit request...' });
+
     try {
-        const compressedFile = await compressImage(depositScreenshot);
-        
-        const storageRef = ref(storage, `deposits/${user.uid}/${Date.now()}-${compressedFile.name}`);
+        await runTransaction(firestore, async (transaction) => {
+            const utrRef = doc(firestore, "submittedUTRs", utr);
+            const utrDoc = await transaction.get(utrRef);
 
-        const uploadResult = await uploadBytes(storageRef, compressedFile);
-        const screenshotUrl = await getDownloadURL(uploadResult.ref);
+            if (utrDoc.exists()) {
+                throw new Error("This UTR has already been submitted.");
+            }
 
-        await addDoc(collection(firestore, 'depositRequests'), {
-            userId: user.uid,
-            amount: depositAmount,
-            utr,
-            screenshotUrl,
-            status: 'pending',
-            createdAt: serverTimestamp(),
-            userName: user.displayName, // For easier review in admin panel
-            userAvatar: user.photoURL,
-            targetUpiId: activeUpi.id,
-            targetUpiRef: activeUpi.ref
+            const compressedFile = await compressImage(depositScreenshot);
+            const storageRef = ref(storage, `deposits/${user.uid}/${Date.now()}-${compressedFile.name}`);
+            const uploadResult = await uploadBytes(storageRef, compressedFile);
+            const screenshotUrl = await getDownloadURL(uploadResult.ref);
+
+            const depositRef = doc(collection(firestore, 'depositRequests'));
+            transaction.set(depositRef, {
+                userId: user.uid,
+                amount: depositAmount,
+                utr,
+                screenshotUrl,
+                status: 'pending',
+                createdAt: serverTimestamp(),
+                userName: user.displayName, 
+                userAvatar: user.photoURL,
+                targetUpiId: activeUpi.id,
+                targetUpiRef: activeUpi.ref
+            });
+
+            transaction.set(utrRef, { userId: user.uid, submittedAt: serverTimestamp() });
         });
-        
+
         toast({ id: toastId, title: "Deposit request submitted successfully.", description: "Your request is under review and will be processed shortly.", className: 'bg-green-100 text-green-800' });
         (e.target as HTMLFormElement).reset();
         setDepositScreenshot(null);
@@ -341,7 +344,7 @@ export default function WalletPage() {
   return (
     <div className="container mx-auto max-w-2xl p-4 md:p-6 space-y-6">
         <div className="relative w-full aspect-video md:aspect-[21/9] rounded-lg overflow-hidden mb-6 shadow-lg">
-            <Image src="/wallet-banner.png" alt="Wallet Banner" fill className="object-cover" priority />
+            <Image src="/wallet.banner.png" alt="Wallet Banner" fill className="object-cover" priority />
         </div>
         <Card className="shadow-md">
             <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">

@@ -8,7 +8,7 @@ const path = require('path');
 
 const projectId = 'studio-4431476254-c1156';
 // The bucket name was corrected to match what was created in the Firebase Console.
-const bucketName = 'studio-4431476254-c1156.appspot.com';
+const bucketName = 'studio-4431476254-c1156.firebasestorage.app';
 
 // Read the CORS configuration from the cors.json file
 const corsConfiguration = JSON.parse(fs.readFileSync(path.join(__dirname, 'cors.json'), 'utf8'));
@@ -26,7 +26,7 @@ async function setCorsConfiguration() {
   } catch (error) {
     console.error('An error occurred while setting the CORS configuration:');
     if (error.code === 404) {
-      console.error(`Error: The bucket "${bucketName}" does not exist.`);
+      console.error(`Error: The bucket \"${bucketName}\" does not exist.`);
       console.error('Please double-check the name in the Firebase Console.');
     } else if (error.code === 403) {
         console.error(`Error: Permission denied. The account you are logged in with in gcloud does not have permission to edit the bucket.`);
