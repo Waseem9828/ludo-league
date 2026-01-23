@@ -1,3 +1,4 @@
+
 'use client';
 import Image from 'next/image';
 import {
@@ -37,8 +38,10 @@ import {
   getDocs,
   getDoc,
   where,
-  query
+  query,
+  updateDoc
 } from 'firebase/firestore';
+import { getFunctions, httpsCallable } from 'firebase/functions';
 import { useEffect, useState, useCallback } from 'react';
 import type { Match, MatchPlayer, MatchResult, UserProfile, Transaction } from '@/lib/types';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -254,71 +257,12 @@ export default function AdminMatchDetailPage() {
     if(!firestore || !match || !adminUser) return;
     setIsProcessing(true);
 
-    const loserId = Object.keys(match.players).find(pId => pId !== winnerId);
-    if(!loserId) {
-        toast({ title: 'Error', description: 'Could not determine loser.', variant: 'destructive' });
-        setIsProcessing(false);
-        return;
-    }
+    const functions = getFunctions();
+    const declareWinnerFn = httpsCallable(functions, 'declareWinnerAndDistribute');
 
     try {
-        await runTransaction(firestore, async (transaction) => {
-            const matchRef = doc(firestore, 'matches', match.id);
-            const winnerRef = doc(firestore, 'users', winnerId);
-            const loserRef = doc(firestore, 'users', loserId);
-            const transactionRef = doc(collection(firestore, 'transactions'));
-
-            const matchDoc = await transaction.get(matchRef);
-            if (!matchDoc.exists() || (matchDoc.data().status !== 'disputed' && matchDoc.data().status !== 'in-progress')) {
-                throw new Error('Match is not in a resolvable state.');
-            }
-
-            const winnerDoc = await transaction.get(winnerRef);
-            const loserDoc = await transaction.get(loserRef);
-            if(!winnerDoc.exists() || !loserDoc.exists()) {
-                throw new Error('One or both players not found.');
-            }
-
-            const prize = match.prizePool;
-            const winnerData = winnerDoc.data() as UserProfile;
-            const loserData = loserDoc.data() as UserProfile;
-            const winnerNewBalance = (winnerData.walletBalance || 0) + prize;
-
-            // Update match
-            transaction.update(matchRef, {
-                status: 'completed',
-                winnerId: winnerId,
-                loserId: loserId,
-                prizeDistributed: true,
-                resolvedBy: adminUser.uid, // Admin tracking
-                resolvedAt: Timestamp.now()
-            });
-
-            // Update winner
-            transaction.update(winnerRef, { 
-                walletBalance: winnerNewBalance,
-                totalMatchesWon: (winnerData.totalMatchesWon || 0) + 1,
-                totalMatchesPlayed: (winnerData.totalMatchesPlayed || 0) + 1
-            });
-
-            // Update loser
-            transaction.update(loserRef, { 
-                totalMatchesPlayed: (loserData.totalMatchesPlayed || 0) + 1
-            });
-
-            // Create transaction record
-            transaction.set(transactionRef, {
-                userId: winnerId,
-                amount: prize,
-                type: 'winnings',
-                status: 'completed',
-                description: `Prize for match ${match.id}`,
-                createdAt: Timestamp.now(),
-                relatedMatchId: match.id
-            } as Omit<Transaction, 'id'>);
-        });
-
-        toast({ title: 'Winner Declared!', description: `₹${match.prizePool} has been awarded to the winner.`, className: 'bg-green-100 text-green-800'});
+        const result = await declareWinnerFn({ matchId: match.id, winnerId });
+        toast({ title: 'Winner Declared!', description: (result.data as any).message, className: 'bg-green-100 text-green-800'});
         router.push('/admin/matches');
 
     } catch (error: any) {
@@ -336,7 +280,7 @@ export default function AdminMatchDetailPage() {
             const matchRef = doc(firestore, 'matches', match.id);
             const matchDoc = await transaction.get(matchRef);
 
-             if (!matchDoc.exists() || !['in-progress', 'disputed'].includes(matchDoc.data().status as string)) {
+             if (!matchDoc.exists() || !['in-progress', 'disputed', 'waiting'].includes(matchDoc.data()?.status as string)) {
                 throw new Error('Match cannot be cancelled in its current state.');
             }
 
@@ -348,23 +292,16 @@ export default function AdminMatchDetailPage() {
 
             // Refund players
             for(const playerId of Object.keys(match.players)) {
-                const playerRef = doc(firestore, 'users', playerId);
-                const playerDoc = await transaction.get(playerRef);
-                if(playerDoc.exists()){
-                    const newBalance = (playerDoc.data().walletBalance || 0) + match.entryFee;
-                    transaction.update(playerRef, { walletBalance: newBalance });
-
-                    const refundTransactionRef = doc(collection(firestore, 'transactions'));
-                    transaction.set(refundTransactionRef, {
-                        userId: playerId,
-                        amount: match.entryFee,
-                        type: 'refund',
-                        status: 'completed',
-                        description: `Refund for cancelled match ${match.id}`,
-                        createdAt: Timestamp.now(),
-                        relatedMatchId: match.id
-                    } as Omit<Transaction, 'id'>);
-                }
+                const refundTransactionRef = doc(collection(firestore, 'transactions'));
+                transaction.set(refundTransactionRef, {
+                    userId: playerId,
+                    amount: match.entryFee,
+                    type: 'refund',
+                    status: 'completed',
+                    description: `Refund for cancelled match ${match.id}`,
+                    createdAt: Timestamp.now(),
+                    relatedMatchId: match.id
+                });
             }
         });
 
@@ -383,9 +320,7 @@ export default function AdminMatchDetailPage() {
     setIsProcessing(true);
     try {
         const matchRef = doc(firestore, 'matches', id);
-        const batch = writeBatch(firestore);
-        batch.update(matchRef, { roomCode: null });
-        await batch.commit();
+        await updateDoc(matchRef, { roomCode: null });
         toast({ title: 'Room Code Removed' });
     } catch (error: any) {
         toast({ title: 'Error', description: 'Could not remove room code.', variant: 'destructive'});
@@ -416,7 +351,7 @@ export default function AdminMatchDetailPage() {
 
             <div className="space-y-6">
                  <MatchDetailsCard match={match} onRemoveRoomCode={handleRemoveRoomCode} isProcessing={isProcessing} />
-                 {(match.status === 'disputed' || match.status === 'in-progress') && (
+                 {(match.status === 'disputed' || match.status === 'in-progress' || match.status === 'waiting') && (
                     <AdminActionCard match={match} onDeclareWinner={handleDeclareWinner} onCancelMatch={handleCancelMatch} isProcessing={isProcessing} />
                  )}
                  {match.prizeDistributed && (

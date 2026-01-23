@@ -1,3 +1,4 @@
+
 'use client';
 import { useState, useEffect } from 'react';
 import {
@@ -35,6 +36,7 @@ import { cn } from '@/lib/utils';
 import type { Match, Tournament } from '@/lib/types';
 import { useRole } from '@/hooks/useRole';
 import { useRouter } from 'next/navigation';
+import { getFunctions, httpsCallable } from 'firebase/functions';
 
 
 interface StatCardProps {
@@ -45,14 +47,13 @@ interface StatCardProps {
   href?: string;
   loading?: boolean;
   className?: string;
-  isLink?: boolean;
 }
 
-const StatCard = ({ title, value, description, icon: Icon, href, loading, className, isLink = false }: StatCardProps) => {
-    const content = (
+const StatCard = ({ title, value, description, icon: Icon, href, loading, className }: StatCardProps) => {
+    const cardContent = (
         <Card className={cn(
             "shadow-lg border-border/10 hover:shadow-xl transition-shadow duration-300",
-            isLink && "hover:border-primary/50 cursor-pointer",
+            href && "hover:border-primary/50 cursor-pointer",
             className
         )}>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -70,7 +71,7 @@ const StatCard = ({ title, value, description, icon: Icon, href, loading, classN
         </Card>
     );
 
-    return isLink && href ? <Link href={href}>{content}</Link> : content;
+    return href ? <Link href={href}>{cardContent}</Link> : cardContent;
 };
 
 
@@ -85,8 +86,6 @@ export default function AdminDashboardPage() {
         pendingDeposits: 0,
         pendingWithdrawals: 0,
         disputedMatches: 0,
-        liveTournaments: 0,
-        waitingMatches: 0,
     });
     const [statsLoading, setStatsLoading] = useState(true);
     
@@ -121,29 +120,21 @@ export default function AdminDashboardPage() {
     useEffect(() => {
         if (!firestore || role !== 'superAdmin') return;
 
-        setStatsLoading(true);
-
-        const queries = [
-            { key: 'totalUsers', ref: collection(firestore, 'users') },
-            { key: 'pendingKyc', ref: query(collection(firestore, 'kycApplications'), where('status', '==', 'pending')) },
-            { key: 'pendingDeposits', ref: query(collection(firestore, 'depositRequests'), where('status', '==', 'pending')) },
-            { key: 'pendingWithdrawals', ref: query(collection(firestore, 'withdrawalRequests'), where('status', '==', 'pending')) },
-            { key: 'disputedMatches', ref: query(collection(firestore, 'matches'), where('status', '==', 'disputed')) },
-            { key: 'liveTournaments', ref: query(collection(firestore, 'tournaments'), where('status', '==', 'live')) },
-            { key: 'waitingMatches', ref: query(collection(firestore, 'matches'), where('status', '==', 'waiting')) },
-        ];
-
-        const unsubscribes = queries.map(({ key, ref }) => {
-            return onSnapshot(ref, (snapshot) => {
-                setStats(prevStats => ({ ...prevStats, [key]: snapshot.size }));
-            });
-        });
-
-        setStatsLoading(false);
-
-        return () => {
-            unsubscribes.forEach(unsub => unsub());
+        const fetchStats = async () => {
+             setStatsLoading(true);
+            try {
+                const functions = getFunctions();
+                const getStats = httpsCallable(functions, 'getAdminDashboardStats');
+                const result = await getStats();
+                setStats(result.data as any);
+            } catch (error) {
+                console.error("Error fetching dashboard stats:", error);
+            } finally {
+                setStatsLoading(false);
+            }
         };
+
+       fetchStats();
     }, [role, firestore]);
 
     useEffect(() => {
@@ -188,7 +179,7 @@ export default function AdminDashboardPage() {
                     dailyData[date].revenue += revenueAmount;
                     if (data.type === 'match_commission') matchCommission += revenueAmount;
                     if (data.type === 'tournament_commission') tournamentCommission += revenueAmount;
-                } else if (data.type === 'referral-bonus' || data.type === 'daily_bonus') {
+                } else if (data.type === 'referral-bonus' || data.type === 'daily_bonus' || data.type === 'task-reward') {
                     const expenseAmount = data.amount || 0;
                     totalExpenses += expenseAmount;
                     totalBonus += expenseAmount;
@@ -235,17 +226,11 @@ export default function AdminDashboardPage() {
 
         {/* Actionable Live Stats */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <StatCard isLink href="/admin/tournaments" title="Live Tournaments" value={stats.liveTournaments.toLocaleString()} icon={CircleDashed} loading={statsLoading} className="border-red-500/50 bg-red-500/10" />
-            <StatCard isLink href="/admin/matches" title="Waiting Matches" value={stats.waitingMatches.toLocaleString()} icon={Hourglass} loading={statsLoading} className="border-blue-500/50 bg-blue-500/10" />
-            <StatCard isLink href="/admin/matches" title="Disputed Matches" value={stats.disputedMatches.toLocaleString()} icon={Swords} loading={statsLoading} className="border-amber-500/50 bg-amber-500/10" />
-             <StatCard isLink href="/admin/users" title="Total Users" value={stats.totalUsers.toLocaleString()} icon={Users} loading={statsLoading} />
-        </div>
-
-         {/* Pending Requests */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-             <StatCard isLink href="/admin/kyc-requests" title="Pending KYC" value={stats.pendingKyc.toLocaleString()} icon={ShieldCheck} loading={statsLoading} />
-             <StatCard isLink href="/admin/deposits" title="Pending Deposits" value={stats.pendingDeposits.toLocaleString()} icon={TrendingUp} loading={statsLoading} />
-             <StatCard isLink href="/admin/withdrawals" title="Pending Withdrawals" value={stats.pendingWithdrawals.toLocaleString()} icon={TrendingDown} loading={statsLoading} />
+             <StatCard href="/admin/users" title="Total Users" value={stats.totalUsers.toLocaleString()} icon={Users} loading={statsLoading} />
+             <StatCard href="/admin/matches?filter=disputed" title="Disputed Matches" value={stats.disputedMatches.toLocaleString()} icon={Swords} loading={statsLoading} className="border-amber-500/50 bg-amber-500/10" />
+             <StatCard href="/admin/kyc-requests" title="Pending KYC" value={stats.pendingKyc.toLocaleString()} icon={ShieldCheck} loading={statsLoading} />
+             <StatCard href="/admin/deposits" title="Pending Deposits" value={stats.pendingDeposits.toLocaleString()} icon={TrendingUp} loading={statsLoading} />
+             <StatCard href="/admin/withdrawals" title="Pending Withdrawals" value={stats.pendingWithdrawals.toLocaleString()} icon={TrendingDown} loading={statsLoading} />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
