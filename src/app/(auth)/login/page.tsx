@@ -34,10 +34,25 @@ export default function LoginPage() {
 
   const handleLoginError = (error: any) => {
     let message = 'An unexpected error occurred. Please try again.';
-    if (error.code === 'auth/too-many-requests') {
-        message = 'Too many failed attempts. Please wait a moment before trying again.';
-    } else if (error.code === 'auth/invalid-credential') {
-        message = 'The email or password you entered is incorrect. Please try again.';
+    switch (error.code) {
+        case 'auth/invalid-credential':
+        case 'auth/user-not-found':
+        case 'auth/wrong-password':
+            message = 'The email or password you entered is incorrect. Please try again.';
+            break;
+        case 'auth/invalid-email':
+            message = 'The email address is not valid.';
+            break;
+        case 'auth/user-disabled':
+            message = 'This user account has been disabled.';
+            break;
+        case 'auth/too-many-requests':
+            message = 'Too many failed login attempts. Please reset your password or try again later.';
+            break;
+        default:
+            console.error('Unhandled login error:', error);
+            message = 'An unexpected error occurred. Please check the console for details.';
+            break;
     }
     toast({ title: "Login Failed", description: message, variant: "destructive" });
     setCooldown(10); // Start a 10-second cooldown

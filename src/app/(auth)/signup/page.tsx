@@ -45,14 +45,26 @@ function SignUpForm() {
 
   const handleSignupError = (error: any) => {
     let message = 'An unexpected error occurred. Please try again.';
-    if (error.code === 'auth/too-many-requests') {
-        message = 'Too many attempts. Please wait a moment before trying again.';
-    } else if (error.code === 'auth/email-already-in-use') {
-        message = 'This email address is already in use. Please log in or use a different email.';
-    } else if (error.code === 'auth/weak-password') {
-        message = 'The password is too weak. It should be at least 6 characters long.';
-    } else if (error.code === 'auth/invalid-referral-code') {
-        message = 'The referral code you entered is invalid. Please check the code and try again.';
+    switch (error.code) {
+        case 'auth/email-already-in-use':
+            message = 'This email address is already in use. Please log in or use a different email.';
+            break;
+        case 'auth/invalid-email':
+            message = 'The email address is not valid.';
+            break;
+        case 'auth/weak-password':
+            message = 'The password is too weak. It should be at least 6 characters long.';
+            break;
+        case 'auth/invalid-referral-code':
+            message = 'The referral code you entered is invalid. Please check the code and try again.';
+            break;
+        case 'auth/too-many-requests':
+            message = 'Too many attempts. Please wait a moment before trying again.';
+            break;
+        default:
+            console.error('Unhandled signup error:', error);
+            message = 'An unexpected error occurred. Please check the console for details.';
+            break;
     }
     toast({ title: "Sign Up Failed", description: message, variant: "destructive" });
     setCooldown(10); // 10 second cooldown
