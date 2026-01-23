@@ -27,52 +27,59 @@ interface UserProviderProps {
 
 export const UserProvider = ({ children }: UserProviderProps) => {
   const [user, setUser] = useState<FirebaseUser | null>(null);
-  const [loading, setLoading] = useState(true);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [loading, setLoading] = useState(true); // Single, comprehensive loading state
   const firestore = useFirestore();
 
-  // Listen for user authentication state changes
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+    let profileUnsubscribe: (() => void) | null = null;
+
+    const authUnsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      // If a user is found, their profile listener might be active, so unsubscribe first.
+      if (profileUnsubscribe) {
+        profileUnsubscribe();
+        profileUnsubscribe = null;
+      }
+      
       if (firebaseUser) {
         setUser(firebaseUser);
+        
         const tokenResult = await firebaseUser.getIdTokenResult();
         setIsAdmin(!!tokenResult.claims.admin);
+
+        // Set up the new profile listener
+        const userRef = doc(firestore, "users", firebaseUser.uid);
+        profileUnsubscribe = onSnapshot(userRef, (docSnap: DocumentSnapshot) => {
+          if (docSnap.exists()) {
+            setUserProfile(docSnap.data() as UserProfile);
+          } else {
+            setUserProfile(null);
+          }
+          setLoading(false); // Auth state and profile state are now resolved.
+        }, (error) => {
+          console.error("Error fetching user profile:", error);
+          setUserProfile(null);
+          setLoading(false);
+        });
+
       } else {
+        // User is logged out
         setUser(null);
         setUserProfile(null);
         setIsAdmin(false);
+        setLoading(false); // Auth state is resolved (no user).
       }
-      setLoading(false);
     });
 
-    return () => unsubscribe();
-  }, []);
-
-  // Listen for user profile changes in Firestore
-  useEffect(() => {
-    if (user && firestore) {
-      const userRef = doc(firestore, "users", user.uid);
-      const unsubscribe = onSnapshot(
-        userRef,
-        (doc: DocumentSnapshot) => {
-          if (doc.exists()) {
-            setUserProfile(doc.data() as UserProfile);
-          } else {
-            setUserProfile(null); 
-          }
-        },
-        (error) => {
-          console.error("Error fetching user profile:", error);
-          setUserProfile(null);
-        }
-      );
-      return () => unsubscribe();
-    } else {
-      setUserProfile(null); // Clear profile if no user
-    }
-  }, [user, firestore]);
+    // Cleanup function for the auth listener
+    return () => {
+      authUnsubscribe();
+      if (profileUnsubscribe) {
+        profileUnsubscribe();
+      }
+    };
+  }, [firestore]);
   
 
   const value = useMemo(
