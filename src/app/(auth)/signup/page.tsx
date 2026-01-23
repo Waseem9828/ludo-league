@@ -6,13 +6,12 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { UserPlus, Mail, Lock, User, Gift, Loader2 } from 'lucide-react';
 import { GoogleIcon } from "@/components/icons/GoogleIcon";
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { signUpWithEmail, signInWithGoogle } from '@/firebase/auth/client';
 import Image from 'next/image';
 
 function SignUpForm() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
   const [email, setEmail] = useState('');
@@ -75,6 +74,7 @@ function SignUpForm() {
     setIsLoading(true);
     try {
       await signUpWithEmail(email, password, displayName, referralCode);
+      // No router.push here! The AuthGuard will handle it.
       toast({ title: "Account Created!", description: "Welcome! You are now being redirected." });
     } catch (error: any) {
       handleSignupError(error);
@@ -93,6 +93,7 @@ function SignUpForm() {
         } else {
           toast({ title: "Login Successful!", description: "Welcome back! Redirecting..." });
         }
+        // No router.push here! The AuthGuard will handle it.
       }
     } catch (error: any) {
       handleSignupError(error);

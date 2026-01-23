@@ -19,16 +19,13 @@ function AppLayoutContent({ children }: { children: React.ReactNode }) {
   const { isOpen, setIsOpen } = useSidebar();
   const pathname = usePathname();
 
-  const isAuthPage = pathname === '/login' || pathname === '/signup';
-
+  // The AuthGuard will handle redirection, so we just show a loader while it's working.
   if (isAuthenticating) {
-    return (
-      <div className="h-screen w-full flex items-center justify-center">
-        <CustomLoader />
-      </div>
-    );
+    return <CustomLoader />;
   }
 
+  // Prevents app shell from flashing on auth pages before redirect
+  const isAuthPage = pathname === '/login' || pathname === '/signup';
   if (isAuthPage) {
     return <>{children}</>;
   }

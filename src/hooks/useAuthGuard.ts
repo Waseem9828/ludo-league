@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useEffect } from 'react';
@@ -15,48 +14,59 @@ export const useAuthGuard = () => {
   const isAuthPage = pathname === '/login' || pathname === '/signup';
   const isAdminPage = pathname?.startsWith('/admin') ?? false;
   const isMaintenancePage = pathname === '/maintenance';
+  const isLandingPage = pathname === '/';
   
   const isAuthenticating = userLoading || settingsLoading;
   
   useEffect(() => {
+    // Wait until all loading is complete before running any logic
     if (isAuthenticating) {
       return; 
     }
 
     const maintenanceMode = settings?.maintenanceMode ?? false;
     
+    // --- Maintenance Mode Logic ---
     if (maintenanceMode) {
-        if (!isAdmin && !isMaintenancePage) {
-            router.replace('/maintenance');
-            return;
-        }
-        if (isAdmin && isMaintenancePage) {
-            router.replace('/admin/dashboard');
-            return;
-        }
+      // If in maintenance mode and user is not an admin, redirect to maintenance page
+      if (!isAdmin && !isMaintenancePage) {
+        router.replace('/maintenance');
+        return;
+      }
+      // If admin is on maintenance page, redirect them to their dashboard
+      if (isAdmin && isMaintenancePage) {
+        router.replace('/admin/dashboard');
+        return;
+      }
     } else {
-        if (isMaintenancePage) {
-            router.replace(isAdmin ? '/admin/dashboard' : '/dashboard');
-            return;
-        }
+      // If maintenance mode is OFF and user is on the maintenance page, redirect away
+      if (isMaintenancePage) {
+        router.replace(user ? (isAdmin ? '/admin/dashboard' : '/dashboard') : '/login');
+        return;
+      }
     }
 
-    if (!user && !isAuthPage && !isMaintenancePage) {
+    // --- Standard Authentication Logic ---
+
+    // If there is no user and we are on a protected page, redirect to login
+    if (!user && !isAuthPage && !isLandingPage && !isMaintenancePage) {
       router.replace('/login');
       return;
     }
-
-    if (user && isAuthPage) {
+    
+    // If there IS a user and we are on an auth page or the landing page, redirect to their dashboard
+    if (user && (isAuthPage || isLandingPage)) {
       router.replace(isAdmin ? '/admin/dashboard' : '/dashboard');
       return;
     }
     
+    // If a non-admin tries to access an admin page, redirect to the main dashboard
     if (user && !isAdmin && isAdminPage) {
         router.replace('/dashboard');
         return;
     }
 
-  }, [isAuthenticating, router, isAdmin, isAdminPage, isAuthPage, isMaintenancePage, settings, user]);
+  }, [isAuthenticating, user, isAdmin, settings, pathname, router, isAuthPage, isAdminPage, isMaintenancePage, isLandingPage]);
 
 
   return {

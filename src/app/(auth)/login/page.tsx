@@ -7,7 +7,6 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Mail, Lock, Loader2 } from 'lucide-react';
 import { GoogleIcon } from "@/components/icons/GoogleIcon";
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { signInWithEmail, signInWithGoogle } from '@/firebase/auth/client';
 import { getAuth, sendPasswordResetEmail } from 'firebase/auth'; // Corrected import
@@ -15,7 +14,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import Image from 'next/image';
 
 export default function LoginPage() {
-  const router = useRouter();
   const { toast } = useToast();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -66,6 +64,7 @@ export default function LoginPage() {
     setIsLoading(true);
     try {
       await signInWithEmail(email, password);
+      // No router.push here! The AuthGuard will handle it.
       toast({ title: "Login Successful!", description: "Welcome back! Redirecting..." });
     } catch (error: any) {
       handleLoginError(error);
@@ -79,6 +78,7 @@ export default function LoginPage() {
     try {
       const { user } = await signInWithGoogle();
       if (user) {
+          // No router.push here! The AuthGuard will handle it.
           toast({ title: "Login Successful!", description: "Welcome back! Redirecting..." });
       }
     } catch (error: any) {
