@@ -29,10 +29,8 @@ service cloud.firestore {
 
     // --- User Profiles ---
     match /users/{userId} {
-      // Any signed-in user can view any user's profile (for leaderboards, etc.).
-      allow get: if request.auth != null;
-      // Any signed-in user can list all other users.
-      allow list: if request.auth != null;
+      // Any signed-in user can read public profiles.
+      allow read: if request.auth != null;
       // A user can only update or delete their own profile.
       allow update, delete: if isOwner(userId);
       // Any signed-in user can create their own user profile document.
@@ -55,7 +53,7 @@ service cloud.firestore {
     match /upiConfiguration/{doc=**} { allow read: if request.auth != null; }
     match /referralConfiguration/settings { allow read: if request.auth != null; }
     match /bonus_config/settings { allow read: if request.auth != null; }
-    match /settings/global { allow read: if request.auth != null; }
+    match /settings/global { allow read: if true; }
 
     // --- Matches ---
     match /matches/{matchId} {
