@@ -69,16 +69,20 @@ service cloud.firestore {
 
     // --- Financial Transactions ---
     match /depositRequests/{depositId} {
-        allow read: if isOwner(resource.data.userId) || isDepositAdmin();
         allow create: if isOwner(request.resource.data.userId);
+        allow get: if isOwner(resource.data.userId) || isDepositAdmin();
+        allow list: if (request.auth.uid == request.query.where.userId) || isDepositAdmin();
     }
     match /withdrawalRequests/{withdrawalId} {
-        allow read: if isOwner(resource.data.userId) || isWithdrawalAdmin();
         allow create: if isOwner(request.resource.data.userId);
+        allow get: if isOwner(resource.data.userId) || isWithdrawalAdmin();
+        allow list: if (request.auth.uid == request.query.where.userId) || isWithdrawalAdmin();
     }
     match /transactions/{transactionId} {
-        allow read: if isOwner(resource.data.userId) || isSuperAdmin();
+        allow get: if isOwner(resource.data.userId) || isSuperAdmin();
+        allow list: if (request.auth.uid == request.query.where.userId) || isSuperAdmin();
     }
+
 
     // --- UTR Uniqueness Check ---
     match /submittedUTRs/{utr} {

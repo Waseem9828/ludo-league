@@ -1,5 +1,4 @@
 
-
 import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
 import { HttpsError } from "firebase-functions/v1/https";
@@ -667,9 +666,10 @@ export const newDailyLoginBonus = functions.https.onCall(async (data, context) =
     const configRef = db.collection('bonus_config').doc('settings');
 
     try {
+        const configDoc = await configRef.get();
+
         const result = await db.runTransaction(async (transaction) => {
             const userDoc = await transaction.get(userRef);
-            const configDoc = await transaction.get(configRef);
 
             if (!userDoc.exists()) {
                 throw new functions.https.HttpsError('not-found', 'User profile not found.');
@@ -690,7 +690,7 @@ export const newDailyLoginBonus = functions.https.onCall(async (data, context) =
             };
             const currentStreak = isYesterday(userData.lastLoginDate) ? (userData.loginStreak || 0) + 1 : 1;
 
-            if (!configDoc.exists()) {
+            if (!configDoc.exists) {
                 functions.logger.warn("Bonus configuration not set. System will proceed without awarding a bonus.");
                 transaction.update(userRef, { lastLoginDate: today, loginStreak: currentStreak });
                 return { success: true, message: 'Login tracked. Bonus system not configured.' };
