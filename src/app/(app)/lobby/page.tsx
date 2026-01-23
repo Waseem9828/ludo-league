@@ -380,7 +380,7 @@ export default function LobbyPage() {
   const maxUnlockedAmount = userProfile?.maxUnlockedAmount || 100;
 
   const FeeTier = ({ fees, tier }: { fees: number[], tier: 'low' | 'medium' | 'high' }) => (
-    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
       {fees.map(fee => {
         const isLocked = tier === 'low' ? false : fee > maxUnlockedAmount;
         return (
@@ -413,7 +413,7 @@ export default function LobbyPage() {
                                 <PlusCircle className="mr-2 h-6 w-6"/> Create New Match
                             </Button>
                         </DialogTrigger>
-                        <DialogContent className="sm:max-w-3xl">
+                        <DialogContent className="sm:max-w-5xl">
                             <DialogHeader>
                                 <DialogTitle>Select Your Stake</DialogTitle>
                                 <DialogDescription>Choose an entry fee to create an open match.</DialogDescription>
@@ -424,7 +424,7 @@ export default function LobbyPage() {
                                     <TabsTrigger value="medium">Medium Stakes</TabsTrigger>
                                     <TabsTrigger value="high">High Stakes</TabsTrigger>
                                 </TabsList>
-                                <ScrollArea className="h-96 md:h-[500px] pr-4">
+                                <ScrollArea className="h-[65vh] pr-4">
                                     <TabsContent value="low" className="pt-4">
                                         <FeeTier fees={lowStakes} tier="low" />
                                     </TabsContent>
@@ -471,3 +471,4 @@ export default function LobbyPage() {
     </LobbyContext.Provider>
   );
 }
+
