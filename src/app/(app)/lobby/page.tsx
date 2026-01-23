@@ -1,4 +1,3 @@
-
 'use client';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -30,74 +29,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useRouter } from 'next/navigation';
-import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { motion, AnimatePresence } from 'framer-motion';
 import CustomLoader from '@/components/CustomLoader';
 import { ScrollArea } from '@/components/ui/scroll-area';
-
-
-const EntryFeeCard = ({
-    fee,
-    onPlay,
-    isLocked = false,
-    commissionPercentage
-}: {
-    fee: number;
-    onPlay: (fee: number) => void;
-    isLocked: boolean;
-    commissionPercentage: number;
-}) => {
-
-    const prize = fee * 2 * (1 - (commissionPercentage / 100));
-
-    const cardContent = (
-      <div className="relative h-48 w-full overflow-hidden rounded-lg bg-[url('/entry-fee-card-background.png')] bg-cover bg-center shadow-lg text-primary-foreground p-4 flex flex-col justify-between card-premium">
-        <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent"></div>
-        <div className="relative z-10 flex flex-col justify-between h-full">
-            <div>
-                <p className="text-sm text-primary-foreground/80">Entry Fee</p>
-                <h3 className="text-3xl font-bold">
-                    ₹{fee}
-                </h3>
-                <p className="text-md font-semibold mt-2">
-                    Prize: <span className="text-green-400 font-bold">₹{prize.toFixed(0)}</span>
-                </p>
-            </div>
-            
-            <div className="mt-auto">
-                 <Button className="w-full h-10 text-md font-bold shadow-lg bg-white/20 hover:bg-white/30 text-white backdrop-blur-sm border border-white/30" onClick={() => onPlay(fee)} disabled={isLocked}>
-                    {isLocked ? <Lock className="mr-2 h-4 w-4" /> : <Swords className="mr-2 h-4 w-4" />}
-                    Play
-                </Button>
-            </div>
-        </div>
-      </div>
-    );
-
-  if (isLocked) {
-    return (
-        <TooltipProvider>
-            <Tooltip>
-                <TooltipTrigger asChild>
-                    <div className="cursor-not-allowed">
-                        <div className="relative">
-                            {cardContent}
-                             <div className="absolute inset-0 bg-background/70 rounded-lg"></div>
-                        </div>
-                    </div>
-                </TooltipTrigger>
-                <TooltipContent>
-                    <p>Win more matches to unlock higher stakes.</p>
-                </TooltipContent>
-            </Tooltip>
-        </TooltipProvider>
-    )
-  }
-
-  return cardContent;
-};
+import { EntryFeeCard } from '@/components/app/lobby/entry-fee-card';
 
 
 const PlayerCard = ({ name, avatarUrl, winRate }: { name: string, avatarUrl: string | null | undefined, winRate: number }) => (
@@ -294,6 +231,7 @@ export default function LobbyPage() {
   const [checkedLocalStorage, setCheckedLocalStorage] = useState(false);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [showRoomCodeDialog, setShowRoomCodeDialog] = useState(false);
+  const [showStakesDialog, setShowStakesDialog] = useState(false);
   const [hasRoomCode, setHasRoomCode] = useState(false);
   const [roomCode, setRoomCode] = useState('');
   const [selectedFee, setSelectedFee] = useState(0);
@@ -394,29 +332,6 @@ export default function LobbyPage() {
     }
   }, [userProfile, isSearching, router, toast]);
 
-  useEffect(() => {
-    if (userProfile && isSearching) {
-        const previousActiveIds = JSON.parse(localStorage.getItem('previousActiveIds') || '[]');
-        const currentActiveIds = userProfile.activeMatchIds || [];
-
-        if (currentActiveIds.length > previousActiveIds.length) {
-            const newMatchId = currentActiveIds.find((id: string) => !previousActiveIds.includes(id));
-            if (newMatchId) {
-                toast({ title: "Match Found!", description: "Redirecting you to the match room." });
-                localStorage.removeItem('searchingMatchFee');
-                localStorage.removeItem('previousActiveIds');
-                if (searchTimeoutRef.current) {
-                    clearTimeout(searchTimeoutRef.current);
-                }
-                router.push(`/match/${newMatchId}`);
-            }
-        }
-         if (isSearching) {
-            localStorage.setItem('previousActiveIds', JSON.stringify(currentActiveIds));
-         }
-    }
-  }, [userProfile, isSearching, router, toast]);
-
   const handlePlayClick = (fee: number) => {
     if (!user || !userProfile) {
         toast({ title: "Please login to play.", variant: "destructive" });
@@ -434,6 +349,7 @@ export default function LobbyPage() {
         toast({ title: "Insufficient Balance", description: `You need at least ₹${fee} to play.`, variant: "destructive" });
         return;
     }
+    setShowStakesDialog(false);
     setSelectedFee(fee);
     setShowConfirmDialog(true);
   };
@@ -590,12 +506,43 @@ export default function LobbyPage() {
 
         {activeMatchIds.length > 0 && <ActiveMatchesAlert activeMatchIds={activeMatchIds} />}
       
-        <div className="flex justify-between items-center">
-            <h2 className="text-2xl font-bold tracking-tight">Create New Match</h2>
+        <div className="grid grid-cols-2 gap-4">
+            <Dialog open={showStakesDialog} onOpenChange={setShowStakesDialog}>
+                <DialogTrigger asChild>
+                    <Button size="lg" className="w-full h-20 text-lg">
+                        <PlusCircle className="mr-2 h-6 w-6"/> Create New Match
+                    </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-3xl">
+                    <DialogHeader>
+                        <DialogTitle>Select Your Stake</DialogTitle>
+                        <DialogDescription>Choose an entry fee to find an opponent.</DialogDescription>
+                    </DialogHeader>
+                     <Tabs defaultValue="low" className="w-full pt-4">
+                        <TabsList className="grid w-full grid-cols-3">
+                            <TabsTrigger value="low">Low Stakes</TabsTrigger>
+                            <TabsTrigger value="medium">Medium Stakes</TabsTrigger>
+                            <TabsTrigger value="high">High Stakes</TabsTrigger>
+                        </TabsList>
+                        <ScrollArea className="h-96 md:h-[500px] pr-4">
+                            <TabsContent value="low" className="pt-4">
+                                <FeeTier fees={lowStakes} tier="low" />
+                            </TabsContent>
+                            <TabsContent value="medium" className="pt-4">
+                                <FeeTier fees={mediumStakes} tier="medium" />
+                            </TabsContent>
+                            <TabsContent value="high" className="pt-4">
+                                <FeeTier fees={highStakes} tier="high" />
+                            </TabsContent>
+                        </ScrollArea>
+                    </Tabs>
+                </DialogContent>
+            </Dialog>
+
             <Dialog>
                 <DialogTrigger asChild>
-                    <Button variant="outline" size="sm" className="animate-pulse shadow-lg shadow-primary/50">
-                        <Info className="mr-2 h-4 w-4"/> How to Play
+                    <Button variant="outline" size="lg" className="w-full h-20 text-lg animate-pulse shadow-lg shadow-primary/50">
+                        <Info className="mr-2 h-6 w-6"/> How to Play
                     </Button>
                 </DialogTrigger>
                 <DialogContent>
@@ -613,23 +560,6 @@ export default function LobbyPage() {
                 </DialogContent>
             </Dialog>
         </div>
-
-        <Tabs defaultValue="low" className="w-full pt-6">
-            <TabsList className="grid w-full grid-cols-3">
-                <TabsTrigger value="low">Low Stakes</TabsTrigger>
-                <TabsTrigger value="medium">Medium Stakes</TabsTrigger>
-                <TabsTrigger value="high">High Stakes</TabsTrigger>
-            </TabsList>
-            <TabsContent value="low" className="pt-4">
-                <FeeTier fees={lowStakes} tier="low" />
-            </TabsContent>
-            <TabsContent value="medium" className="pt-4">
-                <FeeTier fees={mediumStakes} tier="medium" />
-            </TabsContent>
-            <TabsContent value="high" className="pt-4">
-                <FeeTier fees={highStakes} tier="high" />
-            </TabsContent>
-        </Tabs>
     </div>
   );
 }
