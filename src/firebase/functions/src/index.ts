@@ -99,7 +99,7 @@ export const setRole = functions.https.onCall(async (data, context) => {
     const isNowAdmin = role !== 'none';
     
     await admin.auth().setCustomUserClaims(uid, { role: isNowAdmin ? role : null, admin: isNowAdmin ? true : null });
-    await db.collection('users').doc(uid).set({ isAdmin: isNowAdmin, role: isNowAdmin ? role : null }, { merge: true });
+    await db.collection('users').set({ isAdmin: isNowAdmin, role: isNowAdmin ? role : null }, { merge: true });
 
 
     if (isNowAdmin) {
@@ -970,6 +970,7 @@ export const createMatch = functions.https.onCall(async (data, context) => {
     const commissionConfigRef = db.collection('matchCommission').doc('settings');
     
     try {
+        // Read commission settings BEFORE the transaction
         const commissionConfigSnap = await commissionConfigRef.get();
         const commissionPercentage = commissionConfigSnap.exists() && commissionConfigSnap.data()!.percentage ? commissionConfigSnap.data()!.percentage : 10;
         const prizePool = entryFee * 2 * (1 - (commissionPercentage / 100));
