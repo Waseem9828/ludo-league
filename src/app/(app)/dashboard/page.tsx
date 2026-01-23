@@ -216,7 +216,7 @@ export default function DashboardPage() {
         if (user && !bonusClaimed) {
           const claimBonus = async () => {
             try {
-              const dailyLoginBonus = httpsCallable(functions, 'dailyLoginBonus');
+              const dailyLoginBonus = httpsCallable(functions, 'newDailyLoginBonus');
               const result = await dailyLoginBonus();
               const data = result.data as { success: boolean, message: string };
     
