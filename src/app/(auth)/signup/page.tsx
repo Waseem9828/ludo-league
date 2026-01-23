@@ -4,22 +4,26 @@ import { useState, useEffect, Suspense } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { UserPlus, Mail, Lock, User, Gift, Loader2 } from 'lucide-react';
+import { Gift, Loader2, Phone, MessageCircle } from 'lucide-react';
 import { GoogleIcon } from "@/components/icons/GoogleIcon";
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { signUpWithEmail, signInWithGoogle } from '@/firebase/auth/client';
+import { signInWithGoogle, sendOtp, verifyOtpAndSignIn } from '@/firebase/auth/client';
 import Image from 'next/image';
+import { getAuth, RecaptchaVerifier, type ConfirmationResult } from 'firebase/auth';
 
 function SignUpForm() {
   const searchParams = useSearchParams();
   const { toast } = useToast();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [displayName, setDisplayName] = useState('');
+  
+  const [phone, setPhone] = useState('');
+  const [otp, setOtp] = useState('');
   const [referralCode, setReferralCode] = useState('');
+  const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
+
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+  const [isOtpLoading, setIsOtpLoading] = useState(false);
   const [cooldown, setCooldown] = useState(0);
 
    useEffect(() => {
@@ -42,71 +46,89 @@ function SignUpForm() {
     }
   }, [cooldown]);
 
-  const handleSignupError = (error: any) => {
+  const handleAuthError = (error: any) => {
     let message = 'An unexpected error occurred. Please try again.';
-    switch (error.code) {
-        case 'auth/email-already-in-use':
-            message = 'This email address is already in use. Please log in or use a different email.';
-            break;
-        case 'auth/invalid-email':
-            message = 'The email address is not valid.';
-            break;
-        case 'auth/weak-password':
-            message = 'The password is too weak. It should be at least 6 characters long.';
-            break;
-        case 'auth/invalid-referral-code':
-            message = 'The referral code you entered is invalid. Please check the code and try again.';
+     switch (error.code) {
+        case 'auth/invalid-phone-number':
+            message = 'The phone number is not valid.';
             break;
         case 'auth/too-many-requests':
             message = 'Too many attempts. Please wait a moment before trying again.';
             break;
+        case 'auth/code-expired':
+            message = 'The OTP has expired. Please request a new one.';
+            break;
+        case 'auth/invalid-verification-code':
+            message = 'The OTP you entered is incorrect.';
+            break;
+        case 'auth/invalid-referral-code':
+            message = 'The referral code you entered is invalid. Please check the code and try again.';
+            break;
         default:
-            console.error('Unhandled signup error:', error);
-            message = `An unexpected error occurred: ${error.code}. This can happen if the Email/Password sign-in provider is disabled in your Firebase Console.`;
+            console.error('Unhandled auth error:', error);
+            message = `An unexpected error occurred: ${error.message}`;
             break;
     }
-    toast({ title: "Sign Up Failed", description: message, variant: "destructive" });
-    setCooldown(10); // 10 second cooldown
+    toast({ title: "Authentication Failed", description: message, variant: "destructive" });
+    setCooldown(10);
+  };
+  
+  const handleSendOtp = async () => {
+    setIsOtpLoading(true);
+    try {
+      const auth = getAuth();
+      // Invisible reCAPTCHA
+      const recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
+        'size': 'invisible'
+      });
+      const result = await sendOtp(phone, recaptchaVerifier);
+      setConfirmationResult(result);
+      toast({ title: "OTP Sent", description: "Please check your phone for the verification code." });
+    } catch (error: any) {
+      handleAuthError(error);
+      setConfirmationResult(null); // Reset on error
+    } finally {
+      setIsOtpLoading(false);
+    }
   };
 
-  const handleEmailSignUp = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleOtpSignup = async () => {
+    if (!confirmationResult) return;
     setIsLoading(true);
     try {
-      await signUpWithEmail(email, password, displayName, referralCode);
-      // No router.push here! The AuthGuard will handle it.
-      toast({ title: "Account Created!", description: "Welcome! You are now being redirected." });
+      const { isNewUser } = await verifyOtpAndSignIn(confirmationResult, otp, referralCode);
+      if (isNewUser) {
+        toast({ title: "Account Created!", description: "Welcome! You are now being redirected." });
+      } else {
+        toast({ title: "Login Successful!", description: "Welcome back! Redirecting..." });
+      }
     } catch (error: any) {
-      handleSignupError(error);
+      handleAuthError(error);
     } finally {
-        setIsLoading(false);
+      setIsLoading(false);
     }
   };
 
    const handleGoogleSignUp = async () => {
     setIsGoogleLoading(true);
     try {
-      const { user, isNewUser } = await signInWithGoogle(referralCode);
-      if (user) {
-        if (isNewUser) {
-          toast({ title: "Account Created!", description: "Welcome! You are now being redirected." });
-        } else {
-          toast({ title: "Login Successful!", description: "Welcome back! Redirecting..." });
-        }
-        // No router.push here! The AuthGuard will handle it.
+      const { isNewUser } = await signInWithGoogle(referralCode);
+      if (isNewUser) {
+        toast({ title: "Account Created!", description: "Welcome! You are now being redirected." });
+      } else {
+        toast({ title: "Login Successful!", description: "Welcome back! Redirecting..." });
       }
     } catch (error: any) {
-      handleSignupError(error);
+      handleAuthError(error);
     } finally {
       setIsGoogleLoading(false);
     }
   };
 
-  const isButtonDisabled = isLoading || isGoogleLoading || cooldown > 0;
+  const isButtonDisabled = isLoading || isGoogleLoading || isOtpLoading || cooldown > 0;
 
   return (
     <div className="w-full h-full bg-card/80 dark:bg-card/60 backdrop-blur-lg rounded-2xl shadow-2xl border border-border/20 p-8 text-foreground flex flex-col justify-center">
-        {/* Header */}
         <div className="text-center mb-8">
             <div className="inline-block p-3 bg-primary/10 rounded-full mb-4 border border-primary/20">
                 <Image src="/icon-192x192.png" alt="Ludo League Logo" width={40} height={40} />
@@ -115,85 +137,74 @@ function SignUpForm() {
             <p className="text-muted-foreground mt-1">Join the ultimate Ludo arena.</p>
         </div>
 
-        {/* Google Sign-in */}
         <div className="mb-6">
             <Button 
                 onClick={handleGoogleSignUp} 
                 disabled={isButtonDisabled} 
                 variant="outline"
-                className="w-full h-12 border-border font-semibold shadow-sm transition-all duration-300 transform hover:scale-105"
-                suppressHydrationWarning
+                className="w-full h-12 border-border font-semibold shadow-sm"
             >
                  {isGoogleLoading 
                     ? <Loader2 className="h-5 w-5 mr-3 animate-spin"/> 
-                    : cooldown > 0
-                    ? `Try again in ${cooldown}s`
                     : <><GoogleIcon className="h-5 w-5 mr-3" />Sign up with Google</>}
             </Button>
         </div>
 
-        {/* Separator */}
         <div className="flex items-center my-6">
             <hr className="w-full border-border/50" />
             <span className="px-4 text-muted-foreground text-sm">OR</span>
             <hr className="w-full border-border/50" />
         </div>
+        
+        {!confirmationResult ? (
+            <div className="space-y-4">
+                <div className="relative">
+                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground"/>
+                <Input 
+                    type="tel" 
+                    placeholder="Phone Number" 
+                    value={phone} 
+                    onChange={e => setPhone(e.target.value)} 
+                    required 
+                    className="bg-background/50 border-border h-12 pl-10"
+                />
+                </div>
+                 <div className="relative">
+                    <Gift className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground"/>
+                    <Input 
+                        type="text" 
+                        placeholder="Referral Code (Optional)" 
+                        value={referralCode} 
+                        onChange={e => setReferralCode(e.target.value)} 
+                        className="bg-background/50 border-border h-12 pl-10"
+                    />
+                </div>
+                <Button onClick={handleSendOtp} disabled={isButtonDisabled || !phone} className="w-full h-12 font-bold text-lg">
+                    {isOtpLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : "Send OTP"}
+                </Button>
+            </div>
+        ) : (
+             <div className="space-y-4">
+                <div className="relative">
+                <MessageCircle className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                <Input
+                    type="text"
+                    placeholder="Enter OTP"
+                    value={otp}
+                    onChange={e => setOtp(e.target.value)}
+                    required
+                    className="bg-background/50 border-border h-12 pl-10"
+                />
+                </div>
+                <Button onClick={handleOtpSignup} disabled={isButtonDisabled || !otp} className="w-full h-12 font-bold text-lg">
+                    {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Verify & Create Account"}
+                </Button>
+                <Button variant="link" onClick={() => setConfirmationResult(null)}>Use a different number</Button>
+            </div>
+        )}
 
-        {/* Email Form */}
-        <form onSubmit={handleEmailSignUp} className="space-y-4">
-            <div className="relative">
-                <User className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground"/>
-                <Input 
-                    type="text" 
-                    placeholder="Display Name" 
-                    value={displayName} 
-                    onChange={e => setDisplayName(e.target.value)} 
-                    required 
-                    className="bg-background/50 border-border h-12 pl-10 focus:ring-primary focus:border-primary"
-                    suppressHydrationWarning
-                />
-            </div>
-             <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground"/>
-                <Input 
-                    type="email" 
-                    placeholder="Email" 
-                    value={email} 
-                    onChange={e => setEmail(e.target.value)} 
-                    required 
-                    className="bg-background/50 border-border h-12 pl-10 focus:ring-primary focus:border-primary"
-                    suppressHydrationWarning
-                />
-            </div>
-            <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground"/>
-                <Input 
-                    type="password" 
-                    placeholder="Password" 
-                    value={password} 
-                    onChange={e => setPassword(e.target.value)} 
-                    required 
-                    className="bg-background/50 border-border h-12 pl-10 focus:ring-primary focus:border-primary"
-                    suppressHydrationWarning
-                />
-            </div>
-            <div className="relative">
-                <Gift className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground"/>
-                <Input 
-                    type="text" 
-                    placeholder="Referral Code (Optional)" 
-                    value={referralCode} 
-                    onChange={e => setReferralCode(e.target.value)} 
-                    className="bg-background/50 border-border h-12 pl-10 focus:ring-primary focus:border-primary"
-                    suppressHydrationWarning
-                />
-            </div>
-            <Button type="submit" disabled={isButtonDisabled} className="w-full h-12 font-bold text-lg transition-all duration-300 transform hover:scale-105" suppressHydrationWarning>
-                {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : cooldown > 0 ? `Try again in ${cooldown}s` : "Sign Up with Email"}
-            </Button>
-        </form>
+        {cooldown > 0 && <p className="text-center text-sm text-destructive mt-4">Too many attempts. Please try again in {cooldown} seconds.</p>}
 
-        {/* Footer Link */}
         <div className="text-center mt-6">
             <p className="text-sm text-muted-foreground">
                 Already have an account?{" "}

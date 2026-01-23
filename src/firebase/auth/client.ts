@@ -1,14 +1,15 @@
 'use client';
 
 import {
-  createUserWithEmailAndPassword,
-  signInWithEmailAndPassword,
   signInWithPopup,
   GoogleAuthProvider,
   signOut as firebaseSignOut,
   updateProfile,
   sendPasswordResetEmail,
   type User,
+  signInWithPhoneNumber,
+  RecaptchaVerifier,
+  type ConfirmationResult,
 } from 'firebase/auth';
 import { doc, setDoc, getDocs, query, where, collection, limit, getDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '@/firebase';
@@ -20,69 +21,74 @@ const generateReferralCode = (name: string) => {
     return `${namePart}${randomPart}`;
 };
 
-
-export async function signUpWithEmail(email: string, password: string, displayName: string, referralCode?: string) {
-  let referredBy = '';
-  
-  if (referralCode) {
-    const usersRef = collection(db, 'users');
-    const q = query(usersRef, where('referralCode', '==', referralCode.toUpperCase()), limit(1));
-    const querySnapshot = await getDocs(q);
-    if (!querySnapshot.empty) {
-        referredBy = querySnapshot.docs[0].id;
-    } else {
-        const error: any = new Error('Invalid referral code.');
-        error.code = 'auth/invalid-referral-code';
-        throw error;
+const createNewUserProfile = async (user: User, referralCode?: string) => {
+    let referredBy = '';
+    if (referralCode) {
+      const usersRef = collection(db, 'users');
+      const q = query(usersRef, where('referralCode', '==', referralCode.toUpperCase()), limit(1));
+      const querySnapshot = await getDocs(q);
+      if (!querySnapshot.empty) {
+          referredBy = querySnapshot.docs[0].id;
+      } else {
+          const error: any = new Error('Invalid referral code.');
+          error.code = 'auth/invalid-referral-code';
+          throw error;
+      }
     }
-  }
+    
+    const userProfileRef = doc(db, 'users', user.uid);
+    await setDoc(userProfileRef, {
+        uid: user.uid,
+        email: user.email,
+        displayName: user.displayName || `Player${user.uid.substring(0, 5)}`,
+        photoURL: user.photoURL,
+        phoneNumber: user.phoneNumber,
+        walletBalance: 0,
+        kycStatus: 'not_submitted',
+        createdAt: serverTimestamp(),
+        lastLogin: serverTimestamp(),
+        referralCode: generateReferralCode(user.displayName || 'user'),
+        referredBy: referredBy || null,
+        referralBonusPaid: false,
+        isAdmin: false,
+        rank: 0,
+        maxUnlockedAmount: 100,
+        winnings: 0,
+        totalMatchesPlayed: 0,
+        totalMatchesWon: 0,
+        totalWithdrawals: 0,
+        winRate: 0,
+        dailyLoss: 0,
+        lossStreak: 0,
+        joinedTournamentIds: [],
+        activeMatchIds: [],
+    }, { merge: true });
+}
 
-  const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-  const user = userCredential.user;
-  
-  await updateProfile(user, { displayName });
+export async function sendOtp(phoneNumber: string, recaptchaVerifier: RecaptchaVerifier) {
+    return signInWithPhoneNumber(auth, phoneNumber, recaptchaVerifier);
+}
 
-  // Create user profile in Firestore
-  const userProfileRef = doc(db, 'users', user.uid);
-  await setDoc(userProfileRef, {
-    uid: user.uid,
-    email: user.email,
-    displayName: displayName,
-    photoURL: user.photoURL,
-    walletBalance: 0,
-    kycStatus: 'not_submitted',
-    createdAt: serverTimestamp(),
-    lastLogin: serverTimestamp(),
-    referralCode: generateReferralCode(displayName),
-    referredBy: referredBy || null,
-    referralBonusPaid: false,
-    isAdmin: false,
-    rank: 0,
-    maxUnlockedAmount: 100,
-    winnings: 0,
-    totalMatchesPlayed: 0,
-    totalMatchesWon: 0,
-    totalWithdrawals: 0,
-    winRate: 0,
-    dailyLoss: 0,
-    lossStreak: 0,
-    joinedTournamentIds: [],
-    activeMatchIds: [],
-  }, { merge: true });
+export async function verifyOtpAndSignIn(confirmationResult: ConfirmationResult, otp: string, referralCode?: string) {
+    const result = await confirmationResult.confirm(otp);
+    const user = result.user;
+    let isNewUser = false;
 
-  return user;
+    const userProfileRef = doc(db, 'users', user.uid);
+    const userDoc = await getDoc(userProfileRef);
+
+    if (!userDoc.exists()) {
+      isNewUser = true;
+      await createNewUserProfile(user, referralCode);
+    } else {
+      await setDoc(userProfileRef, { lastLogin: serverTimestamp() }, { merge: true });
+    }
+
+    return { user, isNewUser };
 }
 
 
-export async function signInWithEmail(email: string, password: string) {
-  const userCredential = await signInWithEmailAndPassword(auth, email, password);
-  const user = userCredential.user;
-  const userProfileRef = doc(db, 'users', user.uid);
-  await setDoc(userProfileRef, { lastLogin: serverTimestamp() }, { merge: true });
-  return userCredential;
-}
-
-export async function signInWithGoogle(referralCode?: string): Promise<{ user: User | null; isNewUser: boolean; }> {
+export async function signInWithGoogle(referralCode?: string): Promise<{ user: User; isNewUser: boolean; }> {
   const provider = new GoogleAuthProvider();
   try {
     const result = await signInWithPopup(auth, provider);
@@ -94,48 +100,9 @@ export async function signInWithGoogle(referralCode?: string): Promise<{ user: U
 
     if (!userDoc.exists()) {
       isNewUser = true;
-      let referredBy = '';
-      if (referralCode) {
-          const usersRef = collection(db, 'users');
-          const q = query(usersRef, where('referralCode', '==', referralCode.toUpperCase()), limit(1));
-          const querySnapshot = await getDocs(q);
-          if (!querySnapshot.empty) {
-              referredBy = querySnapshot.docs[0].id;
-          } else {
-              const error: any = new Error('Invalid referral code provided.');
-              error.code = 'auth/invalid-referral-code';
-              throw error;
-          }
-      }
-      // New user signing up with Google
-      await setDoc(userProfileRef, {
-          uid: user.uid,
-          email: user.email,
-          displayName: user.displayName,
-          photoURL: user.photoURL,
-          walletBalance: 0,
-          kycStatus: 'not_submitted',
-          createdAt: serverTimestamp(),
-          lastLogin: serverTimestamp(),
-          referralCode: generateReferralCode(user.displayName || 'user'),
-          referredBy: referredBy || null,
-          referralBonusPaid: false,
-          isAdmin: false,
-          rank: 0,
-          maxUnlockedAmount: 100,
-          winnings: 0,
-          totalMatchesPlayed: 0,
-          totalMatchesWon: 0,
-          totalWithdrawals: 0,
-          winRate: 0,
-          dailyLoss: 0,
-          lossStreak: 0,
-          joinedTournamentIds: [],
-          activeMatchIds: [],
-      }, { merge: true });
+      await createNewUserProfile(user, referralCode);
     } else {
       isNewUser = false;
-      // Existing user, just update display name, photo, and last login
       await setDoc(userProfileRef, {
           displayName: user.displayName,
           photoURL: user.photoURL,
@@ -147,18 +114,11 @@ export async function signInWithGoogle(referralCode?: string): Promise<{ user: U
     
   } catch (error: any) {
     if (error.code === 'auth/popup-closed-by-user') {
-      // User closed the popup, do nothing
-      return { user: null, isNewUser: false };
+      return { user: null, isNewUser: false } as any;
     }
-    // For other errors, re-throw them
     throw error;
   }
 }
-
-export async function sendPasswordReset(email: string) {
-  return sendPasswordResetEmail(auth, email);
-}
-
 
 export async function signOut() {
   return firebaseSignOut(auth);

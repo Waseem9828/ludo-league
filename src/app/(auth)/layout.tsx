@@ -8,6 +8,8 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
       </div>
       <div className="relative z-10 w-full max-w-sm">
         {children}
+        {/* This container is essential for Firebase phone auth reCAPTCHA */}
+        <div id="recaptcha-container"></div>
       </div>
     </div>
   );
