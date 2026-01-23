@@ -104,7 +104,7 @@ const WaitingMatchCard = ({ match }: { match: Match }) => {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 20 }}
             transition={{ duration: 0.3 }}
-            className="bg-gradient-to-r from-primary to-accent p-2 rounded-full text-white shadow-lg"
+            className="bg-gradient-primary p-2 rounded-full text-primary-foreground shadow-lg"
         >
             <div className="flex items-center justify-between">
                 {/* Player Info */}
@@ -118,7 +118,7 @@ const WaitingMatchCard = ({ match }: { match: Match }) => {
 
                 {/* Center Info */}
                 <div className="flex flex-col items-center mx-4">
-                    <Image src="/icon-192x192.png" alt="Ludo League Logo" width={28} height={28} />
+                    <Image src="/icon-192x192.png" alt="Ludo League Logo" width={24} height={24} />
                     <span className="font-bold text-sm mt-1">₹{match.entryFee}</span>
                 </div>
 
@@ -128,7 +128,7 @@ const WaitingMatchCard = ({ match }: { match: Match }) => {
                         onClick={handleJoin}
                         className="bg-white text-primary hover:bg-gray-200 font-bold rounded-full px-6 shadow-md"
                     >
-                        Join Now
+                        Join
                     </Button>
                 </div>
             </div>
@@ -147,25 +147,28 @@ const OngoingMatchCard = ({ match }: { match: any }) => {
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.9 }}
             transition={{ duration: 0.4, ease: 'easeOut' }}
-            className="bg-card p-2 rounded-full text-white shadow-lg border"
+            className="bg-gradient-primary p-2 rounded-full text-primary-foreground shadow-lg"
         >
             <div className="flex items-center justify-between">
+                {/* Left Player */}
                 <div className="flex items-center gap-2 flex-1">
-                    <Avatar className="h-10 w-10 border-2 border-border">
+                    <Avatar className="h-10 w-10 border-2 border-white/50">
                         <AvatarImage src={creator.avatarUrl || ''} />
                         <AvatarFallback>{creator.name?.charAt(0)}</AvatarFallback>
                     </Avatar>
-                    <span className="font-semibold text-sm truncate text-foreground">{creator.name}</span>
+                    <span className="font-semibold text-sm truncate">{creator.name}</span>
                 </div>
 
+                {/* Center Info */}
                 <div className="flex flex-col items-center mx-2 text-center">
-                     <span className="font-bold text-sm text-foreground">₹{match.entryFee}</span>
-                     <Badge variant="destructive" className="mt-1 animate-pulse text-xs">LIVE</Badge>
+                     <Image src="/icon-192x192.png" alt="Ludo League Logo" width={24} height={24} />
+                     <span className="font-bold text-sm mt-1">₹{match.entryFee}</span>
                 </div>
 
+                {/* Right Player */}
                 <div className="flex items-center gap-2 flex-1 justify-end">
-                     <span className="font-semibold text-sm truncate text-foreground text-right">{opponent.name}</span>
-                    <Avatar className="h-10 w-10 border-2 border-border">
+                     <span className="font-semibold text-sm truncate text-right">{opponent.name}</span>
+                    <Avatar className="h-10 w-10 border-2 border-white/50">
                         <AvatarImage src={opponent.avatarUrl || ''} />
                         <AvatarFallback>{opponent.name?.charAt(0)}</AvatarFallback>
                     </Avatar>
@@ -196,12 +199,12 @@ const generateMockOngoingMatches = (count: number) => {
             creator: {
                 id: `mock-user-c-${i}`,
                 name: `${creatorName}_${i}`,
-                avatarUrl: `https://api.dicebear.com/7.x/initials/svg?seed=${creatorName}`,
+                avatarUrl: `https://api.dicebear.com/7.x/initials/svg?seed=${creatorName}${i}`,
             },
             opponent: {
                 id: `mock-user-o-${i}`,
                 name: `${opponentName}_${i+1}`,
-                avatarUrl: `https://api.dicebear.com/7.x/initials/svg?seed=${opponentName}`,
+                avatarUrl: `https://api.dicebear.com/7.x/initials/svg?seed=${opponentName}${i+1}`,
             },
             entryFee: fee,
         };
