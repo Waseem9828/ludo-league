@@ -1,4 +1,5 @@
 
+
 import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
 import { HttpsError } from "firebase-functions/v1/https";
@@ -311,7 +312,7 @@ export const onDepositRequestUpdate = functions.firestore
             }
         }
 
-        const userRef = db.doc(`users/${userId}`);
+        const userRef = db.collection('users').doc(userId);
         const userDoc = await userRef.get();
 
         if (!userDoc.exists()) {
@@ -323,14 +324,14 @@ export const onDepositRequestUpdate = functions.firestore
         if (referredBy && !userData.referralBonusPaid) {
         try {
             await db.runTransaction(async (transaction) => {
-            const referrerRef = db.doc(`users/${referredBy}`);
+            const referrerRef = db.collection('users').doc(referredBy);
             const referrerDoc = await transaction.get(referrerRef);
 
             if (!referrerDoc.exists()) {
                 return;
             }
 
-            const configRef = db.doc('referralConfiguration/settings');
+            const configRef = db.collection('referralConfiguration').doc('settings');
             const configDoc = await transaction.get(configRef);
             const commissionPercentage = configDoc.exists() ? configDoc.data()!.commissionPercentage : 5; // Default 5%
             
@@ -553,7 +554,7 @@ export const declareWinnerAndDistribute = functions.https.onCall(async (data, co
     const matchRef = db.collection('matches').doc(matchId);
     
     try {
-        const commissionConfigSnap = await db.doc('matchCommission/settings').get();
+        const commissionConfigSnap = await db.collection('matchCommission').doc('settings').get();
         const commissionPercentage = commissionConfigSnap.exists() && commissionConfigSnap.data()!.percentage ? commissionConfigSnap.data()!.percentage : 10;
         
         let winningPlayerName = 'Unknown Player';
@@ -662,8 +663,8 @@ export const newDailyLoginBonus = functions.https.onCall(async (data, context) =
     }
 
     const userId = context.auth.uid;
-    const userRef = db.doc(`users/${userId}`);
-    const configRef = db.doc('bonus_config/settings');
+    const userRef = db.collection('users').doc(userId);
+    const configRef = db.collection('bonus_config').doc('settings');
 
     try {
         const result = await db.runTransaction(async (transaction) => {
@@ -759,7 +760,7 @@ export const distributeTournamentWinnings = functions.https.onCall(async (data, 
         throw new HttpsError('invalid-argument', 'Missing tournamentId or prizeDistribution.');
     }
 
-    const tournamentRef = db.doc(`tournaments/${tournamentId}`);
+    const tournamentRef = db.collection('tournaments').doc(tournamentId);
 
     try {
         const tournamentDoc = await tournamentRef.get();
@@ -854,7 +855,7 @@ export const onMatchComplete = functions.firestore
 
             for (const playerId of playerIds) {
                 for (const task of tasks) {
-                    const progressRef = db.doc(`user_tasks/${playerId}/tasks/${task.id}`);
+                    const progressRef = db.collection('user_tasks').doc(playerId).collection('tasks').doc(task.id);
                     
                     try {
                         await db.runTransaction(async (transaction) => {
@@ -907,8 +908,8 @@ export const claimTaskReward = functions.https.onCall(async (data, context) => {
     }
 
     const userId = context.auth.uid;
-    const taskProgressRef = db.doc(`user_tasks/${userId}/tasks/${taskId}`);
-    const taskRef = db.doc(`tasks/${taskId}`);
+    const taskProgressRef = db.collection('user_tasks').doc(userId).collection('tasks').doc(taskId);
+    const taskRef = db.collection('tasks').doc(taskId);
 
     try {
         return await db.runTransaction(async (transaction) => {
@@ -966,7 +967,7 @@ export const createMatch = functions.https.onCall(async (data, context) => {
     }
 
     const userRef = db.collection('users').doc(userId);
-    const commissionConfigRef = db.doc('matchCommission/settings');
+    const commissionConfigRef = db.collection('matchCommission').doc('settings');
     
     try {
         const commissionConfigSnap = await commissionConfigRef.get();
