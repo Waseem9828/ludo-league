@@ -1,4 +1,3 @@
-
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getFirestore } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
@@ -8,7 +7,7 @@ import type { FirebaseOptions } from 'firebase/app';
 
 export const firebaseConfig: FirebaseOptions = {
   apiKey: "AIzaSyAHRqi6FiM0jjMIqX0j7Jwj91s0JLyAKak",
-  authDomain: "studio-4431476254-c1156.firebaseapp.com",
+  authDomain: "ludoleague.online",
   projectId: "studio-4431476254-c1156",
   storageBucket: "storage.ludoleague.online",
   messagingSenderId: "23513776021",
