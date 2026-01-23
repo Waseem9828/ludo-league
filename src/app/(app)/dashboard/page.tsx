@@ -104,7 +104,7 @@ const StatCard = ({
 
   return (
     <Link href={href} className="block group">
-      <Card className="bg-muted/50 hover:bg-muted/80 transition-colors h-full overflow-hidden aspect-[4/3] rounded-2xl">
+      <Card className="bg-muted/50 hover:bg-muted/80 transition-colors h-full overflow-hidden aspect-[4/3] rounded-none">
         <div className="relative w-full h-full">
           {/* Image Slider Background */}
           {loading ? (
@@ -172,7 +172,7 @@ const ActionCard = ({
 
   return (
     <Link href={href} className="block group">
-      <Card className="bg-muted/50 hover:bg-muted/80 transition-colors h-full overflow-hidden aspect-[3/4]">
+      <Card className="bg-muted/50 hover:bg-muted/80 transition-colors h-full overflow-hidden aspect-[3/4] rounded-none">
         <div className="relative w-full h-full">
           {/* Image Slider Background */}
           {loading ? (
