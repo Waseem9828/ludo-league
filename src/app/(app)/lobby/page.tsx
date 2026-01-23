@@ -220,20 +220,7 @@ const ActiveMatchesAlert = ({ activeMatchIds }: { activeMatchIds: string[] }) =>
     )
 }
 
-const VSLogo = () => (
-    <svg width="24" height="24" viewBox="0 0 42 41" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M6.33317 1.66699L18.8332 23.167L6.33317 39.8337H11.6665L24.1665 18.3337L17.4165 6.41699L29.9165 24.5003L22.9165 39.8337H28.2498L41.9998 16.0003V1.66699H36.6665L24.1665 23.167L30.9165 11.2503L18.4165 29.3337L31.1665 1.66699H25.8332L13.3332 23.167L20.0832 35.0837L7.58317 17.0003L14.5832 1.66699H6.33317Z" fill="url(#paint0_linear_1_2)"/>
-        <defs>
-            <linearGradient id="paint0_linear_1_2" x1="24.1665" y1="1.66699" x2="24.1665" y2="39.8337" gradientUnits="userSpaceOnUse">
-                <stop stopColor="#F9A825"/>
-                <stop offset="1" stopColor="#F57F17"/>
-            </linearGradient>
-        </defs>
-    </svg>
-)
-
 const mockNames = ["Aarav", "Vivaan", "Aditya", "Vihaan", "Arjun", "Sai", "Reyansh", "Ayaan", "Krishna", "Ishaan", "Saanvi", "Aadya", "Kiara", "Diya", "Pari", "Ananya", "Riya", "Ahana", "Myra", "Prisha"];
-const mockAvatarSeeds = ["Gizmo", "Tinkerbell", "Zoe", "Milo", "Luna", "Oscar", "Ruby", "Leo", "Coco", "Max", "Chloe", "Toby", "Lily", "Rocky", "Mia", "Buddy", "Lucy", "Charlie", "Zoe", "Jack"];
 const fees = [50, 100, 150, 200, 250, 300, 350, 500, 750, 1000, 1500, 2000, 3000, 5000, 10000, 20000, 50000];
 
 const generateRandomMatch = (id: number) => {
@@ -243,33 +230,25 @@ const generateRandomMatch = (id: number) => {
     const fee = fees[Math.floor(Math.random() * fees.length)];
     return {
         id,
-        player1: mockNames[p1Index].slice(0,5) + '...',
-        player1Avatar: `https://api.dicebear.com/8.x/adventurer/svg?seed=${mockAvatarSeeds[p1Index]}`,
-        player2: mockNames[p2Index].slice(0,5) + '...',
-        player2Avatar: `https://api.dicebear.com/8.x/adventurer/svg?seed=${mockAvatarSeeds[p2Index]}`,
-        prize: fee * 1.8
+        player1: mockNames[p1Index],
+        player2: mockNames[p2Index],
+        fee: fee
     }
 }
 
 const LiveMatchList = () => {
     const [matches, setMatches] = useState(() => Array.from({length: 50}, (_, i) => generateRandomMatch(i)));
+    const { commissionPercentage } = useLobbyContext();
 
     useEffect(() => {
         const interval = setInterval(() => {
             setMatches(prev => {
-                // Determine how many matches to replace (2 to 4)
                 const numToChange = Math.floor(Math.random() * 3) + 2;
-
-                // Create a copy of the array without the last `numToChange` elements
                 const updatedMatches = prev.slice(0, prev.length - numToChange);
-
-                // Generate `numToChange` new matches
                 const newItems = Array.from({length: numToChange}, (_, i) => generateRandomMatch(Date.now() + i));
-
-                // Add the new matches to the beginning of the array
                 return [...newItems, ...updatedMatches];
             });
-        }, 25000); // update every 25 seconds
+        }, 25000); 
 
         return () => clearInterval(interval);
     }, []);
@@ -287,7 +266,9 @@ const LiveMatchList = () => {
             <ScrollArea className="flex-grow pr-4">
                 <div className="space-y-3">
                     <AnimatePresence>
-                        {matches.map((match, index) => (
+                        {matches.map((match, index) => {
+                            const prize = match.fee * 2 * (1 - (commissionPercentage / 100));
+                            return (
                              <motion.div
                                 key={match.id}
                                 layout
@@ -296,36 +277,42 @@ const LiveMatchList = () => {
                                 exit={{ opacity: 0, y: 20 }}
                                 transition={{ duration: 0.3, delay: index * 0.02 }}
                              >
-                                <Card className="p-3">
+                                <div className="bg-gradient-to-r from-primary to-accent p-2 rounded-full text-white shadow-lg">
                                     <div className="flex items-center justify-between">
+                                        {/* Player 1 */}
                                         <div className="flex items-center gap-2">
-                                            <Avatar className="h-8 w-8">
-                                                <AvatarImage src={match.player1Avatar} />
-                                                <AvatarFallback>{match.player1.charAt(0)}</AvatarFallback>
-                                            </Avatar>
-                                            <span className="font-semibold text-sm">{match.player1}</span>
+                                            <div className="flex items-center justify-center h-10 w-10 bg-white rounded-full text-primary font-bold text-2xl flex-shrink-0">
+                                                ?
+                                            </div>
+                                            <span className="font-semibold text-sm truncate w-24">{match.player1}</span>
                                         </div>
+
+                                        {/* Center Info */}
                                         <div className="flex flex-col items-center">
-                                            <VSLogo />
-                                            <span className="font-bold text-green-600 text-sm">Rs {match.prize}</span>
+                                            <Image src="/icon-192x192.png" alt="Ludo League Logo" width={28} height={28} />
+                                            <span className="font-bold text-sm mt-1">₹{prize.toFixed(0)}</span>
                                         </div>
-                                         <div className="flex items-center gap-2">
-                                            <span className="font-semibold text-sm">{match.player2}</span>
-                                            <Avatar className="h-8 w-8">
-                                                <AvatarImage src={match.player2Avatar} />
-                                                <AvatarFallback>{match.player2.charAt(0)}</AvatarFallback>
-                                            </Avatar>
+
+                                        {/* Player 2 */}
+                                        <div className="flex items-center gap-2">
+                                            <span className="font-semibold text-sm truncate w-24 text-right">{match.player2}</span>
+                                            <div className="flex items-center justify-center h-10 w-10 bg-white rounded-full text-primary font-bold text-2xl flex-shrink-0">
+                                                ?
+                                            </div>
                                         </div>
                                     </div>
-                                </Card>
+                                </div>
                             </motion.div>
-                        ))}
+                        )})}
                     </AnimatePresence>
                 </div>
             </ScrollArea>
         </div>
     )
 }
+
+const LobbyContext = React.createContext<{ commissionPercentage: number }>({ commissionPercentage: 10 });
+const useLobbyContext = () => useContext(LobbyContext);
 
 export default function LobbyPage() {
   const { user, userProfile, loading } = useUser();
@@ -539,140 +526,141 @@ export default function LobbyPage() {
   );
 
   return (
-    <div className="flex flex-col h-full">
-        {checkedLocalStorage && isSearching && user && userProfile && <SearchingOverlay user={user} userProfile={userProfile} onCancel={handleCancelSearch} />}
+    <LobbyContext.Provider value={{ commissionPercentage }}>
+        <div className="flex flex-col h-full">
+            {checkedLocalStorage && isSearching && user && userProfile && <SearchingOverlay user={user} userProfile={userProfile} onCancel={handleCancelSearch} />}
 
-        {/* Balance Confirmation Dialog */}
-        <Dialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
-            <DialogContent className="sm:max-w-[425px]">
-                <DialogHeader>
-                    <DialogTitle className="flex items-center gap-2">
-                        <Wallet className="h-6 w-6 text-primary"/>
-                        Confirm Match Entry
-                    </DialogTitle>
-                    <DialogDescription>
-                        Please confirm that you want to join a match with an entry fee of ₹{selectedFee}.
-                    </DialogDescription>
-                </DialogHeader>
-                <div className="space-y-4 py-4">
-                    <div className="flex justify-between items-center text-sm">
-                        <span className="text-muted-foreground">Current Wallet Balance:</span>
-                        <span className="font-medium">₹{(userProfile?.walletBalance ?? 0).toFixed(2)}</span>
-                    </div>
-                    <div className="flex justify-between items-center text-sm">
-                        <span className="text-muted-foreground">Entry Fee:</span>
-                        <span className="font-medium text-destructive">- ₹{selectedFee.toFixed(2)}</span>
-                    </div>
-                    <div className="border-t border-dashed my-2"></div>
-                    <div className="flex justify-between items-center font-semibold text-md">
-                        <span className="text-muted-foreground">Estimated Balance After:</span>
-                        <span>₹{((userProfile?.walletBalance ?? 0) - selectedFee).toFixed(2)}</span>
-                    </div>
-                </div>
-                <DialogFooter>
-                    <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
-                    <Button onClick={handleConfirmPlay}>Confirm & Play for ₹{selectedFee}</Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
-
-        {/* Room Code Dialog */}
-        <Dialog open={showRoomCodeDialog} onOpenChange={setShowRoomCodeDialog}>
-            <DialogContent>
-                <DialogHeader>
-                    <DialogTitle>Do you have a Ludo King room code?</DialogTitle>
-                    <DialogDescription>
-                        If you have a code, you&apos;ll be matched with someone looking for one.
-                    </DialogDescription>
-                </DialogHeader>
-                <div className="py-4 space-y-4">
-                    <div className="flex items-center space-x-2">
-                        <input type="radio" id="has-code" name="roomCodeOption" value="yes" checked={hasRoomCode} onChange={() => setHasRoomCode(true)} />
-                        <Label htmlFor="has-code">Yes, I have a room code</Label>
-                    </div>
-                    {hasRoomCode && (
-                        <div className="pl-6">
-                            <Label htmlFor="room-code-input">Enter 8-digit Room Code</Label>
-                            <Input id="room-code-input" value={roomCode} onChange={e => setRoomCode(e.target.value.replace(/[^0-9]/g, ''))} maxLength={8} placeholder="8-digit code" />
+            {/* Balance Confirmation Dialog */}
+            <Dialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+                <DialogContent className="sm:max-w-[425px]">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            <Wallet className="h-6 w-6 text-primary"/>
+                            Confirm Match Entry
+                        </DialogTitle>
+                        <DialogDescription>
+                            Please confirm that you want to join a match with an entry fee of ₹{selectedFee}.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                        <div className="flex justify-between items-center text-sm">
+                            <span className="text-muted-foreground">Current Wallet Balance:</span>
+                            <span className="font-medium">₹{(userProfile?.walletBalance ?? 0).toFixed(2)}</span>
                         </div>
-                    )}
-                    <div className="flex items-center space-x-2">
-                         <input type="radio" id="no-code" name="roomCodeOption" value="no" checked={!hasRoomCode} onChange={() => setHasRoomCode(false)} />
-                         <Label htmlFor="no-code">No, find a match for me</Label>
+                        <div className="flex justify-between items-center text-sm">
+                            <span className="text-muted-foreground">Entry Fee:</span>
+                            <span className="font-medium text-destructive">- ₹{selectedFee.toFixed(2)}</span>
+                        </div>
+                        <div className="border-t border-dashed my-2"></div>
+                        <div className="flex justify-between items-center font-semibold text-md">
+                            <span className="text-muted-foreground">Estimated Balance After:</span>
+                            <span>₹{((userProfile?.walletBalance ?? 0) - selectedFee).toFixed(2)}</span>
+                        </div>
                     </div>
+                    <DialogFooter>
+                        <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
+                        <Button onClick={handleConfirmPlay}>Confirm & Play for ₹{selectedFee}</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Room Code Dialog */}
+            <Dialog open={showRoomCodeDialog} onOpenChange={setShowRoomCodeDialog}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Do you have a Ludo King room code?</DialogTitle>
+                        <DialogDescription>
+                            If you have a code, you&apos;ll be matched with someone looking for one.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="py-4 space-y-4">
+                        <div className="flex items-center space-x-2">
+                            <input type="radio" id="has-code" name="roomCodeOption" value="yes" checked={hasRoomCode} onChange={() => setHasRoomCode(true)} />
+                            <Label htmlFor="has-code">Yes, I have a room code</Label>
+                        </div>
+                        {hasRoomCode && (
+                            <div className="pl-6">
+                                <Label htmlFor="room-code-input">Enter 8-digit Room Code</Label>
+                                <Input id="room-code-input" value={roomCode} onChange={e => setRoomCode(e.target.value.replace(/[^0-9]/g, ''))} maxLength={8} placeholder="8-digit code" />
+                            </div>
+                        )}
+                        <div className="flex items-center space-x-2">
+                            <input type="radio" id="no-code" name="roomCodeOption" value="no" checked={!hasRoomCode} onChange={() => setHasRoomCode(false)} />
+                            <Label htmlFor="no-code">No, find a match for me</Label>
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
+                        <Button onClick={enterQueue}>Enter Queue</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+            
+            <div className="flex-shrink-0 space-y-6">
+                <div className="relative w-full aspect-video rounded-lg overflow-hidden">
+                    <Image src="/lobby.banner.png" alt="Lobby Banner" fill className="object-cover" priority />
                 </div>
-                <DialogFooter>
-                     <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
-                     <Button onClick={enterQueue}>Enter Queue</Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
-        
-        <div className="flex-shrink-0 space-y-6">
-            <div className="relative w-full aspect-video rounded-lg overflow-hidden">
-                <Image src="/lobby.banner.png" alt="Lobby Banner" fill className="object-cover" priority />
+
+                {activeMatchIds.length > 0 && <ActiveMatchesAlert activeMatchIds={activeMatchIds} />}
+            
+                <div className="grid grid-cols-2 gap-4">
+                    <Dialog open={showStakesDialog} onOpenChange={setShowStakesDialog}>
+                        <DialogTrigger asChild>
+                            <Button size="lg" className="w-full h-20 text-lg">
+                                <PlusCircle className="mr-2 h-6 w-6"/> Create New Match
+                            </Button>
+                        </DialogTrigger>
+                        <DialogContent className="sm:max-w-3xl">
+                            <DialogHeader>
+                                <DialogTitle>Select Your Stake</DialogTitle>
+                                <DialogDescription>Choose an entry fee to find an opponent.</DialogDescription>
+                            </DialogHeader>
+                            <Tabs defaultValue="low" className="w-full pt-4">
+                                <TabsList className="grid w-full grid-cols-3">
+                                    <TabsTrigger value="low">Low Stakes</TabsTrigger>
+                                    <TabsTrigger value="medium">Medium Stakes</TabsTrigger>
+                                    <TabsTrigger value="high">High Stakes</TabsTrigger>
+                                </TabsList>
+                                <ScrollArea className="h-96 md:h-[500px] pr-4">
+                                    <TabsContent value="low" className="pt-4">
+                                        <FeeTier fees={lowStakes} tier="low" />
+                                    </TabsContent>
+                                    <TabsContent value="medium" className="pt-4">
+                                        <FeeTier fees={mediumStakes} tier="medium" />
+                                    </TabsContent>
+                                    <TabsContent value="high" className="pt-4">
+                                        <FeeTier fees={highStakes} tier="high" />
+                                    </TabsContent>
+                                </ScrollArea>
+                            </Tabs>
+                        </DialogContent>
+                    </Dialog>
+
+                    <Dialog>
+                        <DialogTrigger asChild>
+                            <Button variant="outline" size="lg" className="w-full h-20 text-lg animate-pulse shadow-lg shadow-primary/50">
+                                <Info className="mr-2 h-6 w-6"/> How to Play
+                            </Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                            <DialogHeader>
+                                <DialogTitle>How to Play</DialogTitle>
+                            </DialogHeader>
+                            <ol className="space-y-3 mt-4 text-sm text-muted-foreground list-decimal list-inside">
+                                <li>Select an entry fee and click <strong>Play</strong>.</li>
+                                <li>Wait for us to find a suitable opponent for you.</li>
+                                <li>Once a match is found, you will be automatically redirected to the match room.</li>
+                                <li>Copy the room code and use it to play in your Ludo King app.</li>
+                                <li>After the game, take a screenshot of the win/loss screen.</li>
+                                <li>Come back to the app and submit your result with the screenshot to claim your winnings.</li>
+                            </ol>
+                        </DialogContent>
+                    </Dialog>
+                </div>
             </div>
 
-            {activeMatchIds.length > 0 && <ActiveMatchesAlert activeMatchIds={activeMatchIds} />}
-          
-            <div className="grid grid-cols-2 gap-4">
-                <Dialog open={showStakesDialog} onOpenChange={setShowStakesDialog}>
-                    <DialogTrigger asChild>
-                        <Button size="lg" className="w-full h-20 text-lg">
-                            <PlusCircle className="mr-2 h-6 w-6"/> Create New Match
-                        </Button>
-                    </DialogTrigger>
-                    <DialogContent className="sm:max-w-3xl">
-                        <DialogHeader>
-                            <DialogTitle>Select Your Stake</DialogTitle>
-                            <DialogDescription>Choose an entry fee to find an opponent.</DialogDescription>
-                        </DialogHeader>
-                         <Tabs defaultValue="low" className="w-full pt-4">
-                            <TabsList className="grid w-full grid-cols-3">
-                                <TabsTrigger value="low">Low Stakes</TabsTrigger>
-                                <TabsTrigger value="medium">Medium Stakes</TabsTrigger>
-                                <TabsTrigger value="high">High Stakes</TabsTrigger>
-                            </TabsList>
-                            <ScrollArea className="h-96 md:h-[500px] pr-4">
-                                <TabsContent value="low" className="pt-4">
-                                    <FeeTier fees={lowStakes} tier="low" />
-                                </TabsContent>
-                                <TabsContent value="medium" className="pt-4">
-                                    <FeeTier fees={mediumStakes} tier="medium" />
-                                </TabsContent>
-                                <TabsContent value="high" className="pt-4">
-                                    <FeeTier fees={highStakes} tier="high" />
-                                </TabsContent>
-                            </ScrollArea>
-                        </Tabs>
-                    </DialogContent>
-                </Dialog>
-
-                <Dialog>
-                    <DialogTrigger asChild>
-                         <Button variant="outline" size="lg" className="w-full h-20 text-lg animate-pulse shadow-lg shadow-primary/50">
-                            <Info className="mr-2 h-6 w-6"/> How to Play
-                        </Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                        <DialogHeader>
-                            <DialogTitle>How to Play</DialogTitle>
-                        </DialogHeader>
-                        <ol className="space-y-3 mt-4 text-sm text-muted-foreground list-decimal list-inside">
-                            <li>Select an entry fee and click <strong>Play</strong>.</li>
-                            <li>Wait for us to find a suitable opponent for you.</li>
-                            <li>Once a match is found, you will be automatically redirected to the match room.</li>
-                            <li>Copy the room code and use it to play in your Ludo King app.</li>
-                            <li>After the game, take a screenshot of the win/loss screen.</li>
-                            <li>Come back to the app and submit your result with the screenshot to claim your winnings.</li>
-                        </ol>
-                    </DialogContent>
-                </Dialog>
-            </div>
+            <LiveMatchList />
         </div>
-
-        <LiveMatchList />
-    </div>
+    </LobbyContext.Provider>
   );
 }
-
