@@ -50,7 +50,7 @@ function SignUpForm() {
     let message = 'An unexpected error occurred. Please try again.';
      switch (error.code) {
         case 'auth/invalid-phone-number':
-            message = 'The phone number is not valid.';
+            message = 'The phone number format is not valid. Please enter a 10-digit number.';
             break;
         case 'auth/too-many-requests':
             message = 'Too many attempts. Please wait a moment before trying again.';
@@ -75,13 +75,13 @@ function SignUpForm() {
   
   const handleSendOtp = async () => {
     setIsOtpLoading(true);
+    const fullPhoneNumber = `+91${phone}`;
     try {
       const auth = getAuth();
-      // Invisible reCAPTCHA
       const recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
         'size': 'invisible'
       });
-      const result = await sendOtp(phone, recaptchaVerifier);
+      const result = await sendOtp(fullPhoneNumber, recaptchaVerifier);
       setConfirmationResult(result);
       toast({ title: "OTP Sent", description: "Please check your phone for the verification code." });
     } catch (error: any) {
@@ -158,16 +158,19 @@ function SignUpForm() {
         
         {!confirmationResult ? (
             <div className="space-y-4">
-                <div className="relative">
-                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground"/>
-                <Input 
-                    type="tel" 
-                    placeholder="Phone Number" 
-                    value={phone} 
-                    onChange={e => setPhone(e.target.value)} 
-                    required 
-                    className="bg-background/50 border-border h-12 pl-10"
-                />
+                 <div className="flex items-center gap-2">
+                    <div className="flex h-12 w-16 items-center justify-center rounded-md bg-background/50 border border-border">
+                        <span className="text-muted-foreground font-semibold">+91</span>
+                    </div>
+                    <Input
+                        type="tel"
+                        placeholder="10-digit mobile number"
+                        value={phone}
+                        onChange={e => setPhone(e.target.value.replace(/[^0-9]/g, ''))}
+                        maxLength={10}
+                        required
+                        className="bg-background/50 border-border h-12"
+                    />
                 </div>
                  <div className="relative">
                     <Gift className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground"/>
@@ -179,7 +182,7 @@ function SignUpForm() {
                         className="bg-background/50 border-border h-12 pl-10"
                     />
                 </div>
-                <Button onClick={handleSendOtp} disabled={isButtonDisabled || !phone} className="w-full h-12 font-bold text-lg">
+                <Button onClick={handleSendOtp} disabled={isButtonDisabled || phone.length !== 10} className="w-full h-12 font-bold text-lg">
                     {isOtpLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : "Send OTP"}
                 </Button>
             </div>
@@ -189,14 +192,15 @@ function SignUpForm() {
                 <MessageCircle className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                 <Input
                     type="text"
-                    placeholder="Enter OTP"
+                    placeholder="Enter 6-digit OTP"
                     value={otp}
-                    onChange={e => setOtp(e.target.value)}
+                    onChange={e => setOtp(e.target.value.replace(/[^0-9]/g, ''))}
+                    maxLength={6}
                     required
                     className="bg-background/50 border-border h-12 pl-10"
                 />
                 </div>
-                <Button onClick={handleOtpSignup} disabled={isButtonDisabled || !otp} className="w-full h-12 font-bold text-lg">
+                <Button onClick={handleOtpSignup} disabled={isButtonDisabled || otp.length !== 6} className="w-full h-12 font-bold text-lg">
                     {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Verify & Create Account"}
                 </Button>
                 <Button variant="link" onClick={() => setConfirmationResult(null)}>Use a different number</Button>
