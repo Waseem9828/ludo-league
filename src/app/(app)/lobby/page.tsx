@@ -4,7 +4,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Swords, Info, Wallet, Users, User, Shield, BarChart, X, Trophy, CircleDotDashed, PlusCircle } from "lucide-react";
+import { Swords, Info, PlusCircle, Trophy, CircleDotDashed } from "lucide-react";
 import { useUser, useFirestore } from "@/firebase";
 import React, { useEffect, useState, useRef, useCallback, useMemo, useContext } from "react";
 import { doc, setDoc, deleteDoc, collection, onSnapshot, query, getDoc, where, orderBy, runTransaction, Timestamp, arrayUnion } from "firebase/firestore";
@@ -37,6 +37,7 @@ import CustomLoader from '@/components/CustomLoader';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { EntryFeeCard } from '@/components/app/lobby/entry-fee-card';
 import { Loader2 } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 
 const ActiveMatchesAlert = ({ activeMatchIds }: { activeMatchIds: string[] }) => {
     const firestore = useFirestore();
@@ -84,15 +85,12 @@ const ActiveMatchesAlert = ({ activeMatchIds }: { activeMatchIds: string[] }) =>
     )
 }
 
-// Card for both real and mock waiting matches
-const WaitingMatchCard = ({ match, isMock }: { match: Match | any, isMock: boolean }) => {
+const WaitingMatchCard = ({ match }: { match: Match }) => {
     const router = useRouter();
-    const creator = isMock ? match.creator : (match.players ? match.players[match.creatorId] : null);
+    const creator = match.players ? match.players[match.creatorId] : null;
 
     const handleJoin = () => {
-        if (!isMock) {
-            router.push(`/match/${match.id}`);
-        }
+        router.push(`/match/${match.id}`);
     };
 
     if (!creator) return null;
@@ -126,8 +124,7 @@ const WaitingMatchCard = ({ match, isMock }: { match: Match | any, isMock: boole
                 <div className="flex-1 flex justify-end">
                     <Button 
                         onClick={handleJoin}
-                        disabled={isMock}
-                        className="bg-white text-primary hover:bg-gray-200 font-bold rounded-full px-6 shadow-md disabled:opacity-70"
+                        className="bg-white text-primary hover:bg-gray-200 font-bold rounded-full px-6 shadow-md"
                     >
                         Join Now
                     </Button>
@@ -137,34 +134,53 @@ const WaitingMatchCard = ({ match, isMock }: { match: Match | any, isMock: boole
     );
 };
 
-// Generates a list of mock matches
-const generateMockMatches = (count: number) => {
-    const names = ["Rahul", "Priya", "Amit", "Sneha", "Vikas", "Anjali", "Deepak", "Pooja"];
-    const fees = [50, 100, 250, 500, 1000, 2000, 5000, 10000, 25000, 50000];
+const OngoingMatchCard = ({ match }: { match: any }) => {
+    const creator = match.creator;
+    const opponent = match.opponent;
 
-    return Array.from({ length: count }, (_, i) => {
-        const name = names[i % names.length];
-        const fee = fees[i % fees.length];
-        return {
-            id: `mock-${i}`,
-            creator: {
-                id: `mock-user-${i}`,
-                name: `${name}_Gamer`,
-                avatarUrl: `https://api.dicebear.com/7.x/initials/svg?seed=${name}`,
-            },
-            entryFee: fee,
-            isMock: true,
-        };
-    });
+    return (
+        <motion.div
+            layout
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.9 }}
+            transition={{ duration: 0.4, ease: 'easeOut' }}
+            className="bg-card p-2 rounded-full text-white shadow-lg border"
+        >
+            <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 flex-1">
+                    <Avatar className="h-10 w-10 border-2 border-border">
+                        <AvatarImage src={creator.avatarUrl || ''} />
+                        <AvatarFallback>{creator.name?.charAt(0)}</AvatarFallback>
+                    </Avatar>
+                    <span className="font-semibold text-sm truncate text-foreground">{creator.name}</span>
+                </div>
+
+                <div className="flex flex-col items-center mx-2 text-center">
+                     <span className="font-bold text-sm text-foreground">₹{match.entryFee}</span>
+                     <Badge variant="destructive" className="mt-1 animate-pulse text-xs">LIVE</Badge>
+                </div>
+
+                <div className="flex items-center gap-2 flex-1 justify-end">
+                     <span className="font-semibold text-sm truncate text-foreground text-right">{opponent.name}</span>
+                    <Avatar className="h-10 w-10 border-2 border-border">
+                        <AvatarImage src={opponent.avatarUrl || ''} />
+                        <AvatarFallback>{opponent.name?.charAt(0)}</AvatarFallback>
+                    </Avatar>
+                </div>
+            </div>
+        </motion.div>
+    );
 };
 
+// --- LIST COMPONENTS ---
 
-const WaitingMatchesList = () => {
+// OpenMatchesList: Renders REAL waiting matches from Firestore
+const OpenMatchesList = () => {
     const firestore = useFirestore();
     const { user } = useUser();
     const [realMatches, setRealMatches] = useState<Match[]>([]);
     const [loading, setLoading] = useState(true);
-    const [mockMatches] = useState(generateMockMatches(50));
 
     useEffect(() => {
         if (!firestore) return;
@@ -187,21 +203,15 @@ const WaitingMatchesList = () => {
         return () => unsubscribe();
     }, [firestore]);
 
-    const combinedMatches = useMemo(() => {
-        const userCreatedMatch = user ? realMatches.find(m => m.creatorId === user.uid) : undefined;
-        const otherRealMatches = realMatches.filter(m => !userCreatedMatch || m.id !== userCreatedMatch.id);
-        
-        const matchesToShow = 50;
-        const mockMatchesCount = Math.max(0, matchesToShow - realMatches.length);
-        const slicedMockMatches = mockMatches.slice(0, mockMatchesCount);
-
-        let sortedList = [...otherRealMatches, ...slicedMockMatches];
-        if (userCreatedMatch) {
-            sortedList = [userCreatedMatch, ...sortedList];
-        }
-        
-        return sortedList;
-    }, [realMatches, mockMatches, user]);
+    const sortedMatches = useMemo(() => {
+        if (!user) return realMatches;
+        // Move user's own created match to the top
+        return [...realMatches].sort((a, b) => {
+            if (a.creatorId === user.uid) return -1;
+            if (b.creatorId === user.uid) return 1;
+            return 0;
+        });
+    }, [realMatches, user]);
 
     if (loading) {
         return (
@@ -211,7 +221,7 @@ const WaitingMatchesList = () => {
         );
     }
     
-    if (combinedMatches.length === 0) {
+    if (sortedMatches.length === 0) {
         return (
              <div className="text-center py-10 text-muted-foreground">
                 <p>No open matches available right now.</p>
@@ -221,24 +231,76 @@ const WaitingMatchesList = () => {
     }
 
     return (
-        <div className='mt-8 flex flex-col flex-grow'>
-            <div className="flex items-center justify-center gap-4 mb-4">
-                <div className="flex-grow h-px bg-border"></div>
-                <h2 className="text-xl font-bold tracking-tight text-foreground flex items-center gap-2 flex-shrink-0">
-                    <Trophy className="text-primary"/>
-                    Open Battles
-                </h2>
-                <div className="flex-grow h-px bg-border"></div>
-            </div>
-            <ScrollArea className="flex-grow pr-4">
-                <div className="space-y-3">
-                    <AnimatePresence>
-                       {combinedMatches.map(match => (
-                           <WaitingMatchCard key={match.id} match={match} isMock={(match as any).isMock || false} />
-                       ))}
-                    </AnimatePresence>
-                </div>
-            </ScrollArea>
+        <div className="space-y-3">
+            <AnimatePresence>
+               {sortedMatches.map(match => (
+                   <WaitingMatchCard key={match.id} match={match} />
+               ))}
+            </AnimatePresence>
+        </div>
+    )
+}
+
+// Generates a list of mock ongoing matches
+const generateMockOngoingMatches = (count: number) => {
+    const names = ["Rohan", "Priya", "Amit", "Sneha", "Vikas", "Anjali", "Deepak", "Pooja", "Sanjay", "Meera", "Arjun", "Kavita"];
+    const fees = [50, 100, 250, 500, 1000, 2000, 5000, 10000, 25000, 50000];
+
+    return Array.from({ length: count }, (_, i) => {
+        const creatorIndex = Math.floor(Math.random() * names.length);
+        let opponentIndex = Math.floor(Math.random() * names.length);
+        while (creatorIndex === opponentIndex) {
+            opponentIndex = Math.floor(Math.random() * names.length);
+        }
+        
+        const creatorName = names[creatorIndex];
+        const opponentName = names[opponentIndex];
+        const fee = fees[Math.floor(Math.random() * fees.length)];
+
+        return {
+            id: `mock-ongoing-${Date.now()}-${i}`,
+            creator: {
+                id: `mock-user-c-${i}`,
+                name: `${creatorName}_${i}`,
+                avatarUrl: `https://api.dicebear.com/7.x/initials/svg?seed=${creatorName}`,
+            },
+            opponent: {
+                id: `mock-user-o-${i}`,
+                name: `${opponentName}_${i+1}`,
+                avatarUrl: `https://api.dicebear.com/7.x/initials/svg?seed=${opponentName}`,
+            },
+            entryFee: fee,
+        };
+    });
+};
+
+
+const OngoingMatchesMockList = () => {
+    const [mockMatches, setMockMatches] = useState(() => generateMockOngoingMatches(50));
+
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setMockMatches(prevMatches => {
+                const matchesToRemove = Math.floor(Math.random() * 3) + 2; // 2 to 4
+                const newMatches = generateMockOngoingMatches(matchesToRemove);
+                
+                // Remove from bottom, add to top
+                const updatedMatches = [...newMatches, ...prevMatches.slice(0, prevMatches.length - matchesToRemove)];
+                
+                return updatedMatches.slice(0, 50); // Ensure list is always 50
+            });
+        }, 25000); // Update every 25 seconds
+
+        return () => clearInterval(interval);
+    }, []);
+
+    return (
+        <div className="space-y-3">
+            <AnimatePresence>
+               {mockMatches.map(match => (
+                   <OngoingMatchCard key={match.id} match={match} />
+               ))}
+            </AnimatePresence>
         </div>
     )
 }
@@ -424,7 +486,7 @@ export default function LobbyPage() {
 
                     <Dialog>
                         <DialogTrigger asChild>
-                            <Button variant="outline" size="lg" className="w-full h-20 text-lg">
+                            <Button variant="outline" size="lg" className="w-full h-20 text-lg animate-pulse shadow-lg shadow-primary/50">
                                 <Info className="mr-2 h-6 w-6"/> How to Play
                             </Button>
                         </DialogTrigger>
@@ -445,7 +507,33 @@ export default function LobbyPage() {
                 </div>
             </div>
 
-            <WaitingMatchesList />
+             {/* Open Battles (Real waiting matches) */}
+             <div className='mt-8 flex flex-col'>
+                    <div className="flex items-center justify-center gap-4 mb-4">
+                    <div className="flex-grow h-px bg-border"></div>
+                    <h2 className="text-xl font-bold tracking-tight text-foreground flex items-center gap-2 flex-shrink-0">
+                        <Trophy className="text-primary"/>
+                        Open Battles
+                    </h2>
+                    <div className="flex-grow h-px bg-border"></div>
+                </div>
+                <OpenMatchesList />
+            </div>
+            
+            {/* Live Matches (Mock ongoing matches) */}
+            <div className='mt-8 flex flex-col flex-grow'>
+                <div className="flex items-center justify-center gap-4 mb-4">
+                    <div className="flex-grow h-px bg-border"></div>
+                    <h2 className="text-xl font-bold tracking-tight text-foreground flex items-center gap-2 flex-shrink-0">
+                        <CircleDotDashed className="text-destructive animate-pulse"/>
+                        Live Matches
+                    </h2>
+                    <div className="flex-grow h-px bg-border"></div>
+                </div>
+                    <ScrollArea className="flex-grow pr-4">
+                        <OngoingMatchesMockList />
+                    </ScrollArea>
+            </div>
         </div>
     </LobbyContext.Provider>
   );
