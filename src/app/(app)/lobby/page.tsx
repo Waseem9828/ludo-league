@@ -4,7 +4,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Swords, Loader2, Info, Lock, Wallet, Users, User, Shield, BarChart, X, Trophy, CircleDotDashed, PlusCircle } from "lucide-react";
+import { Swords, Info, Wallet, Users, User, Shield, BarChart, X, Trophy, CircleDotDashed, PlusCircle } from "lucide-react";
 import { useUser, useFirestore } from "@/firebase";
 import React, { useEffect, useState, useRef, useCallback, useMemo, useContext } from "react";
 import { doc, setDoc, deleteDoc, collection, onSnapshot, query, getDoc, where, orderBy, runTransaction, Timestamp, arrayUnion } from "firebase/firestore";
@@ -36,6 +36,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import CustomLoader from '@/components/CustomLoader';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { EntryFeeCard } from '@/components/app/lobby/entry-fee-card';
+import { Loader2 } from 'lucide-react';
 
 const ActiveMatchesAlert = ({ activeMatchIds }: { activeMatchIds: string[] }) => {
     const firestore = useFirestore();
@@ -83,12 +84,15 @@ const ActiveMatchesAlert = ({ activeMatchIds }: { activeMatchIds: string[] }) =>
     )
 }
 
-const WaitingMatchCard = ({ match }: { match: Match }) => {
+// Card for both real and mock waiting matches
+const WaitingMatchCard = ({ match, isMock }: { match: Match | any, isMock: boolean }) => {
     const router = useRouter();
-    const creator = match.players ? match.players[match.creatorId] : null;
+    const creator = isMock ? match.creator : (match.players ? match.players[match.creatorId] : null);
 
     const handleJoin = () => {
-        router.push(`/match/${match.id}`);
+        if (!isMock) {
+            router.push(`/match/${match.id}`);
+        }
     };
 
     if (!creator) return null;
@@ -122,7 +126,8 @@ const WaitingMatchCard = ({ match }: { match: Match }) => {
                 <div className="flex-1 flex justify-end">
                     <Button 
                         onClick={handleJoin}
-                        className="bg-white text-primary hover:bg-gray-200 font-bold rounded-full px-6 shadow-md"
+                        disabled={isMock}
+                        className="bg-white text-primary hover:bg-gray-200 font-bold rounded-full px-6 shadow-md disabled:opacity-70"
                     >
                         Join Now
                     </Button>
@@ -132,10 +137,34 @@ const WaitingMatchCard = ({ match }: { match: Match }) => {
     );
 };
 
+// Generates a list of mock matches
+const generateMockMatches = (count: number) => {
+    const names = ["Rahul", "Priya", "Amit", "Sneha", "Vikas", "Anjali", "Deepak", "Pooja"];
+    const fees = [50, 100, 250, 500, 1000, 2000, 5000, 10000, 25000, 50000];
+
+    return Array.from({ length: count }, (_, i) => {
+        const name = names[i % names.length];
+        const fee = fees[i % fees.length];
+        return {
+            id: `mock-${i}`,
+            creator: {
+                id: `mock-user-${i}`,
+                name: `${name}_Gamer`,
+                avatarUrl: `https://api.dicebear.com/7.x/initials/svg?seed=${name}`,
+            },
+            entryFee: fee,
+            isMock: true,
+        };
+    });
+};
+
+
 const WaitingMatchesList = () => {
     const firestore = useFirestore();
-    const [matches, setMatches] = useState<Match[]>([]);
+    const { user } = useUser();
+    const [realMatches, setRealMatches] = useState<Match[]>([]);
     const [loading, setLoading] = useState(true);
+    const [mockMatches] = useState(generateMockMatches(50));
 
     useEffect(() => {
         if (!firestore) return;
@@ -148,7 +177,7 @@ const WaitingMatchesList = () => {
 
         const unsubscribe = onSnapshot(q, (snapshot) => {
             const waitingMatches = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Match));
-            setMatches(waitingMatches);
+            setRealMatches(waitingMatches);
             setLoading(false);
         }, (error) => {
             console.error("Error fetching waiting matches: ", error);
@@ -158,6 +187,22 @@ const WaitingMatchesList = () => {
         return () => unsubscribe();
     }, [firestore]);
 
+    const combinedMatches = useMemo(() => {
+        const userCreatedMatch = user ? realMatches.find(m => m.creatorId === user.uid) : undefined;
+        const otherRealMatches = realMatches.filter(m => !userCreatedMatch || m.id !== userCreatedMatch.id);
+        
+        const matchesToShow = 50;
+        const mockMatchesCount = Math.max(0, matchesToShow - realMatches.length);
+        const slicedMockMatches = mockMatches.slice(0, mockMatchesCount);
+
+        let sortedList = [...otherRealMatches, ...slicedMockMatches];
+        if (userCreatedMatch) {
+            sortedList = [userCreatedMatch, ...sortedList];
+        }
+        
+        return sortedList;
+    }, [realMatches, mockMatches, user]);
+
     if (loading) {
         return (
             <div className="flex justify-center p-8">
@@ -166,7 +211,7 @@ const WaitingMatchesList = () => {
         );
     }
     
-    if (matches.length === 0) {
+    if (combinedMatches.length === 0) {
         return (
              <div className="text-center py-10 text-muted-foreground">
                 <p>No open matches available right now.</p>
@@ -188,8 +233,8 @@ const WaitingMatchesList = () => {
             <ScrollArea className="flex-grow pr-4">
                 <div className="space-y-3">
                     <AnimatePresence>
-                       {matches.map(match => (
-                           <WaitingMatchCard key={match.id} match={match} />
+                       {combinedMatches.map(match => (
+                           <WaitingMatchCard key={match.id} match={match} isMock={(match as any).isMock || false} />
                        ))}
                     </AnimatePresence>
                 </div>
@@ -379,7 +424,7 @@ export default function LobbyPage() {
 
                     <Dialog>
                         <DialogTrigger asChild>
-                            <Button variant="outline" size="lg" className="w-full h-20 text-lg animate-pulse shadow-lg shadow-primary/50">
+                            <Button variant="outline" size="lg" className="w-full h-20 text-lg">
                                 <Info className="mr-2 h-6 w-6"/> How to Play
                             </Button>
                         </DialogTrigger>
