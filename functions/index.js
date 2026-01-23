@@ -965,3 +965,89 @@ exports.claimTaskReward = functions.https.onCall(async (data, context) => {
          throw new functions.https.HttpsError('internal', 'An unexpected error occurred.');
     }
 });
+
+exports.createMatch = functions.https.onCall(async (data, context) => {
+    if (!context.auth) {
+        throw new functions.https.HttpsError("unauthenticated", "You must be authenticated to create a match.");
+    }
+
+    const { entryFee } = data;
+    const userId = context.auth.uid;
+
+    if (!Number.isInteger(entryFee) || entryFee < 50) {
+        throw new functions.https.HttpsError("invalid-argument", "A valid entry fee of at least 50 is required.");
+    }
+
+    const userRef = db.collection('users').doc(userId);
+    
+    try {
+        let newMatchRefId;
+        await db.runTransaction(async (transaction) => {
+            const userDoc = await transaction.get(userRef);
+            if (!userDoc.exists) {
+                throw new functions.https.HttpsError("not-found", "User profile not found.");
+            }
+
+            const userData = userDoc.data();
+            if (userData.isBlocked) {
+                throw new functions.https.HttpsError("permission-denied", "Your account is blocked.");
+            }
+            if ((userData.activeMatchIds || []).length >= 5) {
+                throw new functions.https.HttpsError("resource-exhausted", "You have reached the maximum of 5 active matches.");
+            }
+            if ((userData.walletBalance || 0) < entryFee) {
+                throw new functions.https.HttpsError("failed-precondition", "Insufficient balance.");
+            }
+
+            const commissionConfigSnap = await db.doc('matchCommission/settings').get();
+            const commissionPercentage = commissionConfigSnap.exists() && commissionConfigSnap.data().percentage ? commissionConfigSnap.data().percentage : 10;
+            const prizePool = entryFee * 2 * (1 - (commissionPercentage / 100));
+
+            const newPlayer = {
+                id: userId,
+                name: userData.displayName || "Player",
+                avatarUrl: userData.photoURL || "",
+                winRate: userData.winRate || 0,
+            };
+
+            const matchRef = db.collection('matches').doc();
+            newMatchRefId = matchRef.id;
+
+            transaction.set(matchRef, {
+                id: newMatchRefId,
+                creatorId: userId,
+                status: 'waiting',
+                entryFee: entryFee,
+                prizePool: prizePool,
+                maxPlayers: 2,
+                playerIds: [userId],
+                players: { [userId]: newPlayer },
+                createdAt: admin.firestore.FieldValue.serverTimestamp(),
+            });
+
+            const transactionRef = db.collection('transactions').doc();
+            transaction.set(transactionRef, {
+                userId: userId,
+                type: 'entry-fee',
+                amount: -entryFee,
+                status: 'completed',
+                createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                relatedMatchId: newMatchRefId,
+                description: `Entry fee for match ${newMatchRefId}`
+            });
+
+            transaction.update(userRef, {
+                activeMatchIds: admin.firestore.FieldValue.arrayUnion(newMatchRefId)
+            });
+        });
+
+        return { success: true, matchId: newMatchRefId };
+        
+    } catch(error) {
+        console.error("Error creating match:", error);
+        if (error instanceof functions.https.HttpsError) {
+            throw error;
+        }
+        throw new functions.https.HttpsError("internal", "An unexpected error occurred while creating the match.");
+    }
+});

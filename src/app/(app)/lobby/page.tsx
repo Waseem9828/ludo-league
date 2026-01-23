@@ -1,3 +1,4 @@
+
 'use client';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -37,6 +38,9 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { EntryFeeCard } from '@/components/app/lobby/entry-fee-card';
 import { Loader2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { httpsCallable } from 'firebase/functions';
+import { functions } from '@/firebase/functions';
+
 
 const ActiveMatchesAlert = ({ activeMatchIds }: { activeMatchIds: string[] }) => {
     const firestore = useFirestore();
@@ -351,60 +355,17 @@ export default function LobbyPage() {
 
     setShowStakesDialog(false);
 
-    const { id: toastId } = toast({ title: "Creating your match..." });
+    const { id: toastId, update } = toast({ title: "Creating your match..." });
 
     try {
-        await runTransaction(firestore, async (transaction) => {
-            const userRef = doc(firestore, 'users', user.uid);
-            const userDoc = await transaction.get(userRef);
+        const createMatchFunction = httpsCallable(functions, 'createMatch');
+        await createMatchFunction({ entryFee: fee });
 
-            if (!userDoc.exists() || (userDoc.data().walletBalance || 0) < fee) {
-                throw new Error("Insufficient balance.");
-            }
-            
-            const prizePool = fee * 2 * (1 - (commissionPercentage / 100));
-
-            const newPlayer: MatchPlayer = {
-                id: user.uid,
-                name: user.displayName || "Player",
-                avatarUrl: user.photoURL || "",
-                winRate: userProfile.winRate || 0,
-            };
-
-            const matchRef = doc(collection(firestore, 'matches'));
-            
-            transaction.set(matchRef, {
-                id: matchRef.id,
-                creatorId: user.uid,
-                status: 'waiting',
-                entryFee: fee,
-                prizePool: prizePool,
-                maxPlayers: 2,
-                playerIds: [user.uid],
-                players: { [user.uid]: newPlayer },
-                createdAt: serverTimestamp(),
-            });
-
-            const transactionRef = doc(collection(firestore, 'transactions'));
-            transaction.set(transactionRef, {
-                userId: user.uid,
-                type: 'entry-fee',
-                amount: -fee,
-                status: 'completed',
-                createdAt: serverTimestamp(),
-                relatedMatchId: matchRef.id,
-                description: `Entry fee for match ${matchRef.id}`
-            });
-
-            transaction.update(userRef, {
-                activeMatchIds: arrayUnion(matchRef.id)
-            });
-        });
-        
-        toast({ id: toastId, title: "Match Created!", description: "Your match is now live in the Open Battles list." });
+        update({ id: toastId, title: "Match Created!", description: "Your match is now live in the Open Battles list.", className: "bg-green-100 text-green-800" });
 
     } catch (error: any) {
-         toast({ id: toastId, title: "Failed to create match", description: error.message, variant: 'destructive' });
+         console.error("Error creating match:", error);
+         update({ id: toastId, title: "Failed to create match", description: error.message, variant: 'destructive' });
     }
   };
   
