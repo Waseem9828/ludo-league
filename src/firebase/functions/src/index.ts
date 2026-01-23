@@ -674,12 +674,7 @@ export const newDailyLoginBonus = functions.https.onCall(async (data, context) =
             if (!userDoc.exists()) {
                 throw new functions.https.HttpsError('not-found', 'User profile not found.');
             }
-
-            if (!configDoc.exists()) {
-                functions.logger.error("Bonus configuration not set. Please create the document 'bonus_config/settings'");
-                throw new functions.https.HttpsError('failed-precondition', 'Bonus configuration is not set.');
-            }
-
+            
             const userData = userDoc.data()!;
             const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
 
@@ -695,6 +690,12 @@ export const newDailyLoginBonus = functions.https.onCall(async (data, context) =
             };
             const currentStreak = isYesterday(userData.lastLoginDate) ? (userData.loginStreak || 0) + 1 : 1;
 
+            if (!configDoc.exists()) {
+                functions.logger.warn("Bonus configuration not set. System will proceed without awarding a bonus.");
+                transaction.update(userRef, { lastLoginDate: today, loginStreak: currentStreak });
+                return { success: true, message: 'Login tracked. Bonus system not configured.' };
+            }
+            
             const config = configDoc.data()!;
             if (!config.enabled) {
                 transaction.update(userRef, { lastLoginDate: today, loginStreak: currentStreak });
