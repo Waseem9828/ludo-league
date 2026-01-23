@@ -1,167 +1,38 @@
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // ========= Helper Functions =========
-    function isOwner(userId) {
-      return request.auth != null && request.auth.uid == userId;
-    }
-
-    function isSuperAdmin() {
-      return request.auth != null && request.auth.token.role == 'superAdmin';
-    }
-    function isKycAdmin() {
-      return request.auth != null && (request.auth.token.role == 'kycAdmin' || isSuperAdmin());
-    }
-    function isDepositAdmin() {
-      return request.auth != null && (request.auth.token.role == 'depositAdmin' || isSuperAdmin());
-    }
-    function isWithdrawalAdmin() {
-      return request.auth != null && (request.auth.token.role == 'withdrawalAdmin' || isSuperAdmin());
-    }
-    function isMatchAdmin() {
-      return request.auth != null && (request.auth.token.role == 'matchAdmin' || isSuperAdmin());
-    }
+    // Helper function to check for admin roles
     function isAdmin() {
-        return request.auth != null && request.auth.token.admin == true;
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
     }
 
-    // ========= User-specific Rules =========
+    // Admins can read/write anything
+    match /{document=**} {
+      allow read, write: if isAdmin();
+    }
+    
+    // Users can only manage their own data
     match /users/{userId} {
-        allow get: if request.auth != null; // Any logged-in user can view any profile
-        allow list: if isAdmin(); // Only admins can list all users
-        allow create, update: if isOwner(userId) || isSuperAdmin(); // User can edit their own, or super admin can
+      allow read, update, delete: if request.auth.uid == userId;
+      allow create: if request.auth.uid != null; // Any authenticated user can create a profile
+    }
+
+    // KYC data can only be accessed by the user it belongs to
+    match /kyc/{userId} {
+      allow read, write: if request.auth.uid == userId;
     }
     
-    match /users/{userId}/activity/{logId} {
-        allow read: if isOwner(userId) || isAdmin();
+    // Tournaments and matches are public and can be read by any authenticated user
+    match /tournaments/{tournamentId} {
+      allow get: if request.auth.uid != null;
+      allow list: if request.auth.uid != null;
     }
 
-    // ========= Core App Collections =========
-
-    // KYC
-    match /kycApplications/{kycId} {
-        allow create: if isOwner(request.resource.data.userId);
-        // User can read their own, KYC admins can read any
-        allow read: if isOwner(resource.data.userId) || isKycAdmin();
-        // Only KYC admins can approve/reject
-        allow update: if isKycAdmin();
-    }
-
-    // Deposits
-    match /depositRequests/{depositId} {
-        allow create: if isOwner(request.resource.data.userId);
-        allow read, list: if isOwner(resource.data.userId) || isDepositAdmin();
-        allow update: if isDepositAdmin();
-    }
-
-    // Withdrawals
-    match /withdrawalRequests/{withdrawalId} {
-        allow create: if isOwner(request.resource.data.userId);
-        allow read, list: if isOwner(resource.data.userId) || isWithdrawalAdmin();
-        allow update: if isWithdrawalAdmin();
-    }
-    
-    // Matches & Results
     match /matches/{matchId} {
-      allow read, list: if request.auth != null;
-      allow create: if false; // Only Cloud Functions can create matches
-      allow update: if (request.auth != null && (request.auth.uid in resource.data.playerIds || resource.data.status == 'waiting')) || isMatchAdmin();
-    }
-    match /matches/{matchId}/results/{userId} {
-      allow read: if isMatchAdmin() || (request.auth != null && request.auth.uid in get(/databases/$(database)/documents/matches/$(matchId)).data.playerIds);
-      allow write: if isOwner(userId);
-    }
-    
-    // Transactions: Users can list/read their own transactions.
-    match /transactions/{transactionId} {
-        allow get: if isOwner(resource.data.userId) || isAdmin();
-        allow list: if (request.auth != null && request.query.where[0][2] == request.auth.uid) || isAdmin();
-        allow create, update, delete: if false; // Created by functions only
-    }
-
-    // User Tasks
-    match /user_tasks/{userId}/tasks/{taskId} {
-        allow get, list: if isOwner(userId) || isAdmin();
-        allow write: if false; // Function only
-    }
-
-    // Support Chat
-    match /supportChats/{userId}/{path=**} {
-      allow read, write: if isOwner(userId) || isSuperAdmin(); // SuperAdmins can act as support
-    }
-
-    // ========= Admin-Only Collections =========
-    match /adminLogs/{logId} { allow read, write: if isAdmin(); }
-    match /tournaments/{doc=**} {
-        allow read: if request.auth != null;
-        allow write: if isMatchAdmin();
-    }
-    match /news/{doc=**} {
-        allow read: if request.auth != null;
-        allow write: if isAdmin();
-    }
-     match /announcements/{doc=**} {
-        allow read: if request.auth != null;
-        allow write: if isAdmin();
-    }
-    match /banners/{doc=**} {
-        allow read: if request.auth != null;
-        allow write: if isAdmin();
-    }
-    match /dashboardCardImages/{doc=**} {
-        allow read: if request.auth != null;
-        allow write: if isAdmin();
-    }
-    match /tasks/{doc=**} {
-      allow read: if request.auth != null;
-      allow write: if isAdmin();
-    }
-    
-    // ========= Configuration Collections =========
-    
-    // UPI Configuration
-    match /upiConfiguration/active {
-      allow get: if request.auth != null; // Any authenticated user can get the active UPI
-    }
-    match /upiConfiguration/{configId} {
-        allow list, read: if isDepositAdmin(); // Admins can list/read all for management
-        allow write: if isSuperAdmin();
-    }
-
-    // Other Configurations
-    match /referralConfiguration/{doc=**} {
-        allow read: if request.auth != null;
-        allow write: if isSuperAdmin();
-    }
-    match /bonus_config/{doc=**} {
-        allow read: if request.auth != null;
-        allow write: if isSuperAdmin();
-    }
-     match /matchCommission/{doc=**} {
-        allow read: if request.auth != null;
-        allow write: if isSuperAdmin();
-    }
-    match /settings/global {
-        allow get: if true;
-        allow write: if isSuperAdmin();
-    }
-    
-    // Forum rules
-    match /forumPosts/{postId} {
-        allow read: if request.auth != null;
-        allow create: if isOwner(request.resource.data.authorId);
-        allow update: if (isOwner(resource.data.authorId)) || 
-                       (request.auth != null && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['replyCount', 'lastReplyAt']));
-        allow delete: if isOwner(resource.data.authorId) || isAdmin();
-    }
-    match /forumPosts/{postId}/replies/{replyId} {
-      allow read: if request.auth != null;
-      allow create: if isOwner(request.resource.data.authorId);
-      allow update: if isOwner(resource.data.authorId) && request.resource.data.keys().hasOnly(['content']);
-      allow delete: if isOwner(resource.data.authorId) || isAdmin();
+      allow get: if request.auth.uid != null;
+      allow list: if request.auth.uid != null;
     }
   }
 }
-
-    
