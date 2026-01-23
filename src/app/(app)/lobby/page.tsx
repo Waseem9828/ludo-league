@@ -1,3 +1,4 @@
+
 'use client';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -256,19 +257,19 @@ const LiveMatchList = () => {
     useEffect(() => {
         const interval = setInterval(() => {
             setMatches(prev => {
-                const newMatches = [...prev];
-                // Remove 2-5 random matches
-                for(let i=0; i < Math.floor(Math.random() * 4) + 2; i++) {
-                    const randomIndex = Math.floor(Math.random() * newMatches.length);
-                    newMatches.splice(randomIndex, 1);
-                }
-                // Add 2-5 new matches
-                for(let i=0; i < Math.floor(Math.random() * 4) + 2; i++) {
-                    newMatches.unshift(generateRandomMatch(Date.now() + i));
-                }
-                return newMatches;
-            })
-        }, 2000); // update every 2 seconds
+                // Determine how many matches to replace (2 to 4)
+                const numToChange = Math.floor(Math.random() * 3) + 2;
+
+                // Create a copy of the array without the last `numToChange` elements
+                const updatedMatches = prev.slice(0, prev.length - numToChange);
+
+                // Generate `numToChange` new matches
+                const newItems = Array.from({length: numToChange}, (_, i) => generateRandomMatch(Date.now() + i));
+
+                // Add the new matches to the beginning of the array
+                return [...newItems, ...updatedMatches];
+            });
+        }, 25000); // update every 25 seconds
 
         return () => clearInterval(interval);
     }, []);
@@ -674,3 +675,4 @@ export default function LobbyPage() {
     </div>
   );
 }
+
