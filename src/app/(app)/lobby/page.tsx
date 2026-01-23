@@ -36,7 +36,6 @@ import CustomLoader from '@/components/CustomLoader';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { EntryFeeCard } from '@/components/app/lobby/entry-fee-card';
 
-
 const PlayerCard = ({ name, avatarUrl, winRate }: { name: string, avatarUrl: string | null | undefined, winRate: number }) => (
     <motion.div 
         className="flex flex-col items-center gap-3 relative"
@@ -217,6 +216,113 @@ const ActiveMatchesAlert = ({ activeMatchIds }: { activeMatchIds: string[] }) =>
                 ))}
             </CollapsibleContent>
         </Collapsible>
+    )
+}
+
+const VSLogo = () => (
+    <svg width="24" height="24" viewBox="0 0 42 41" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M6.33317 1.66699L18.8332 23.167L6.33317 39.8337H11.6665L24.1665 18.3337L17.4165 6.41699L29.9165 24.5003L22.9165 39.8337H28.2498L41.9998 16.0003V1.66699H36.6665L24.1665 23.167L30.9165 11.2503L18.4165 29.3337L31.1665 1.66699H25.8332L13.3332 23.167L20.0832 35.0837L7.58317 17.0003L14.5832 1.66699H6.33317Z" fill="url(#paint0_linear_1_2)"/>
+        <defs>
+            <linearGradient id="paint0_linear_1_2" x1="24.1665" y1="1.66699" x2="24.1665" y2="39.8337" gradientUnits="userSpaceOnUse">
+                <stop stopColor="#F9A825"/>
+                <stop offset="1" stopColor="#F57F17"/>
+            </linearGradient>
+        </defs>
+    </svg>
+)
+
+const mockNames = ["Aarav", "Vivaan", "Aditya", "Vihaan", "Arjun", "Sai", "Reyansh", "Ayaan", "Krishna", "Ishaan", "Saanvi", "Aadya", "Kiara", "Diya", "Pari", "Ananya", "Riya", "Ahana", "Myra", "Prisha"];
+const mockAvatarSeeds = ["Gizmo", "Tinkerbell", "Zoe", "Milo", "Luna", "Oscar", "Ruby", "Leo", "Coco", "Max", "Chloe", "Toby", "Lily", "Rocky", "Mia", "Buddy", "Lucy", "Charlie", "Zoe", "Jack"];
+const fees = [50, 100, 150, 200, 250, 300, 350, 500, 750, 1000, 1500, 2000, 3000, 5000, 10000, 20000, 50000];
+
+const generateRandomMatch = (id: number) => {
+    const p1Index = Math.floor(Math.random() * mockNames.length);
+    let p2Index = Math.floor(Math.random() * mockNames.length);
+    while(p1Index === p2Index) p2Index = Math.floor(Math.random() * mockNames.length);
+    const fee = fees[Math.floor(Math.random() * fees.length)];
+    return {
+        id,
+        player1: mockNames[p1Index].slice(0,5) + '...',
+        player1Avatar: `https://api.dicebear.com/8.x/adventurer/svg?seed=${mockAvatarSeeds[p1Index]}`,
+        player2: mockNames[p2Index].slice(0,5) + '...',
+        player2Avatar: `https://api.dicebear.com/8.x/adventurer/svg?seed=${mockAvatarSeeds[p2Index]}`,
+        prize: fee * 1.8
+    }
+}
+
+const LiveMatchList = () => {
+    const [matches, setMatches] = useState(() => Array.from({length: 50}, (_, i) => generateRandomMatch(i)));
+
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setMatches(prev => {
+                const newMatches = [...prev];
+                // Remove 2-5 random matches
+                for(let i=0; i < Math.floor(Math.random() * 4) + 2; i++) {
+                    const randomIndex = Math.floor(Math.random() * newMatches.length);
+                    newMatches.splice(randomIndex, 1);
+                }
+                // Add 2-5 new matches
+                for(let i=0; i < Math.floor(Math.random() * 4) + 2; i++) {
+                    newMatches.unshift(generateRandomMatch(Date.now() + i));
+                }
+                return newMatches;
+            })
+        }, 2000); // update every 2 seconds
+
+        return () => clearInterval(interval);
+    }, []);
+
+    return (
+        <div className='mt-8'>
+            <div className="flex items-center justify-center gap-4 mb-4">
+                <div className="flex-grow h-px bg-border"></div>
+                <h2 className="text-xl font-bold tracking-tight text-foreground flex items-center gap-2 flex-shrink-0">
+                    <Trophy className="text-primary"/>
+                    Open Battles (Classic)
+                </h2>
+                <div className="flex-grow h-px bg-border"></div>
+            </div>
+            <ScrollArea className="h-96 pr-4">
+                <div className="space-y-3">
+                    <AnimatePresence>
+                        {matches.map((match, index) => (
+                             <motion.div
+                                key={match.id}
+                                layout
+                                initial={{ opacity: 0, y: -20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: 20 }}
+                                transition={{ duration: 0.3, delay: index * 0.02 }}
+                             >
+                                <Card className="p-3">
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-2">
+                                            <Avatar className="h-8 w-8">
+                                                <AvatarImage src={match.player1Avatar} />
+                                                <AvatarFallback>{match.player1.charAt(0)}</AvatarFallback>
+                                            </Avatar>
+                                            <span className="font-semibold text-sm">{match.player1}</span>
+                                        </div>
+                                        <div className="flex flex-col items-center">
+                                            <VSLogo />
+                                            <span className="font-bold text-green-600 text-sm">Rs {match.prize}</span>
+                                        </div>
+                                         <div className="flex items-center gap-2">
+                                            <span className="font-semibold text-sm">{match.player2}</span>
+                                            <Avatar className="h-8 w-8">
+                                                <AvatarImage src={match.player2Avatar} />
+                                                <AvatarFallback>{match.player2.charAt(0)}</AvatarFallback>
+                                            </Avatar>
+                                        </div>
+                                    </div>
+                                </Card>
+                            </motion.div>
+                        ))}
+                    </AnimatePresence>
+                </div>
+            </ScrollArea>
+        </div>
     )
 }
 
@@ -541,7 +647,7 @@ export default function LobbyPage() {
 
             <Dialog>
                 <DialogTrigger asChild>
-                    <Button variant="outline" size="lg" className="w-full h-20 text-lg animate-pulse shadow-lg shadow-primary/50">
+                     <Button variant="outline" size="lg" className="w-full h-20 text-lg animate-pulse shadow-lg shadow-primary/50">
                         <Info className="mr-2 h-6 w-6"/> How to Play
                     </Button>
                 </DialogTrigger>
@@ -560,6 +666,9 @@ export default function LobbyPage() {
                 </DialogContent>
             </Dialog>
         </div>
+
+        <LiveMatchList />
+
     </div>
   );
 }
