@@ -274,7 +274,7 @@ const LiveMatchList = () => {
     }, []);
 
     return (
-        <div className='mt-8'>
+        <div className='mt-8 flex flex-col flex-grow'>
             <div className="flex items-center justify-center gap-4 mb-4">
                 <div className="flex-grow h-px bg-border"></div>
                 <h2 className="text-xl font-bold tracking-tight text-foreground flex items-center gap-2 flex-shrink-0">
@@ -283,7 +283,7 @@ const LiveMatchList = () => {
                 </h2>
                 <div className="flex-grow h-px bg-border"></div>
             </div>
-            <ScrollArea className="h-96 pr-4">
+            <ScrollArea className="flex-grow pr-4">
                 <div className="space-y-3">
                     <AnimatePresence>
                         {matches.map((match, index) => (
@@ -538,10 +538,7 @@ export default function LobbyPage() {
   );
 
   return (
-    <div className="space-y-6">
-        <div className="relative w-full aspect-video rounded-lg overflow-hidden mb-6">
-            <Image src="/lobby.banner.png" alt="Lobby Banner" fill className="object-cover" priority />
-        </div>
+    <div className="flex flex-col h-full">
         {checkedLocalStorage && isSearching && user && userProfile && <SearchingOverlay user={user} userProfile={userProfile} onCancel={handleCancelSearch} />}
 
         {/* Balance Confirmation Dialog */}
@@ -609,66 +606,71 @@ export default function LobbyPage() {
                 </DialogFooter>
             </DialogContent>
         </Dialog>
+        
+        <div className="flex-shrink-0 space-y-6">
+            <div className="relative w-full aspect-video rounded-lg overflow-hidden">
+                <Image src="/lobby.banner.png" alt="Lobby Banner" fill className="object-cover" priority />
+            </div>
 
-        {activeMatchIds.length > 0 && <ActiveMatchesAlert activeMatchIds={activeMatchIds} />}
-      
-        <div className="grid grid-cols-2 gap-4">
-            <Dialog open={showStakesDialog} onOpenChange={setShowStakesDialog}>
-                <DialogTrigger asChild>
-                    <Button size="lg" className="w-full h-20 text-lg">
-                        <PlusCircle className="mr-2 h-6 w-6"/> Create New Match
-                    </Button>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-3xl">
-                    <DialogHeader>
-                        <DialogTitle>Select Your Stake</DialogTitle>
-                        <DialogDescription>Choose an entry fee to find an opponent.</DialogDescription>
-                    </DialogHeader>
-                     <Tabs defaultValue="low" className="w-full pt-4">
-                        <TabsList className="grid w-full grid-cols-3">
-                            <TabsTrigger value="low">Low Stakes</TabsTrigger>
-                            <TabsTrigger value="medium">Medium Stakes</TabsTrigger>
-                            <TabsTrigger value="high">High Stakes</TabsTrigger>
-                        </TabsList>
-                        <ScrollArea className="h-96 md:h-[500px] pr-4">
-                            <TabsContent value="low" className="pt-4">
-                                <FeeTier fees={lowStakes} tier="low" />
-                            </TabsContent>
-                            <TabsContent value="medium" className="pt-4">
-                                <FeeTier fees={mediumStakes} tier="medium" />
-                            </TabsContent>
-                            <TabsContent value="high" className="pt-4">
-                                <FeeTier fees={highStakes} tier="high" />
-                            </TabsContent>
-                        </ScrollArea>
-                    </Tabs>
-                </DialogContent>
-            </Dialog>
+            {activeMatchIds.length > 0 && <ActiveMatchesAlert activeMatchIds={activeMatchIds} />}
+          
+            <div className="grid grid-cols-2 gap-4">
+                <Dialog open={showStakesDialog} onOpenChange={setShowStakesDialog}>
+                    <DialogTrigger asChild>
+                        <Button size="lg" className="w-full h-20 text-lg">
+                            <PlusCircle className="mr-2 h-6 w-6"/> Create New Match
+                        </Button>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-3xl">
+                        <DialogHeader>
+                            <DialogTitle>Select Your Stake</DialogTitle>
+                            <DialogDescription>Choose an entry fee to find an opponent.</DialogDescription>
+                        </DialogHeader>
+                         <Tabs defaultValue="low" className="w-full pt-4">
+                            <TabsList className="grid w-full grid-cols-3">
+                                <TabsTrigger value="low">Low Stakes</TabsTrigger>
+                                <TabsTrigger value="medium">Medium Stakes</TabsTrigger>
+                                <TabsTrigger value="high">High Stakes</TabsTrigger>
+                            </TabsList>
+                            <ScrollArea className="h-96 md:h-[500px] pr-4">
+                                <TabsContent value="low" className="pt-4">
+                                    <FeeTier fees={lowStakes} tier="low" />
+                                </TabsContent>
+                                <TabsContent value="medium" className="pt-4">
+                                    <FeeTier fees={mediumStakes} tier="medium" />
+                                </TabsContent>
+                                <TabsContent value="high" className="pt-4">
+                                    <FeeTier fees={highStakes} tier="high" />
+                                </TabsContent>
+                            </ScrollArea>
+                        </Tabs>
+                    </DialogContent>
+                </Dialog>
 
-            <Dialog>
-                <DialogTrigger asChild>
-                     <Button variant="outline" size="lg" className="w-full h-20 text-lg animate-pulse shadow-lg shadow-primary/50">
-                        <Info className="mr-2 h-6 w-6"/> How to Play
-                    </Button>
-                </DialogTrigger>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>How to Play</DialogTitle>
-                    </DialogHeader>
-                    <ol className="space-y-3 mt-4 text-sm text-muted-foreground list-decimal list-inside">
-                        <li>Select an entry fee and click <strong>Play</strong>.</li>
-                        <li>Wait for us to find a suitable opponent for you.</li>
-                        <li>Once a match is found, you will be automatically redirected to the match room.</li>
-                        <li>Copy the room code and use it to play in your Ludo King app.</li>
-                        <li>After the game, take a screenshot of the win/loss screen.</li>
-                        <li>Come back to the app and submit your result with the screenshot to claim your winnings.</li>
-                    </ol>
-                </DialogContent>
-            </Dialog>
+                <Dialog>
+                    <DialogTrigger asChild>
+                         <Button variant="outline" size="lg" className="w-full h-20 text-lg animate-pulse shadow-lg shadow-primary/50">
+                            <Info className="mr-2 h-6 w-6"/> How to Play
+                        </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                        <DialogHeader>
+                            <DialogTitle>How to Play</DialogTitle>
+                        </DialogHeader>
+                        <ol className="space-y-3 mt-4 text-sm text-muted-foreground list-decimal list-inside">
+                            <li>Select an entry fee and click <strong>Play</strong>.</li>
+                            <li>Wait for us to find a suitable opponent for you.</li>
+                            <li>Once a match is found, you will be automatically redirected to the match room.</li>
+                            <li>Copy the room code and use it to play in your Ludo King app.</li>
+                            <li>After the game, take a screenshot of the win/loss screen.</li>
+                            <li>Come back to the app and submit your result with the screenshot to claim your winnings.</li>
+                        </ol>
+                    </DialogContent>
+                </Dialog>
+            </div>
         </div>
 
         <LiveMatchList />
-
     </div>
   );
 }
