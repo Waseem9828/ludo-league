@@ -4,91 +4,103 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     // --- Helper Functions ---
-    function isAdmin() {
-      // Check if the user has the 'isAdmin' flag in their user document.
-      return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
-    }
-
-    function isSignedIn() {
-      // Check if the user is authenticated.
-      return request.auth != null;
-    }
-
     function isOwner(userId) {
-      // Check if the currently authenticated user is the owner of the document.
-      return request.auth.uid == userId;
+      return request.auth != null && request.auth.uid == userId;
     }
-
-    // --- Admin Catch-All ---
-    // Admins have unrestricted read/write access to all data.
-    match /{document=**} {
-      allow read, write: if isAdmin();
+    
+    function isSuperAdmin() {
+      return request.auth != null && request.auth.token.role == 'superAdmin';
+    }
+    function isKycAdmin() {
+      return request.auth != null && (request.auth.token.role == 'kycAdmin' || isSuperAdmin());
+    }
+    function isDepositAdmin() {
+      return request.auth != null && (request.auth.token.role == 'depositAdmin' || isSuperAdmin());
+    }
+    function isWithdrawalAdmin() {
+      return request.auth != null && (request.auth.token.role == 'withdrawalAdmin' || isSuperAdmin());
+    }
+    function isMatchAdmin() {
+      return request.auth != null && (request.auth.token.role == 'matchAdmin' || isSuperAdmin());
+    }
+    function isAdmin() {
+      return request.auth != null && request.auth.token.admin == true;
     }
 
     // --- User Profiles ---
     match /users/{userId} {
       // Any signed-in user can view any user's profile (for leaderboards, etc.).
-      allow get: if isSignedIn();
+      allow get: if request.auth != null;
       // Any signed-in user can list all other users.
-      allow list: if isSignedIn();
+      allow list: if request.auth != null;
       // A user can only update or delete their own profile.
       allow update, delete: if isOwner(userId);
       // Any signed-in user can create their own user profile document.
       allow create: if isOwner(userId);
     }
+    
+    // User Activity Subcollection
+    match /users/{userId}/activity/{logId} {
+        allow read: if isOwner(userId) || isAdmin();
+    }
 
     // --- Publicly Readable Data ---
-    // These collections are readable by any signed-in user.
-    match /tournaments/{docId}   { allow get, list: if isSignedIn(); }
-    match /announcements/{docId} { allow get, list: if isSignedIn(); }
-    match /news/{docId}          { allow get, list: if isSignedIn(); }
-    match /banners/{docId}       { allow get, list: if isSignedIn(); }
+    match /tournaments/{doc=**}   { allow read: if request.auth != null; }
+    match /announcements/{docId} { allow read: if request.auth != null; }
+    match /news/{docId}          { allow read: if request.auth != null; }
+    match /banners/{docId}       { allow read: if request.auth != null; }
+    match /tasks/{taskId}        { allow read: if request.auth != null; }
     
     // --- App Settings (e.g., for QR codes) ---
-    // The 'upi' document in the 'settings' collection is readable by any signed-in user.
-    match /settings/upi {
-      allow get: if isSignedIn();
-    }
+    match /upiConfiguration/{doc=**} { allow read: if request.auth != null; }
+    match /referralConfiguration/settings { allow read: if request.auth != null; }
+    match /bonus_config/settings { allow read: if request.auth != null; }
+    match /settings/global { allow read: if request.auth != null; }
 
     // --- Matches ---
     match /matches/{matchId} {
-      // Any signed-in user can view match details and list all matches.
-      allow get, list: if isSignedIn();
-      // Any signed-in user can create a new match.
-      allow create: if isSignedIn();
-      // Any signed-in user can update a match (e.g., to submit results or join).
-      allow update: if isSignedIn();
+      allow read: if request.auth != null; // Any user can see match details.
+      allow list: if request.auth != null;
+      allow update: if request.auth != null && request.resource.data.playerIds.hasAny([request.auth.uid]);
+    }
+    
+    // --- Match Results ---
+    match /matches/{matchId}/results/{userId} {
+      allow read: if request.auth != null;
+      allow write: if isOwner(userId);
     }
 
     // --- Financial Transactions ---
-    // Users can create and view their own deposits and withdrawals.
-    // Note: We check the `userId` field in the resource to ensure ownership.
-    match /deposits/{depositId} {
-      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
-      allow read: if isSignedIn() && isOwner(resource.data.userId);
-      // Allow admins or the user to see a list of their own deposits
-      allow list: if isSignedIn() && (isOwner(request.query.userId) || isAdmin());
+    // Users can only read their own financial documents. All writes are handled by Cloud Functions.
+    match /depositRequests/{depositId} {
+        allow read: if isOwner(resource.data.userId);
+        allow create: if isOwner(request.resource.data.userId);
     }
-    match /withdrawals/{withdrawalId} {
-      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
-      allow read: if isSignedIn() && isOwner(resource.data.userId);
-      // Allow admins or the user to see a list of their own withdrawals
-      allow list: if isSignedIn() && (isOwner(request.query.userId) || isAdmin());
+    match /withdrawalRequests/{withdrawalId} {
+        allow read: if isOwner(resource.data.userId);
+        allow create: if isOwner(request.resource.data.userId);
+    }
+    match /transactions/{transactionId} {
+        allow read: if isOwner(resource.data.userId);
     }
 
     // --- User-Specific Private Data ---
-    match /kyc/{userId} {
-      // Users can only read and write their own KYC documents.
-      allow read, write: if isOwner(userId);
+    match /kycApplications/{kycId} {
+      allow read: if isOwner(resource.data.userId);
+      allow create: if isOwner(request.resource.data.userId);
     }
     
-    match /support/{ticketId} {
-        // Users can create their own support tickets.
-        allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
-        // Users can read and update their own tickets.
-        allow read, update: if isSignedIn() && isOwner(resource.data.userId);
-        // Allow admins or the user to see a list of their own tickets
-        allow list: if isSignedIn() && (isOwner(request.query.userId) || isAdmin());
+    match /supportChats/{userId}/{doc=**} {
+      allow read, write: if isOwner(userId);
+    }
+
+    match /user_tasks/{userId}/{doc=**} {
+      allow read: if isOwner(userId);
+    }
+
+    // ========= ADMIN RULE: Global Access =========
+    match /{path=**} {
+      allow read, write: if isAdmin();
     }
   }
 }
