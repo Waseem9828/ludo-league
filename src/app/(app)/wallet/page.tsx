@@ -1,3 +1,4 @@
+
 'use client';
 import Image from "next/image"
 import Link from "next/link";
@@ -21,7 +22,7 @@ import {
   TabsTrigger,
 } from "@/components/ui/tabs"
 import { cn } from "@/lib/utils"
-import { ArrowDownLeft, ArrowUpRight, UploadCloud, DownloadCloud, Landmark, Wallet as WalletIcon, AlertCircle, Loader2, ScanBarcode, ExternalLink, History, ArrowLeft } from "lucide-react"
+import { ArrowDownLeft, ArrowUpRight, UploadCloud, DownloadCloud, Landmark, Wallet as WalletIcon, AlertCircle, Loader2, ScanBarcode, ExternalLink, History, ArrowLeft, AlertTriangle } from "lucide-react"
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert"
 import { useUser, useFirestore, storage } from "@/firebase"
 import { collection, query, where, onSnapshot, orderBy, addDoc, serverTimestamp, doc, limit, type QueryDocumentSnapshot, getDocs } from "firebase/firestore"
@@ -39,12 +40,22 @@ const bannerImage = PlaceHolderImages.find(img => img.id === 'wallet-banner');
 // A type guard to check if an object is a DepositRequest
 const isDepositRequest = (req: any): req is DepositRequest => 'screenshotUrl' in req;
 
-const DynamicQrCode = ({ upiId, amount }: { upiId: string | null, amount: number }) => {
-  if (!upiId) {
+const DynamicQrCode = ({ upiId, amount, loading }: { upiId: string | null, amount: number, loading: boolean }) => {
+  if (loading) {
     return (
       <div className="flex flex-col items-center justify-center gap-4 p-4 bg-muted rounded-lg h-64">
         <Loader2 className="h-8 w-8 animate-spin text-primary"/>
         <p className="text-sm text-center text-muted-foreground">Loading Payment Details...</p>
+      </div>
+    );
+  }
+
+  if (!upiId) {
+    return (
+        <div className="flex flex-col items-center justify-center text-center gap-4 p-4 bg-destructive/10 border border-destructive/20 rounded-lg h-64">
+            <AlertTriangle className="h-8 w-8 text-destructive"/>
+            <p className="font-semibold text-destructive">Payment System Offline</p>
+            <p className="text-xs text-muted-foreground">No active UPI ID is configured by the admin. Please try again later.</p>
       </div>
     );
   }
@@ -85,6 +96,7 @@ export default function WalletPage() {
   const [depositScreenshot, setDepositScreenshot] = useState<File | null>(null);
   
   const [activeUpi, setActiveUpi] = useState<{ id: string | null, ref: string | null }>({ id: null, ref: null});
+  const [upiLoading, setUpiLoading] = useState(true);
 
   const [depositStep, setDepositStep] = useState<'enterAmount' | 'confirmUtr'>('enterAmount');
   
@@ -92,6 +104,7 @@ export default function WalletPage() {
 
   useEffect(() => {
     if (!firestore) return;
+    setUpiLoading(true);
     const upiConfigRef = doc(firestore, 'upiConfiguration', 'active');
     const unsubscribeUpi = onSnapshot(upiConfigRef, (doc) => {
       if (doc.exists()) {
@@ -101,9 +114,11 @@ export default function WalletPage() {
         console.log("No active UPI configuration found!");
         setActiveUpi({ id: null, ref: null });
       }
+      setUpiLoading(false);
     }, (error) => {
       console.error("Error fetching active UPI: ", error);
       setActiveUpi({ id: null, ref: null });
+      setUpiLoading(false);
     });
 
     return () => unsubscribeUpi();
@@ -209,8 +224,8 @@ export default function WalletPage() {
     }
     if (!activeUpi.id) {
         toast({
-            title: "Payment Details Not Available",
-            description: "Please wait for the payment QR code to load.",
+            title: "Payment System Offline",
+            description: "No active payment method is available. Please try again later.",
             variant: "destructive",
         });
         return;
@@ -371,7 +386,7 @@ export default function WalletPage() {
                                 
                                 <div className="flex flex-col gap-4">
                                     {depositAmount >= 100 ? (
-                                        <DynamicQrCode upiId={activeUpi.id} amount={depositAmount} />
+                                        <DynamicQrCode upiId={activeUpi.id} amount={depositAmount} loading={upiLoading}/>
                                     ) : (
                                         <div className="flex flex-col items-center justify-center gap-4 p-4 bg-muted rounded-lg h-full">
                                             <ScanBarcode className="h-10 w-10 text-muted-foreground"/>
@@ -537,5 +552,3 @@ export default function WalletPage() {
     </div>
   )
 }
-
-    
