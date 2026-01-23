@@ -1,49 +1,73 @@
+
 rules_version = '2';
+
 service firebase.storage {
   match /b/{bucket}/o {
 
+    // ========= Helper Functions =========
     function isOwner(userId) {
       return request.auth != null && request.auth.uid == userId;
     }
-
-    // ========= Profile Pictures =========
-    match /profile-pictures/{userId}/{fileName} {
-      // Allow read for anyone (if you want profile pics to be public)
-      allow read: if true;
-      // Allow write ONLY if the user is uploading their own picture
-      allow write: if isOwner(userId);
+    
+    function isSuperAdmin() {
+      return request.auth != null && request.auth.token.role == 'superAdmin';
     }
-
-    // ========= KYC Documents =========
-    match /kyc-documents/{userId}/{fileName} {
-      // Disallow public reads
-      allow read: if isOwner(userId);
-      // Allow write ONLY if the user is uploading their own document
-      allow write: if isOwner(userId);
+    function isKycAdmin() {
+      return request.auth != null && (request.auth.token.role == 'kycAdmin' || isSuperAdmin());
     }
-
-    // ========= Match Results Screenshots =========
-    match /match-results/{matchId}/{userId}/{fileName} {
-        allow read, write: if isOwner(userId);
+    function isDepositAdmin() {
+      return request.auth != null && (request.auth.token.role == 'depositAdmin' || isSuperAdmin());
     }
-
-     // ========= Deposit Screenshots =========
-    match /deposits/{userId}/{fileName} {
-        allow read, write: if isOwner(userId);
+    function isMatchAdmin() {
+      return request.auth != null && (request.auth.token.role == 'matchAdmin' || isSuperAdmin());
+    }
+    function isAdmin() {
+      return request.auth != null && request.auth.token.admin == true;
     }
     
-    // ========= Admin-Uploaded Content (e.g., banners, news images) =========
-    match /banners/{fileName} {
-      allow read: if true; // Publicly readable
-      allow write: if request.auth.token.admin == true; // Only admins can upload
+    // ===================================
+    //      Storage Rules by Path
+    // ===================================
+
+    // --- User Profile Pictures ---
+    // A user can manage their own profile pictures. Any authenticated user can view them.
+    match /profile-pictures/{userId}/{allPaths=**} {
+        allow read: if request.auth != null;
+        allow write: if isOwner(userId);
     }
-     match /news/{fileName} {
+
+    // --- KYC Documents ---
+    // User can write. Only user and KYC Admins can read.
+    match /kyc/{userId}/{allPaths=**} {
+      allow read: if isOwner(userId) || isKycAdmin();
+      allow write: if isOwner(userId);
+    }
+    
+    // --- Deposit Screenshots ---
+    // User can write. Only user and Deposit Admins can read.
+    match /deposits/{userId}/{allPaths=**} {
+      allow read: if isOwner(userId) || isDepositAdmin();
+      allow write: if isOwner(userId);
+    }
+
+    // --- Match Result Screenshots ---
+    // User can write. Only user and Match Admins can read.
+    match /match-results/{matchId}/{userId}/{fileName} {
+      allow read: if isOwner(userId) || isMatchAdmin();
+      allow write: if isOwner(userId);
+    }
+    
+    // --- Publicly Readable, Admin Writable ---
+    // Banners, card images, etc.
+    match /banners/{allPaths=**} {
       allow read: if true;
-      allow write: if request.auth.token.admin == true;
+      allow write: if isAdmin(); // Any admin can manage these assets
     }
-    match /dashboard-images/{fileName} {
+    match /dashboard-cards/{allPaths=**} {
         allow read: if true;
-        allow write: if request.auth.token.admin == true;
+        allow write: if isAdmin();
     }
   }
 }
+
+    

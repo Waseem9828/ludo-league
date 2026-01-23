@@ -1,5 +1,4 @@
 
-
 const functions = require('firebase-functions');
 const admin = require('firebase-admin');
 const { HttpsError } = require('firebase-functions/v1/https');
@@ -1051,3 +1050,5 @@ exports.createMatch = functions.https.onCall(async (data, context) => {
         throw new functions.https.HttpsError("internal", "An unexpected error occurred while creating the match.");
     }
 });
+
+    

@@ -570,10 +570,16 @@
     "providers": ["email_password", "google", "phone"],
     "customClaims": [
       {
-        "name": "isAdmin",
-        "description": "Determines if a user has admin privileges.",
+        "name": "admin",
+        "description": "General admin access.",
         "type": "boolean",
         "defaultValue": false
+      },
+      {
+        "name": "role",
+        "description": "Specifies granular admin permissions.",
+        "type": "string",
+        "enum": ["superAdmin", "kycAdmin", "depositAdmin", "withdrawalAdmin", "matchAdmin", "none"]
       }
     ]
   },
@@ -714,4 +720,6 @@
     }
   }
 }
+    
+
     
