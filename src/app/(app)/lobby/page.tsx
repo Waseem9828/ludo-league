@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Swords, Loader2, Info, Lock, Wallet, Users, User, Shield, BarChart, X, Trophy, CircleDotDashed, PlusCircle } from "lucide-react";
 import { useUser, useFirestore } from "@/firebase";
-import { useEffect, useState, useRef, useCallback, useMemo } from "react";
+import React, { useEffect, useState, useRef, useCallback, useMemo, useContext } from "react";
 import { doc, setDoc, deleteDoc, collection, onSnapshot, query, getDoc } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import type { Match } from "@/lib/types";
