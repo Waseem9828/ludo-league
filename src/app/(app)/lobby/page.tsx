@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Swords, Loader2, Info, Lock, Wallet, Users, User, Shield, BarChart, X, Trophy, CircleDotDashed, PlusCircle } from "lucide-react";
 import { useUser, useFirestore } from "@/firebase";
 import React, { useEffect, useState, useRef, useCallback, useMemo, useContext } from "react";
-import { doc, setDoc, deleteDoc, collection, onSnapshot, query, getDoc } from "firebase/firestore";
+import { doc, setDoc, deleteDoc, collection, onSnapshot, query, getDoc, where, orderBy } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import type { Match } from "@/lib/types";
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -220,38 +220,97 @@ const ActiveMatchesAlert = ({ activeMatchIds }: { activeMatchIds: string[] }) =>
     )
 }
 
-const mockNames = ["Aarav", "Vivaan", "Aditya", "Vihaan", "Arjun", "Sai", "Reyansh", "Ayaan", "Krishna", "Ishaan", "Saanvi", "Aadya", "Kiara", "Diya", "Pari", "Ananya", "Riya", "Ahana", "Myra", "Prisha"];
-const fees = [50, 100, 150, 200, 250, 300, 350, 500, 750, 1000, 1500, 2000, 3000, 5000, 10000, 20000, 50000];
+const WaitingMatchCard = ({ match }: { match: Match }) => {
+    const router = useRouter();
+    const creator = match.players ? match.players[match.creatorId] : null;
 
-const generateRandomMatch = (id: number) => {
-    const p1Index = Math.floor(Math.random() * mockNames.length);
-    let p2Index = Math.floor(Math.random() * mockNames.length);
-    while(p1Index === p2Index) p2Index = Math.floor(Math.random() * mockNames.length);
-    const fee = fees[Math.floor(Math.random() * fees.length)];
-    return {
-        id,
-        player1: mockNames[p1Index],
-        player2: mockNames[p2Index],
-        fee: fee
-    }
-}
+    const handleJoin = () => {
+        router.push(`/match/${match.id}`);
+    };
 
-const LiveMatchList = () => {
-    const [matches, setMatches] = useState(() => Array.from({length: 50}, (_, i) => generateRandomMatch(i)));
-    const { commissionPercentage } = useLobbyContext();
+    if (!creator) return null;
+
+    return (
+        <motion.div
+            layout
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 20 }}
+            transition={{ duration: 0.3 }}
+            className="bg-gradient-to-r from-primary to-accent p-2 rounded-full text-white shadow-lg"
+        >
+            <div className="flex items-center justify-between">
+                {/* Player Info */}
+                <div className="flex items-center gap-2 flex-1">
+                    <Avatar className="h-10 w-10 border-2 border-white/50">
+                        <AvatarImage src={creator.avatarUrl || ''} />
+                        <AvatarFallback>{creator.name?.charAt(0)}</AvatarFallback>
+                    </Avatar>
+                    <span className="font-semibold text-sm truncate">{creator.name}</span>
+                </div>
+
+                {/* Center Info */}
+                <div className="flex flex-col items-center mx-4">
+                    <Image src="/icon-192x192.png" alt="Ludo League Logo" width={28} height={28} />
+                    <span className="font-bold text-sm mt-1">₹{match.entryFee}</span>
+                </div>
+
+                {/* Join Button */}
+                <div className="flex-1 flex justify-end">
+                    <Button 
+                        onClick={handleJoin}
+                        className="bg-white text-primary hover:bg-gray-200 font-bold rounded-full px-6 shadow-md"
+                    >
+                        Join Now
+                    </Button>
+                </div>
+            </div>
+        </motion.div>
+    );
+};
+
+const WaitingMatchesList = () => {
+    const firestore = useFirestore();
+    const [matches, setMatches] = useState<Match[]>([]);
+    const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        const interval = setInterval(() => {
-            setMatches(prev => {
-                const numToChange = Math.floor(Math.random() * 3) + 2;
-                const updatedMatches = prev.slice(0, prev.length - numToChange);
-                const newItems = Array.from({length: numToChange}, (_, i) => generateRandomMatch(Date.now() + i));
-                return [...newItems, ...updatedMatches];
-            });
-        }, 25000); 
+        if (!firestore) return;
+        setLoading(true);
+        const q = query(
+            collection(firestore, 'matches'),
+            where('status', '==', 'waiting'),
+            orderBy('createdAt', 'desc')
+        );
 
-        return () => clearInterval(interval);
-    }, []);
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            const waitingMatches = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Match));
+            setMatches(waitingMatches);
+            setLoading(false);
+        }, (error) => {
+            console.error("Error fetching waiting matches: ", error);
+            setLoading(false);
+        });
+
+        return () => unsubscribe();
+    }, [firestore]);
+
+    if (loading) {
+        return (
+            <div className="flex justify-center p-8">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+        );
+    }
+    
+    if (matches.length === 0) {
+        return (
+             <div className="text-center py-10 text-muted-foreground">
+                <p>No open matches available right now.</p>
+                <p className="text-sm">Be the first to create one!</p>
+            </div>
+        )
+    }
 
     return (
         <div className='mt-8 flex flex-col flex-grow'>
@@ -259,51 +318,16 @@ const LiveMatchList = () => {
                 <div className="flex-grow h-px bg-border"></div>
                 <h2 className="text-xl font-bold tracking-tight text-foreground flex items-center gap-2 flex-shrink-0">
                     <Trophy className="text-primary"/>
-                    Open Battles (Classic)
+                    Open Battles
                 </h2>
                 <div className="flex-grow h-px bg-border"></div>
             </div>
             <ScrollArea className="flex-grow pr-4">
                 <div className="space-y-3">
                     <AnimatePresence>
-                        {matches.map((match, index) => {
-                            const prize = match.fee * 2 * (1 - (commissionPercentage / 100));
-                            return (
-                             <motion.div
-                                key={match.id}
-                                layout
-                                initial={{ opacity: 0, y: -20 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0, y: 20 }}
-                                transition={{ duration: 0.3, delay: index * 0.02 }}
-                             >
-                                <div className="bg-gradient-to-r from-primary to-accent p-2 rounded-full text-white shadow-lg">
-                                    <div className="flex items-center justify-between">
-                                        {/* Player 1 */}
-                                        <div className="flex items-center gap-2">
-                                            <div className="flex items-center justify-center h-10 w-10 bg-white rounded-full text-primary font-bold text-2xl flex-shrink-0">
-                                                ?
-                                            </div>
-                                            <span className="font-semibold text-sm truncate w-24">{match.player1}</span>
-                                        </div>
-
-                                        {/* Center Info */}
-                                        <div className="flex flex-col items-center">
-                                            <Image src="/icon-192x192.png" alt="Ludo League Logo" width={28} height={28} />
-                                            <span className="font-bold text-sm mt-1">₹{prize.toFixed(0)}</span>
-                                        </div>
-
-                                        {/* Player 2 */}
-                                        <div className="flex items-center gap-2">
-                                            <span className="font-semibold text-sm truncate w-24 text-right">{match.player2}</span>
-                                            <div className="flex items-center justify-center h-10 w-10 bg-white rounded-full text-primary font-bold text-2xl flex-shrink-0">
-                                                ?
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </motion.div>
-                        )})}
+                       {matches.map(match => (
+                           <WaitingMatchCard key={match.id} match={match} />
+                       ))}
                     </AnimatePresence>
                 </div>
             </ScrollArea>
@@ -659,7 +683,7 @@ export default function LobbyPage() {
                 </div>
             </div>
 
-            <LiveMatchList />
+            <WaitingMatchesList />
         </div>
     </LobbyContext.Provider>
   );
