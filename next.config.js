@@ -1,5 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+    experimental: {
+        allowedDevOrigins: ["https://6000-firebase-studio-1762409723230.cluster-52r6vzs3ujeoctkkxpjif3x34a.cloudworkstations.dev"],
+    },
     images: {
         remotePatterns: [
             {
@@ -32,7 +35,7 @@ const nextConfig = {
                 headers: [
                     {
                         key: 'Cross-Origin-Opener-Policy',
-                        value: 'same-origin',
+                        value: 'same-origin-allow-popups',
                     },
                     {
                         key: 'Cross-Origin-Embedder-Policy',
