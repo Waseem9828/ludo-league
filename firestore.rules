@@ -3,149 +3,96 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-  
-    // ========= HELPER FUNCTIONS =========
-    function isOwner(userId) {
-      return request.auth != null && request.auth.uid == userId;
-    }
 
-    function isAdmin() {
-      return request.auth != null && request.auth.token.get('admin', false) == true;
-    }
-
+    // Helper functions
     function isSuperAdmin() {
-      return isAdmin() && request.auth.token.get('role', '') == 'superAdmin';
+      return request.auth.token.role == 'superAdmin';
+    }
+    function isAnyAdmin() {
+      return request.auth.token.admin == true;
+    }
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+    function isPlayerInMatch(matchDoc) {
+      return request.auth.uid in matchDoc.data.playerIds;
     }
     
-    function isKycAdmin() {
-      return isAdmin() && (request.auth.token.get('role', '') == 'kycAdmin' || isSuperAdmin());
-    }
-    
-    function isDepositAdmin() {
-      return isAdmin() && (request.auth.token.get('role', '') == 'depositAdmin' || isSuperAdmin());
-    }
-    
-    function isWithdrawalAdmin() {
-      return isAdmin() && (request.auth.token.get('role', '') == 'withdrawalAdmin' || isSuperAdmin());
-    }
-
-    function isMatchAdmin() {
-      return isAdmin() && (request.auth.token.get('role', '') == 'matchAdmin' || isSuperAdmin());
-    }
-    
-    // ========= USER DATA =========
+    // ====================================
+    //        USER DATA RULES
+    // ====================================
     match /users/{userId} {
-      // Any authenticated user can read profiles for leaderboards, etc.
-      // A user can only write to their own profile.
-      allow list, get: if request.auth != null;
-      allow write: if isOwner(userId) || isSuperAdmin();
-    }
-    
-    // ========= KYC, DEPOSITS, WITHDRAWALS & TRANSACTIONS =========
-    match /kycApplications/{kycId} {
-      allow get: if isOwner(resource.data.userId) || isKycAdmin();
-      allow list: if isKycAdmin(); // Only admins can list all.
-      allow create: if isOwner(request.resource.data.userId);
-      allow update: if isKycAdmin();
-    }
-    
-    match /depositRequests/{depositId} {
-      allow get: if isOwner(resource.data.userId) || isDepositAdmin();
-      allow list: if isDepositAdmin(); // User queries are secured by the 'get' rule.
-      allow create: if isOwner(request.resource.data.userId);
-      allow update: if isDepositAdmin();
-    }
+      // Anyone can read a user's public profile
+      allow read: if request.auth != null;
 
-    match /withdrawalRequests/{withdrawalId} {
-      allow get: if isOwner(resource.data.userId) || isWithdrawalAdmin();
-      allow list: if isWithdrawalAdmin(); // User queries are secured by the 'get' rule.
-      allow create: if isOwner(request.resource.data.userId);
-      allow update: if isWithdrawalAdmin();
-    }
-    
-    match /transactions/{transactionId} {
-      allow get: if isOwner(resource.data.userId) || isAdmin();
-      allow list: if isAdmin(); // User queries are secured by the 'get' rule.
-      allow create, delete: if false; 
-      allow update: if isSuperAdmin();
-    }
-
-    // ========= MATCH & GAMEPLAY =========
-    match /matches/{matchId} {
-      allow read, list: if request.auth != null;
-      allow create: if false; // Handled by Cloud Function
-      // Only the creator can update the roomCode. Admins can update anything.
-      allow update: if isMatchAdmin() || (isOwner(resource.data.creatorId));
-      allow delete: if (isOwner(resource.data.creatorId) && resource.data.playerIds.size() == 1) || isSuperAdmin();
-    }
-    
-    match /matches/{matchId}/results/{userId} {
+      // A user can only create their own profile
       allow create: if isOwner(userId);
-      allow read: if (get(/databases/$(database)/documents/matches/$(matchId)).data.playerIds.hasAny([request.auth.uid])) || isAdmin();
-      allow update, delete: if false; 
-    }
-    
-    // ========= TOURNAMENTS =========
-    match /tournaments/{tournamentId} {
-        allow read: if request.auth != null;
-        allow write: if isMatchAdmin();
-    }
-    
-     match /tournaments/{tournamentId}/matches/{matchId} {
-        allow read: if request.auth != null;
-        allow write: if isMatchAdmin();
-     }
 
-    // ========= APP CONTENT & CONFIG (READ-ONLY FOR USERS) =========
-    match /referralConfiguration/settings { allow read: if request.auth != null; allow write: if isSuperAdmin(); }
-    match /matchCommission/settings { allow read: if request.auth != null; allow write: if isSuperAdmin(); }
-    match /upiConfiguration/{docId} { allow read: if request.auth != null; allow write: if isSuperAdmin(); }
-    match /bonus_config/settings { allow read: if request.auth != null; allow write: if isSuperAdmin(); }
-    match /tasks/{taskId} { allow read: if request.auth != null; allow write: if isSuperAdmin(); }
-    match /news/{newsId} { allow read: if request.auth != null; allow write: if isSuperAdmin(); }
-    match /banners/{bannerId} { allow read: if request.auth != null; allow write: if isSuperAdmin(); }
-    match /announcements/{announcementId} { allow read: if request.auth != null; allow write: if isSuperAdmin(); }
-    match /dashboardCardImages/{imageId} { allow read: if request.auth != null; allow write: if isSuperAdmin(); }
+      // A user can update their own profile, but some fields are protected
+      allow update: if isOwner(userId) &&
+                     !('walletBalance' in request.resource.data) && 
+                     !('trustScore' in request.resource.data) &&
+                     !('isAdmin' in request.resource.data) &&
+                     !('role' in request.resource.data);
+                     
+      // Admins can update user fields like 'role' or 'isBlocked'
+      allow update: if isAnyAdmin();
+    }
+
+    // ====================================
+    //        MATCH DATA RULES
+    // ====================================
+    match /matches/{matchId} {
+      // Any authenticated user can view a match
+      allow read: if request.auth != null;
+      
+      // Creating a match is handled by the 'createMatch' cloud function
+      allow create: if false;
+
+      // Updating a match has complex rules
+      allow update: if 
+        // A player can join a match that is 'OPEN'
+        (request.resource.data.status == 'JOINED' && resource.data.status == 'OPEN' && isPlayerInMatch(resource)) ||
+        // The creator can add a room code when the match is 'JOINED'
+        (request.resource.data.status == 'PLAYING' && resource.data.status == 'JOINED' && isOwner(resource.data.creatorId)) ||
+        // A player can submit their result
+        (request.resource.data.status == 'RESULT_PENDING' && resource.data.status == 'PLAYING' && isPlayerInMatch(resource)) ||
+        // The 'onMatchUpdate' function handles all other status changes
+        (request.auth == null);
+        
+      // Nobody can delete a match directly; it must be cancelled
+      allow delete: if false;
+    }
+
+    // ====================================
+    //        TRANSACTION RULES
+    // ====================================
+    match /transactions/{transactionId} {
+        // Users can only read their own transactions
+        allow read: if isOwner(resource.data.userId) || isSuperAdmin();
+        
+        // Transactions are only created by backend functions
+        allow create: if false;
+        allow update: if false;
+        allow delete: if false;
+    }
     
-    // Global settings must be readable by anyone to check for maintenance mode.
-    match /settings/global { 
-      allow get: if true; 
+    // ====================================
+    //        ADMIN & CONFIG RULES
+    // ====================================
+    match /matchCommission/{docId} {
+      allow read: if request.auth != null;
+      allow write: if isSuperAdmin();
+    }
+    
+    match /referralConfiguration/{docId} {
+      allow read: if request.auth != null;
       allow write: if isSuperAdmin();
     }
 
-    // ========= USER-SPECIFIC SUBCOLLECTIONS =========
-    match /user_tasks/{userId}/tasks/{taskId} {
-        allow read: if isOwner(userId);
-        allow write: if false; // Updates handled by backend
+    // All other collections are admin-only by default
+    match /{document=**} {
+      allow read, write: if isAnyAdmin();
     }
-    
-    match /supportChats/{userId} {
-        allow list: if isAdmin();
-        allow get: if isOwner(userId) || isAdmin();
-    }
-    match /supportChats/{userId}/messages/{messageId} {
-         allow read, write: if isOwner(userId) || isAdmin();
-    }
-    
-    // ========= COMMUNITY FORUM =========
-    match /forumPosts/{postId} {
-      allow read, list: if request.auth != null;
-      allow create: if isOwner(request.resource.data.authorId);
-      allow update: if isOwner(resource.data.authorId) || isMatchAdmin();
-      allow delete: if isOwner(resource.data.authorId) || isSuperAdmin();
-    }
-    match /forumPosts/{postId}/replies/{replyId} {
-      allow read, list: if request.auth != null;
-      allow create: if isOwner(request.resource.data.authorId);
-      allow delete: if isOwner(resource.data.authorId) || isSuperAdmin();
-    }
-    
-    // ========= LOGGING & OLD COLLECTIONS (BACKEND ONLY) =========
-    match /adminLogs/{logId} {
-      allow read: if isAdmin();
-      allow write: if false;
-    }
-    match /submittedUTRs/{utrId} { allow read, write: if false; }
-    
   }
 }

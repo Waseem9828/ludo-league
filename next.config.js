@@ -5,7 +5,6 @@ const nextConfig = {
         serverActions: {
             bodySizeLimit: '4mb',
         },
-        allowedDevOrigins: ["https://6000-firebase-studio-1762409723230.cluster-52r6vzs3ujeoctkkxpjif3x34a.cloudworkstations.dev"],
     },
     images: {
         remotePatterns: [

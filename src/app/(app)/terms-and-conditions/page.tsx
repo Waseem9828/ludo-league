@@ -1,9 +1,16 @@
-
+'use client';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Gavel } from "lucide-react";
 import Link from "next/link";
 
 export default function TermsAndConditionsPage() {
+  const [date, setDate] = useState<string | null>(null);
+
+  useEffect(() => {
+    setDate(new Date().toLocaleDateString());
+  }, []);
+
   return (
     <Card>
       <CardHeader>
@@ -13,7 +20,7 @@ export default function TermsAndConditionsPage() {
         </CardTitle>
       </CardHeader>
       <CardContent className="prose dark:prose-invert max-w-full">
-        <p>Last updated: {new Date().toLocaleDateString()}</p>
+        {date && <p>Last updated: {date}</p>}
         
         <h2>1. Agreement to Terms</h2>
         <p>By using our ludoleague-online application, you agree to be bound by these Terms and Conditions. If you do not agree, do not use the application.</p>

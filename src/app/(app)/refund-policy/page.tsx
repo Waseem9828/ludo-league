@@ -1,9 +1,16 @@
-
+'use client';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Landmark } from "lucide-react";
 import Link from "next/link";
 
 export default function RefundPolicyPage() {
+  const [date, setDate] = useState<string | null>(null);
+
+  useEffect(() => {
+    setDate(new Date().toLocaleDateString());
+  }, []);
+
   return (
     <Card>
       <CardHeader>
@@ -13,7 +20,7 @@ export default function RefundPolicyPage() {
         </CardTitle>
       </CardHeader>
       <CardContent className="prose dark:prose-invert max-w-full">
-        <p>Last updated: {new Date().toLocaleDateString()}</p>
+        {date && <p>Last updated: {date}</p>}
 
         <h2>1. General Policy</h2>
         <p>Entry fees for matches and tournaments are non-refundable once the match or tournament has started. We encourage players to be certain before joining any paid contest.</p>

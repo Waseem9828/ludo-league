@@ -1,9 +1,17 @@
+'use client';
 
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FileText } from "lucide-react";
 import Link from "next/link";
 
 export default function GstPolicyPage() {
+  const [date, setDate] = useState<string | null>(null);
+
+  useEffect(() => {
+    setDate(new Date().toLocaleDateString());
+  }, []);
+
   return (
     <Card>
         <CardHeader>
@@ -13,7 +21,7 @@ export default function GstPolicyPage() {
             </CardTitle>
         </CardHeader>
         <CardContent className="prose dark:prose-invert max-w-full">
-            <p>Last updated: {new Date().toLocaleDateString()}</p>
+            {date && <p>Last updated: {date}</p>}
             
             <h2>1. GST on Deposits</h2>
             <p>As per the Government of India&apos;s regulations, a Goods and Services Tax (GST) of 28% is applicable on all deposits made by players into their <Link href="/wallet">wallet</Link> on the ludoleague-online platform. This is in compliance with the amendments to the GST law for online real-money gaming.</p>

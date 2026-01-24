@@ -1,9 +1,16 @@
-
+'use client';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Shield } from "lucide-react";
 import Link from "next/link";
 
 export default function PrivacyPolicyPage() {
+  const [date, setDate] = useState<string | null>(null);
+
+  useEffect(() => {
+    setDate(new Date().toLocaleDateString());
+  }, []);
+
   return (
     <Card>
       <CardHeader>
@@ -13,7 +20,7 @@ export default function PrivacyPolicyPage() {
         </CardTitle>
       </CardHeader>
       <CardContent className="prose dark:prose-invert max-w-full">
-        <p>Last updated: {new Date().toLocaleDateString()}</p>
+        {date && <p>Last updated: {date}</p>}
         
         <h2>1. Introduction</h2>
         <p>Welcome to ludoleague-online. We are committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our application.</p>

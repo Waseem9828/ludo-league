@@ -3,31 +3,27 @@ rules_version = '2';
 
 service firebase.storage {
   match /b/{bucket}/o {
-    // Helper function to check ownership
     function isOwner(userId) {
       return request.auth.uid == userId;
     }
 
-    // Profile pictures: Users can only read/write their own.
     match /users/{userId}/profile.jpg {
       allow read;
       allow write: if isOwner(userId);
     }
     
-    // KYC documents: Can only be written by the user, read by user and kycAdmin.
     match /kyc-documents/{userId}/{document} {
       allow write: if isOwner(userId);
       allow read: if isOwner(userId) || request.auth.token.role == 'kycAdmin' || request.auth.token.role == 'superAdmin';
     }
 
-    // Match screenshots: Can be written by a player in the match.
-    // Reading is public for transparency, but you could restrict it if needed.
-    match /match-screenshots/{matchId}/{userId}.jpg {
-      allow read: if request.auth != null;
+    // Corrected path for match results
+    match /match-results/{matchId}/{userId} {
+      allow read: if request.auth != null; 
+      // Allow write if the user is authenticated and is the one uploading the file
       allow write: if request.auth.uid == userId;
     }
     
-    // Banners for the app, only admins can change these.
     match /banners/{bannerName} {
       allow read: if request.auth != null;
       allow write: if request.auth.token.admin == true;

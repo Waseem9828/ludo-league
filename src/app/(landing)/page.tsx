@@ -1,4 +1,5 @@
-
+'use client';
+import { useState, useEffect } from 'react';
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CheckCircle, Globe, Users, Cpu, ArrowRight, Smartphone } from "lucide-react";
@@ -24,6 +25,12 @@ const FAQItem = ({ question, answer }: { question: string, answer: string }) => 
 )
 
 export default function LandingPage() {
+  const [year, setYear] = useState<number | null>(null);
+
+  useEffect(() => {
+    setYear(new Date().getFullYear());
+  }, []);
+
   return (
     <div className="bg-background text-foreground">
       {/* Hero Section */}
@@ -197,7 +204,7 @@ export default function LandingPage() {
             <Link href="/refund-policy" className="text-sm text-muted-foreground hover:text-primary">Refund Policy</Link>
             <Link href="/gst-policy" className="text-sm text-muted-foreground hover:text-primary">GST Policy</Link>
           </div>
-          <p className="text-sm text-muted-foreground">&copy; {new Date().getFullYear()} Ludo League. All rights reserved.</p>
+          <p className="text-sm text-muted-foreground">&copy; {year || '2024'} Ludo League. All rights reserved.</p>
         </div>
       </footer>
     </div>
