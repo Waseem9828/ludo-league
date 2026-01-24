@@ -24,7 +24,7 @@ import {
   writeBatch,
   updateDoc
 } from 'firebase/firestore';
-import { useFirestore, useStorage } from '@/firebase';
+import { useFirestore, useFirebaseStorage } from '@/firebase';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, PlusCircle, Trash2, ImageIcon, Upload } from 'lucide-react';
@@ -55,7 +55,7 @@ const DASHBOARD_CARDS = [
 function CardImageManager({ cardId, cardName }: { cardId: string, cardName: string }) {
     useAdminOnly();
     const firestore = useFirestore();
-    const storage = useStorage();
+    const storage = useFirebaseStorage();
     const { toast } = useToast();
 
     const [images, setImages] = useState<DashboardCardImage[]>([]);

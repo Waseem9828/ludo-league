@@ -32,7 +32,7 @@ import { Switch } from '@/components/ui/switch';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useFirestore, useStorage } from '@/firebase';
+import { useFirestore, useFirebaseStorage } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { collection, addDoc, onSnapshot, doc, deleteDoc, updateDoc, serverTimestamp, query, orderBy, QueryDocumentSnapshot } from 'firebase/firestore';
@@ -44,7 +44,7 @@ import type { Banner } from '@/lib/types';
 export default function BannerManager() {
   useAdminOnly();
   const firestore = useFirestore();
-  const storage = useStorage();
+  const storage = useFirebaseStorage();
   const { toast } = useToast();
 
   const [banners, setBanners] = useState<Banner[]>([]);

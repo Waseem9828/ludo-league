@@ -1,5 +1,4 @@
 
-
 import { Timestamp } from "firebase/firestore";
 import type { User as FirebaseUser } from 'firebase/auth';
 
@@ -59,6 +58,12 @@ export type UserProfile = {
     winRate?: number;
     isCreator?: boolean;
   };
+
+  export type SubmittedResult = {
+    result: 'win' | 'loss' | 'draw';
+    screenshotUrl: string;
+    submittedAt: Timestamp;
+  };
   
   export type Match = {
     id: string;
@@ -84,6 +89,7 @@ export type UserProfile = {
     resolvedAt?: Timestamp;
     game?: any;
     refundsProcessed?: boolean;
+    results?: { [key: string]: SubmittedResult };
   };
   
   export type Transaction = {

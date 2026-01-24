@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { useUser, useFirestore, useStorage } from '@/firebase';
+import { useUser, useFirestore, useFirebaseStorage } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { useParams, useRouter } from 'next/navigation';
 import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
@@ -27,11 +27,11 @@ type ResultFormValues = z.infer<typeof resultSchema>;
 export default function SubmitResultPage() {
   const { user } = useUser();
   const firestore = useFirestore();
-  const storage = useStorage();
+  const storage = useFirebaseStorage();
   const { toast } = useToast();
   const router = useRouter();
   const params = useParams();
-  const matchId = params.id as string;
+  const matchId = typeof params?.id === 'string' ? params.id : '';
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const { control, handleSubmit, formState: { errors } } = useForm<ResultFormValues>({
@@ -41,6 +41,11 @@ export default function SubmitResultPage() {
   const onSubmit = async (data: ResultFormValues) => {
     if (!user || !firestore || !storage) {
       toast({ title: 'Something went wrong', description: 'Please try again.', variant: 'destructive' });
+      return;
+    }
+
+    if (!matchId) {
+      toast({ title: 'Something went wrong', description: 'Match ID not found.', variant: 'destructive' });
       return;
     }
 

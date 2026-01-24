@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, Fragment } from 'react';
 import { ref, listAll, getDownloadURL, getMetadata, deleteObject } from 'firebase/storage';
-import { useStorage } from '@/firebase';
+import { useFirebaseStorage } from '@/firebase';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -61,7 +61,7 @@ const PathNavigator = ({ currentPath, onNavigate }: { currentPath: string, onNav
 
 export default function StorageManagementPage() {
   useAdminOnly();
-  const storage = useStorage();
+  const storage = useFirebaseStorage();
   const { toast } = useToast();
   const [currentPath, setCurrentPath] = useState('');
   const [items, setItems] = useState<FileOrFolder[]>([]);
