@@ -6,7 +6,7 @@ import {
     CollapsibleContent,
     CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { useRole } from "@/hooks/useRole";
+import { useUser } from "@/firebase";
 import { cn } from "@/lib/utils";
 import type { AdminNavItem, NavItem } from "@/lib/types";
 import {
@@ -291,7 +291,7 @@ const NavItemLink = ({ item, isCollapsed }: NavItemProps) => {
 
 const NavItemGroup = ({ item, isCollapsed }: NavItemProps) => {
     const pathname = usePathname();
-    const { role } = useRole();
+    const { role } = useUser();
 
     const getFilteredItems = useCallback((items: AdminNavItem[]): AdminNavItem[] => {
         if (!role) return [];
@@ -360,7 +360,7 @@ const NavItemGroup = ({ item, isCollapsed }: NavItemProps) => {
 
 function AdminSidebarNav({ className, inSheet }: { className?: string, inSheet?: boolean }) {
     const { isOpen } = useSidebar();
-    const { role } = useRole();
+    const { role } = useUser();
 
     const getFilteredAdminItems = useCallback((items: AdminNavItem[]): AdminNavItem[] => {
         if (!role) return [];
