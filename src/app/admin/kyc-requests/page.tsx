@@ -3,9 +3,9 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import Image from 'next/image';
-import { useUser } from '@/firebase/auth/use-user';
 import { useFirestore } from "@/firebase";
-import { collection, query, onSnapshot, orderBy, doc, writeBatch, getDoc } from "firebase/firestore";
+import { collection, query, onSnapshot, orderBy } from "firebase/firestore";
+import { getFunctions, httpsCallable } from 'firebase/functions';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { useRole } from '@/hooks/useRole';
 
 const KycStats = ({ applications, loading }: { applications: KycApplication[], loading: boolean }) => {
     const stats = applications.reduce((acc, req) => {
@@ -87,7 +88,7 @@ const RejectionDialog = ({ onConfirm, loading }: { onConfirm: (reason: string) =
 export default function KycRequestsPage() {
     useAdminOnly();
     const firestore = useFirestore();
-    const { user: adminUser, role } = useUser();
+    const { role } = useRole();
 
     const [applications, setApplications] = useState<KycApplication[]>([]);
     const [loading, setLoading] = useState(true);
@@ -118,7 +119,7 @@ export default function KycRequestsPage() {
     }, [firestore, toast]);
 
     const handleUpdateStatus = useCallback(async (applicationId: string, status: 'approved' | 'rejected', rejectionReason?: string) => {
-        if (!firestore || !adminUser || !canManageKyc) {
+        if (!canManageKyc) {
             toast({ title: "Permission Denied", description: "You don't have rights to perform this action.", variant: "destructive" });
             return;
         }
@@ -130,38 +131,19 @@ export default function KycRequestsPage() {
 
         setActionLoading(prev => ({ ...prev, [applicationId]: true }));
 
-        const appRef = doc(firestore, "kycApplications", applicationId);
-
         try {
-            const appSnapshot = await getDoc(appRef);
-            if (!appSnapshot.exists() || appSnapshot.data().status !== 'pending') {
-                toast({ title: "Action Failed", description: "This application has already been processed or does not exist.", variant: "destructive" });
-                setActionLoading(prev => ({ ...prev, [applicationId]: false }));
-                return;
-            }
+            const functions = getFunctions();
+            const updateKycStatus = httpsCallable(functions, 'updateKycStatus');
             
-            const application = appSnapshot.data() as KycApplication;
-            const userRef = doc(firestore, "users", application.userId);
-
-            const batch = writeBatch(firestore);
-            
-            batch.update(appRef, {
+            const result: any = await updateKycStatus({
+                applicationId,
                 status,
-                reviewedAt: new Date(),
-                reviewedBy: adminUser.uid,
-                rejectionReason: status === 'rejected' ? rejectionReason : null,
+                rejectionReason,
             });
 
-            batch.update(userRef, { 
-                kycStatus: status,
-                kycRejectionReason: status === 'rejected' ? rejectionReason : null,
-            });
-
-            await batch.commit();
-
-            toast({ 
-                title: `Application ${status}`,
-                description: `KYC for ${application.userName} has been ${status}.`,
+            toast({
+                title: result.data.title,
+                description: result.data.message,
                 variant: status === 'approved' ? 'default' : 'destructive',
                 className: status === 'approved' ? 'bg-green-100 text-green-800' : ''
             });
@@ -172,7 +154,7 @@ export default function KycRequestsPage() {
         } finally {
             setActionLoading(prev => ({ ...prev, [applicationId]: false }));
         }
-    }, [firestore, adminUser, canManageKyc, toast]);
+    }, [canManageKyc, toast]);
     
     const filteredApplications = applications.filter(req => filter === 'all' || req.status === filter);
 

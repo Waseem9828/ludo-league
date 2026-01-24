@@ -41,29 +41,29 @@ service cloud.firestore {
     
     // ========= KYC, DEPOSITS, WITHDRAWALS & TRANSACTIONS =========
     match /kycApplications/{kycId} {
-      allow create: if isOwner(request.resource.data.userId);
       allow get: if isOwner(resource.data.userId) || isKycAdmin();
       allow list: if isKycAdmin();
+      allow create: if isOwner(request.resource.data.userId);
       allow update: if isKycAdmin();
     }
     
     match /depositRequests/{depositId} {
-      allow create: if isOwner(request.resource.data.userId);
       allow get: if isOwner(resource.data.userId) || isDepositAdmin();
-      allow list: if isDepositAdmin();
+      allow list: if isDepositAdmin() || (request.query.where.userId == request.auth.uid);
+      allow create: if isOwner(request.resource.data.userId);
       allow update: if isDepositAdmin();
     }
 
     match /withdrawalRequests/{withdrawalId} {
-      allow create: if isOwner(request.resource.data.userId);
       allow get: if isOwner(resource.data.userId) || isWithdrawalAdmin();
-      allow list: if isWithdrawalAdmin();
+      allow list: if isWithdrawalAdmin() || (request.query.where.userId == request.auth.uid);
+      allow create: if isOwner(request.resource.data.userId);
       allow update: if isWithdrawalAdmin();
     }
     
     match /transactions/{transactionId} {
       allow get: if isOwner(resource.data.userId) || isAdmin();
-      allow list: if isAdmin();
+      allow list: if isAdmin() || (request.query.where.userId == request.auth.uid);
       allow create, update, delete: if false; 
     }
 
@@ -101,6 +101,10 @@ service cloud.firestore {
     match /banners/{bannerId} { allow read: if request.auth.uid != null; allow write: if isSuperAdmin(); }
     match /announcements/{announcementId} { allow read: if request.auth.uid != null; allow write: if isSuperAdmin(); }
     match /dashboardCardImages/{imageId} { allow read: if request.auth.uid != null; allow write: if isSuperAdmin(); }
+    match /settings/global { 
+      allow get: if true; 
+      allow write: if isSuperAdmin();
+    }
 
     // ========= USER-SPECIFIC SUBCOLLECTIONS =========
     match /user_tasks/{userId}/tasks/{taskId} {
