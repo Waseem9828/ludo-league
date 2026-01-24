@@ -34,9 +34,9 @@ service cloud.firestore {
     }
     
     // ========= USER & PROFILE DATA =========
-    // Users can read any profile, but only write their own. SuperAdmins can write any.
+    // Users can read any profile, list all users for leaderboard, but only write their own.
     match /users/{userId} {
-      allow read: if request.auth.uid != null;
+      allow get, list: if request.auth.uid != null;
       allow write: if isOwner(userId) || isSuperAdmin();
     }
 
@@ -52,14 +52,14 @@ service cloud.firestore {
     match /depositRequests/{depositId} {
       allow create: if isOwner(request.resource.data.userId);
       allow get: if isOwner(resource.data.userId) || isDepositAdmin();
-      allow list: if (request.auth.uid == request.query.where.userId) || isDepositAdmin();
+      allow list: if isDepositAdmin() || request.query.where.userId == request.auth.uid;
       allow update: if isDepositAdmin();
     }
 
     match /withdrawalRequests/{withdrawalId} {
       allow create: if isOwner(request.resource.data.userId);
       allow get: if isOwner(resource.data.userId) || isWithdrawalAdmin();
-      allow list: if (request.auth.uid == request.query.where.userId) || isWithdrawalAdmin();
+      allow list: if isWithdrawalAdmin() || request.query.where.userId == request.auth.uid;
       allow update: if isWithdrawalAdmin();
     }
     
@@ -67,7 +67,7 @@ service cloud.firestore {
     // Creation is handled by functions. Users can list/get their own. Admins can list/get any.
     match /transactions/{transactionId} {
       allow get: if isOwner(resource.data.userId) || isAdmin();
-      allow list: if (request.auth.uid == request.query.where.userId) || isAdmin();
+      allow list: if isAdmin() || request.query.where.userId == request.auth.uid;
       allow create, update, delete: if false; 
     }
 
