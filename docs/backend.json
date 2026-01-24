@@ -1,5 +1,4 @@
 
-
 {
   "entities": {
     "User": {
@@ -252,7 +251,7 @@
                     }
                 }
             },
-            "status": {"type": "string", "enum": ["waiting", "in-progress", "completed", "disputed", "cancelled"]},
+            "status": {"type": "string", "enum": ["waiting", "in-progress", "PLAYING", "RESULT_SUBMITTED", "UNDER_REVIEW", "completed", "cancelled"]},
             "roomCode": {"type": "string", "description": "Ludo King room code provided by the creator."},
             "createdAt": {"type": "string", "format": "date-time"},
             "winnerId": {"type": "string", "description": "User ID of the declared winner."},
@@ -267,7 +266,7 @@
         "properties": {
             "userId": {"type": "string"},
             "position": {"type": "number", "description": "Claimed position (1-4)."},
-            "status": {"type": "string", "enum": ["win", "loss"], "description": "Claimed status."},
+            "status": {"type": "string", "enum": ["win", "loss", "draw"], "description": "Claimed status."},
             "screenshotUrl": {"type": "string", "format": "uri"},
             "submittedAt": {"type": "string", "format": "date-time"}
         },
@@ -720,6 +719,5 @@
     }
   }
 }
-    
 
     

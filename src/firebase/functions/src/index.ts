@@ -187,7 +187,7 @@ export const joinMatch = functions.https.onCall(async (data, context) => {
             transaction.update(matchRef, {
                 [`players.${userId}`]: newPlayer,
                 playerIds: admin.firestore.FieldValue.arrayUnion(userId),
-                status: isNowFull ? 'JOINED' : 'waiting',
+                status: isNowFull ? 'in-progress' : 'waiting',
             });
 
             // 3. Update the user's active matches
@@ -369,8 +369,8 @@ export const declareWinner = functions.https.onCall(async (data, context) => {
         }
         const matchData = matchDoc.data()!;
 
-        if (!['disputed', 'in-progress'].includes(matchData.status)) {
-             throw new HttpsError('failed-precondition', `Match must be in a 'disputed' or 'in-progress' state. Current state: ${matchData.status}`);
+        if (!['disputed', 'in-progress', 'UNDER_REVIEW'].includes(matchData.status)) {
+             throw new HttpsError('failed-precondition', `Match must be in a reviewable state. Current state: ${matchData.status}`);
         }
         if (!matchData.playerIds.includes(winnerId)) {
             throw new HttpsError('invalid-argument', 'The declared winner is not a player in this match.');
@@ -395,7 +395,7 @@ export const declareWinner = functions.https.onCall(async (data, context) => {
 export const onResultSubmit = functions.firestore
   .document('matches/{matchId}/results/{userId}')
   .onCreate(async (snap, context) => {
-    const { matchId, userId } = context.params;
+    const { matchId } = context.params;
     const matchRef = db.collection('matches').doc(matchId);
     
     try {
@@ -404,57 +404,56 @@ export const onResultSubmit = functions.firestore
         if (!freshMatchDoc.exists) return;
         
         const freshMatchData = freshMatchDoc.data()!;
-        if (['completed', 'disputed', 'cancelled'].includes(freshMatchData.status)) return;
+        if (['completed', 'UNDER_REVIEW', 'cancelled'].includes(freshMatchData.status)) return;
         
-        const otherPlayerIds = freshMatchData.playerIds.filter((pId: string) => pId !== userId);
-        for(const pId of otherPlayerIds) {
-            await sendNotification(pId, "Result Submitted", `${freshMatchData.players[userId]?.name || 'Opponent'} has submitted their result.`, `/match/${matchId}`);
-        }
-
         const resultsCollectionRef = matchRef.collection('results');
         const resultsSnapshot = await transaction.get(resultsCollectionRef);
+        
+        // Change status to submitted once the first result is in
+        if (resultsSnapshot.size === 1) {
+            transaction.update(matchRef, { status: 'RESULT_SUBMITTED' });
+        }
+
         const expectedResults = freshMatchData.playerIds.length;
 
         if (resultsSnapshot.size < expectedResults) return;
 
+        // --- All results are in, start analysis ---
         const results = resultsSnapshot.docs.map(doc => doc.data());
+        
         const winClaims = results.filter(r => r.status === 'win');
         const lossClaims = results.filter(r => r.status === 'loss');
         const drawClaims = results.filter(r => r.status === 'draw');
-        const screenshotUrls = results.map(r => r.screenshotUrl).filter(Boolean); 
-        const uniqueUrls = new Set(screenshotUrls);
         
+        // Fraud Check: Duplicate screenshots
+        const screenshotUrls = results.map(r => r.screenshotUrl);
+        const uniqueUrls = new Set(screenshotUrls);
+        const hasDuplicateScreenshots = screenshotUrls.length > uniqueUrls.size;
+
+        if (hasDuplicateScreenshots) {
+            transaction.update(matchRef, { status: 'UNDER_REVIEW', reviewReason: 'Duplicate screenshots submitted.' });
+            return;
+        }
+
+        // Case 1: All players claim draw
         if (drawClaims.length === expectedResults) {
-            console.log(`Match ${matchId} ended in a draw. Cancelling and refunding.`);
             transaction.update(matchRef, { status: 'cancelled', reviewReason: 'Match ended in a draw.' });
             return;
         }
-
-        if (winClaims.length === 1 && lossClaims.length === 1 && screenshotUrls.length === expectedResults) {
+        
+        // Case 2: Clean Win/Loss
+        if (winClaims.length === 1 && lossClaims.length === (expectedResults - 1)) {
             const winnerId = winClaims[0].userId;
-            console.log(`Match ${matchId} completed automatically. Winner: ${winnerId}`);
             transaction.update(matchRef, { status: 'completed', winnerId: winnerId });
             return;
         }
-
-        if (winClaims.length > 1) {
-          console.log(`Dispute for match ${matchId}: Multiple win claims.`);
-          transaction.update(matchRef, { status: 'disputed', reviewReason: 'Multiple players claimed victory.' });
-          return;
-        }
-
-        if (screenshotUrls.length > uniqueUrls.size) {
-           console.log(`Dispute for match ${matchId}: Duplicate screenshots detected.`);
-           transaction.update(matchRef, { status: 'disputed', reviewReason: 'Duplicate screenshots submitted.' });
-           return;
-        }
         
-        console.log(`Dispute for match ${matchId}: Unclear results.`);
-        transaction.update(matchRef, { status: 'disputed', reviewReason: 'Conflicting or unclear results submitted.' });
+        // Case 3: Conflicting results (multiple wins, or other mismatches)
+        transaction.update(matchRef, { status: 'UNDER_REVIEW', reviewReason: 'Conflicting results submitted by players.' });
       });
     } catch (error) {
       console.error(`Error in onResultSubmit for match ${matchId}:`, error);
-      await matchRef.update({ status: 'disputed', reviewReason: `System error during result processing.` }).catch(()=>{});
+      await matchRef.update({ status: 'UNDER_REVIEW', reviewReason: `System error during result processing.` }).catch(()=>{});
     }
      return null;
   });
@@ -479,7 +478,7 @@ export const matchCleanup = functions.pubsub.schedule('every 30 minutes').onRun(
     const oldPlayingSnapshot = await oldPlayingQuery.get();
     oldPlayingSnapshot.forEach(doc => {
         console.log(`Disputing old playing match: ${doc.id}`);
-        batch.update(doc.ref, { status: 'disputed', reviewReason: 'No result was submitted within the time limit.' });
+        batch.update(doc.ref, { status: 'UNDER_REVIEW', reviewReason: 'No result was submitted within the time limit.' });
     });
 
     await batch.commit();
@@ -550,7 +549,7 @@ export const setRole = functions.https.onCall(async (data, context) => {
         admin: isNowAdmin ? true : null
     });
     
-    await db.collection('users').doc(uid).update({ role: role, isAdmin: isNowAdmin });
+    await db.collection('users').doc(uid).update({ role: isNowAdmin ? role : null, isAdmin: isNowAdmin });
 
     if (isNowAdmin) {
       return { message: `Success! User ${uid} has been made a ${role}.` };
@@ -601,7 +600,7 @@ export const getAdminDashboardStats = functions.https.onCall(async (data, contex
         const kycSnap = await db.collection('kycApplications').where('status', '==', 'pending').get();
         const depositsSnap = await db.collection('depositRequests').where('status', '==', 'pending').get();
         const withdrawalsSnap = await db.collection('withdrawalRequests').where('status', '==', 'pending').get();
-        const matchesSnap = await db.collection('matches').where('status', '==', 'disputed').get();
+        const matchesSnap = await db.collection('matches').where('status', '==', 'UNDER_REVIEW').get();
 
         return {
             totalUsers: usersSnap.size,
@@ -779,6 +778,7 @@ export const onWithdrawalRequestUpdate = functions.firestore
             '/wallet'
         );
     } else if (after.status === 'rejected' && before.status !== 'rejected') {
+        // Refund the amount to the user's wallet
         await db.collection('transactions').doc().set({
             userId: userId,
             type: 'withdrawal_refund',
@@ -792,7 +792,7 @@ export const onWithdrawalRequestUpdate = functions.firestore
         await sendNotification(
             userId,
             'Withdrawal Rejected',
-            `Your withdrawal request of ₹${amount} was rejected. Reason: ${after.rejectionReason || 'Not specified'}.`,
+            `Your withdrawal request of ₹${amount} was rejected. Reason: ${after.rejectionReason || 'Not specified'}. The amount has been returned to your wallet.`,
             '/wallet'
         );
     }
@@ -1052,3 +1052,5 @@ export const distributeTournamentWinnings = functions.https.onCall(async (data, 
         throw new HttpsError('internal', 'An unexpected error occurred.', error);
     }
 });
+
+    

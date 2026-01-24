@@ -2,20 +2,21 @@
 'use client';
 
 import { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { useUser, useFirestore, useFirebaseStorage } from '@/firebase';
+import { useUser, useFirestore, useFirebaseStorage, storage } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { useParams, useRouter } from 'next/navigation';
-import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { Loader2, Upload } from 'lucide-react';
+import { compressImage } from '@/lib/image-utils';
 
 const resultSchema = z.object({
   result: z.enum(['win', 'loss', 'draw'], { required_error: 'You must select a result.' }),
@@ -27,7 +28,6 @@ type ResultFormValues = z.infer<typeof resultSchema>;
 export default function SubmitResultPage() {
   const { user } = useUser();
   const firestore = useFirestore();
-  const storage = useFirebaseStorage();
   const { toast } = useToast();
   const router = useRouter();
   const params = useParams();
@@ -36,6 +36,9 @@ export default function SubmitResultPage() {
 
   const { control, handleSubmit, formState: { errors } } = useForm<ResultFormValues>({
     resolver: zodResolver(resultSchema),
+    defaultValues: {
+      result: 'win',
+    }
   });
 
   const onSubmit = async (data: ResultFormValues) => {
@@ -45,29 +48,28 @@ export default function SubmitResultPage() {
     }
 
     setIsSubmitting(true);
+    const {id: toastId, update} = toast({ title: 'Submitting result...', description: 'Uploading screenshot and verifying...' });
 
     try {
       const screenshotFile = data.screenshot[0];
-      const storageRef = ref(storage, `match-results/${matchId}-${user.uid}`);
-      await uploadBytes(storageRef, screenshotFile);
+      const compressedFile = await compressImage(screenshotFile);
+      const storageRef = ref(storage, `match-results/${matchId}/${user.uid}-${Date.now()}`);
+      await uploadBytes(storageRef, compressedFile);
       const screenshotUrl = await getDownloadURL(storageRef);
 
-      const matchRef = doc(firestore, 'matches', matchId);
-      await updateDoc(matchRef, {
-        [`results.${user.uid}`]: {
-          result: data.result,
-          screenshotUrl,
-          submittedAt: serverTimestamp(),
-        },
-        status: 'RESULT_PENDING',
-        updatedAt: serverTimestamp(),
+      const resultRef = doc(firestore, `matches/${matchId}/results`, user.uid);
+      await setDoc(resultRef, {
+        userId: user.uid,
+        status: data.result,
+        screenshotUrl,
+        submittedAt: serverTimestamp(),
       });
-
-      toast({ title: 'Result Submitted', description: 'Your result has been submitted successfully.' });
+      
+      update({ id: toastId, title: "Result Submitted Successfully!", description: "Waiting for opponent. We will notify you once the match is settled.", className: 'bg-green-100 text-green-800' });
       router.push(`/match/${matchId}`);
     } catch (error: any) {
       console.error("Error submitting result:", error);
-      toast({ title: 'Failed to submit result', description: error.message, variant: 'destructive' });
+      update({ id: toastId, title: 'Failed to submit result', description: error.message, variant: 'destructive' });
     } finally {
       setIsSubmitting(false);
     }
@@ -97,7 +99,7 @@ export default function SubmitResultPage() {
                   </div>
                   <div className="flex items-center space-x-2">
                     <RadioGroupItem value="draw" id="draw" />
-                    <Label htmlFor="draw">It's a Draw</Label>
+                    <Label htmlFor="draw">It&apos;s a Draw</Label>
                   </div>
                 </RadioGroup>
               )}
@@ -108,7 +110,10 @@ export default function SubmitResultPage() {
               name="screenshot"
               control={control}
               render={({ field: { onChange, value, ...rest } }) => (
-                <Input type="file" accept="image/*" onChange={(e) => onChange(e.target.files)} {...rest} />
+                 <div>
+                    <Label htmlFor="screenshot">Screenshot Proof</Label>
+                    <Input id="screenshot" type="file" accept="image/*" onChange={(e) => onChange(e.target.files)} {...rest} />
+                </div>
               )}
             />
             {errors.screenshot && <p className="text-sm text-destructive">{errors.screenshot.message}</p>}
@@ -123,3 +128,5 @@ export default function SubmitResultPage() {
     </div>
   );
 }
+
+    

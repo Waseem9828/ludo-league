@@ -6,6 +6,9 @@ export enum MatchStatus {
     PENDING = 'pending',
     WAITING = 'waiting',
     IN_PROGRESS = 'in-progress',
+    PLAYING = 'PLAYING',
+    RESULT_SUBMITTED = 'RESULT_SUBMITTED',
+    UNDER_REVIEW = 'UNDER_REVIEW',
     COMPLETED = 'completed',
     DISPUTED = 'disputed',
     CANCELLED = 'cancelled',
@@ -79,6 +82,7 @@ export type UserProfile = {
     resolvedBy?: string;
     resolvedAt?: Timestamp;
     game?: any;
+    refundsProcessed?: boolean;
   };
   
   export type Transaction = {
@@ -242,10 +246,9 @@ export interface KycApplication {
       id: string;
       userId: string;
       position: number;
-      status: 'win' | 'loss';
+      status: 'win' | 'loss' | 'draw';
       screenshotUrl: string;
       submittedAt: Timestamp;
-      isFlaggedForFraud?: boolean;
   }
 
   export interface ImagePlaceholder {
@@ -331,4 +334,6 @@ export type MatchCommission = {
     percentage: number;
     updatedAt: Timestamp;
 };
+    
+
     

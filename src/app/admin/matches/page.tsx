@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -34,7 +35,7 @@ export default function MatchesDashboardPage() {
     const [matches, setMatches] = useState<Match[]>([]);
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [loading, setLoading] = useState(true);
-    const [filter, setFilter] = useState('disputed'); // Default to disputed view
+    const [filter, setFilter] = useState('UNDER_REVIEW'); // Default to disputed view
 
     useEffect(() => {
         if (!firestore) return;
@@ -97,12 +98,12 @@ export default function MatchesDashboardPage() {
             <Card>
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2"><Users /> Match History</CardTitle>
-                    <CardDescription>Browse and manage all matches played. Default view shows disputed matches.</CardDescription>
+                    <CardDescription>Browse and manage all matches played. Default view shows matches under review.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <Tabs defaultValue="disputed" value={filter} onValueChange={setFilter} className="w-full">
+                    <Tabs defaultValue="UNDER_REVIEW" value={filter} onValueChange={setFilter} className="w-full">
                         <TabsList className="grid w-full grid-cols-3 md:grid-cols-6">
-                            <TabsTrigger value="disputed">Disputed</TabsTrigger>
+                            <TabsTrigger value="UNDER_REVIEW">Under Review</TabsTrigger>
                             <TabsTrigger value="in-progress">In Progress</TabsTrigger>
                             <TabsTrigger value="waiting">Waiting</TabsTrigger>
                             <TabsTrigger value="completed">Completed</TabsTrigger>
@@ -147,7 +148,7 @@ export default function MatchesDashboardPage() {
                                                         Object.values(match.players || {})?.find((p: MatchPlayer) => p.id === match.winnerId)?.name : 'N/A'}
                                                 </TableCell>
                                                 <TableCell>
-                                                    <Badge variant={match.status === 'completed' ? 'default' : match.status === 'disputed' ? 'destructive' : 'secondary'} className={cn({'bg-green-100 text-green-800': match.status === 'completed', 'bg-yellow-100 text-yellow-800': ['in-progress', 'waiting'].includes(match.status as string)})}>{match.status}</Badge>
+                                                    <Badge variant={match.status === 'completed' ? 'default' : match.status === 'UNDER_REVIEW' ? 'destructive' : 'secondary'} className={cn({'bg-green-100 text-green-800': match.status === 'completed', 'bg-yellow-100 text-yellow-800': ['in-progress', 'waiting'].includes(match.status as string)})}>{match.status}</Badge>
                                                 </TableCell>
                                                 <TableCell>{match.createdAt?.toDate ? match.createdAt.toDate().toLocaleString() : 'N/A'}</TableCell>
                                             </TableRow>
@@ -161,7 +162,7 @@ export default function MatchesDashboardPage() {
                                     <Card key={match.id} className="p-4" onClick={() => handleMatchClick(match.id)}>
                                         <div className="flex justify-between items-start">
                                             <p className="font-bold text-lg">Prize: ₹{match.prizePool.toLocaleString('en-IN')}</p>
-                                            <Badge variant={match.status === 'completed' ? 'default' : match.status === 'disputed' ? 'destructive' : 'secondary'} className={cn({'bg-green-100 text-green-800': match.status === 'completed', 'bg-yellow-100 text-yellow-800': ['in-progress', 'waiting'].includes(match.status as string)})}>{match.status}</Badge>
+                                            <Badge variant={match.status === 'completed' ? 'default' : match.status === 'UNDER_REVIEW' ? 'destructive' : 'secondary'} className={cn({'bg-green-100 text-green-800': match.status === 'completed', 'bg-yellow-100 text-yellow-800': ['in-progress', 'waiting'].includes(match.status as string)})}>{match.status}</Badge>
                                         </div>
                                         <p className="text-sm text-muted-foreground mb-3">{match.createdAt?.toDate ? match.createdAt.toDate().toLocaleString() : 'N/A'}</p>
                                         
@@ -190,3 +191,5 @@ export default function MatchesDashboardPage() {
         </div>
     );
 }
+
+    
