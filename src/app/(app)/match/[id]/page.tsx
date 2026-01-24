@@ -19,7 +19,7 @@ export default function MatchPage() {
   const { user } = useUser();
   const firestore = useFirestore();
   const params = useParams();
-  const matchId = params.id as string;
+  const matchId = params?.id as string;
   const [match, setMatch] = useState<Match | null>(null);
   const [loading, setLoading] = useState(true);
 

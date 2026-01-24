@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { useUser, useFirestore, useFirebaseStorage } from '@/firebase';
+import { useUser, useFirestore, useStorage } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { useParams, useRouter } from 'next/navigation';
 import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
@@ -27,7 +27,7 @@ type ResultFormValues = z.infer<typeof resultSchema>;
 export default function SubmitResultPage() {
   const { user } = useUser();
   const firestore = useFirestore();
-  const storage = useFirebaseStorage();
+  const storage = useStorage();
   const { toast } = useToast();
   const router = useRouter();
   const params = useParams();

@@ -4,6 +4,7 @@ import { getFirestore } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
 import { getMessaging } from 'firebase/messaging';
 import { getStorage } from 'firebase/storage';
+import { getFunctions } from 'firebase/functions';
 import type { FirebaseOptions } from 'firebase/app';
 
 export const firebaseConfig: FirebaseOptions = {
@@ -21,8 +22,9 @@ const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 const db = getFirestore(app);
 const auth = getAuth(app);
 const storage = getStorage(app);
+const functions = getFunctions(app);
 
 // Initialize Firebase Cloud Messaging and get a reference to the service
 const messaging = typeof window !== 'undefined' ? getMessaging(app) : null;
 
-export { app, db, auth, messaging, storage };
+export { app, db, auth, messaging, storage, functions };

@@ -7,7 +7,8 @@ import type { Auth } from 'firebase/auth';
 import type { Firestore } from 'firebase/firestore';
 import type { Messaging } from 'firebase/messaging';
 import type { FirebaseStorage } from 'firebase/storage';
-import { app, auth, db, messaging, storage } from './config';
+import type { Functions } from 'firebase/functions';
+import { app, auth, db, messaging, storage, functions } from './config';
 
 type FirebaseContextValue = {
   app: FirebaseApp;
@@ -15,6 +16,7 @@ type FirebaseContextValue = {
   firestore: Firestore;
   messaging: Messaging | null;
   storage: FirebaseStorage;
+  functions: Functions;
 } | null;
 
 const FirebaseContext = createContext<FirebaseContextValue | undefined>(
@@ -28,7 +30,7 @@ type FirebaseProviderProps = {
 export function FirebaseProvider({ children }: FirebaseProviderProps) {
   // Services are now imported directly from config.ts, ensuring they are singletons.
   const services = useMemo(() => {
-    return { app, auth, firestore: db, messaging, storage };
+    return { app, auth, firestore: db, messaging, storage, functions };
   }, []);
 
   return (
@@ -67,6 +69,10 @@ export function useMessaging() {
     return useFirebase().messaging;
 }
 
-export function useStorage() {
+export function useFirebaseStorage() {
     return useFirebase().storage;
+}
+
+export function useFunctions() {
+    return useFirebase().functions;
 }

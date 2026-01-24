@@ -107,7 +107,10 @@ service cloud.firestore {
     match /upiConfiguration/{doc=**} { allow read: if request.auth != null; }
     match /referralConfiguration/settings { allow get: if request.auth != null; }
     match /bonus_config/settings { allow get: if request.auth != null; }
-    match /settings/global { allow get: if request.auth != null; }
+    match /settings/global {
+      allow get: if true; // Publicly readable for maintenance mode checks
+      allow write: if isAdmin(); // Only admins can change global settings
+    }
     match /banners/{bannerId} { allow read: if request.auth != null; }
     match /announcements/{announcementId} { 
       allow read: if request.auth != null;
