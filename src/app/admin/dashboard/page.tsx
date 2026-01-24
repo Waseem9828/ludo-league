@@ -76,7 +76,7 @@ const StatCard = ({ title, value, description, icon: Icon, href, loading, classN
 
 export default function AdminDashboardPage() {
     useAdminOnly();
-    const { role, loading: userLoading } = useUser();
+    const { user, isAdmin, role, loading: userLoading } = useUser();
     const router = useRouter();
     const firestore = useFirestore();
     const [stats, setStats] = useState({
@@ -117,7 +117,7 @@ export default function AdminDashboardPage() {
     }, [role, userLoading, router]);
     
     useEffect(() => {
-        if (!firestore || role !== 'superAdmin') return;
+        if (!firestore || !isAdmin) return;
 
         const fetchStats = async () => {
              setStatsLoading(true);
@@ -134,10 +134,10 @@ export default function AdminDashboardPage() {
         };
 
        fetchStats();
-    }, [role, firestore]);
+    }, [isAdmin, firestore]);
 
     useEffect(() => {
-        if (!firestore || role !== 'superAdmin') return;
+        if (!firestore || !isAdmin) return;
         
         setLoadingFinancials(true);
         
@@ -203,13 +203,13 @@ export default function AdminDashboardPage() {
 
         return () => unsub();
 
-    }, [firestore, dateRange, role]);
+    }, [firestore, dateRange, isAdmin]);
     
     if (userLoading) {
         return <Loader2 className="h-10 w-10 animate-spin text-primary mx-auto my-10" />;
     }
 
-    if (role !== 'superAdmin') {
+    if (!isAdmin) {
          return <div className="flex justify-center items-center h-full"><Loader2 className="h-10 w-10 animate-spin text-primary mx-auto my-10" /></div>;
     }
 
