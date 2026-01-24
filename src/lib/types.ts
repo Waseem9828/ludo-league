@@ -335,5 +335,3 @@ export type MatchCommission = {
     updatedAt: Timestamp;
 };
     
-
-    

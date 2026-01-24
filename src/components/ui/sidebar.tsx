@@ -366,7 +366,11 @@ function AdminSidebarNav({ className, inSheet }: { className?: string, inSheet?:
         if (!role) return [];
 
         return items.reduce((acc: AdminNavItem[], item) => {
-            const hasVisiblechildren = item.children && item.children.some(sub => sub.role && (role === 'superAdmin' || sub.role.includes(role)));
+            if (role === 'superAdmin') {
+                acc.push(item);
+                return acc;
+            }
+            const hasVisiblechildren = item.children && item.children.some(sub => sub.role && sub.role.includes(role));
 
             if (hasVisiblechildren) {
                  acc.push(item);

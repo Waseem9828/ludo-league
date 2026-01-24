@@ -1,3 +1,4 @@
+
 'use client';
 
 import {
@@ -53,9 +54,11 @@ export const UserProvider = ({ children }: UserProviderProps) => {
         try {
           const tokenResult = await firebaseUser.getIdTokenResult(true); // force refresh
           setIsAdmin(!!tokenResult.claims.admin);
+          setRole(tokenResult.claims.role as string || null);
         } catch (error) {
           console.error('Error fetching custom claims:', error);
           setIsAdmin(false);
+          setRole(null);
         }
 
         // Can't get profile without firestore.
@@ -68,11 +71,9 @@ export const UserProvider = ({ children }: UserProviderProps) => {
           if (docSnap.exists()) {
             const profile = docSnap.data() as UserProfile;
             setUserProfile(profile);
-            setRole(profile.role || null);
           } else {
             // This can happen if the user doc isn't created yet after signup.
             setUserProfile(null);
-            setRole(null);
           }
           // Only once we have the profile (or know it doesn't exist) are we done loading.
           setLoading(false);

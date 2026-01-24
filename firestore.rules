@@ -64,15 +64,16 @@ service cloud.firestore {
     match /transactions/{transactionId} {
       allow get: if isOwner(resource.data.userId) || isAdmin();
       allow list: if isAdmin() || (request.query.where.userId == request.auth.uid);
-      allow create, update, delete: if false; 
+      allow create, delete: if false; 
+      allow update: if isSuperAdmin(); // Allow admins to fix transaction issues if needed.
     }
 
     // ========= MATCH & GAMEPLAY =========
     match /matches/{matchId} {
-      allow read, list: if request.auth.uid != null;
+      allow read, list: if request.auth != null;
       allow create: if false; // Handled by Cloud Function
-      allow update: if request.auth.uid in resource.data.playerIds;
-      allow delete: if request.auth.uid == resource.data.creatorId && resource.data.playerIds.size() == 1;
+      allow update: if (request.auth != null && request.auth.uid in resource.data.playerIds) || isMatchAdmin();
+      allow delete: if (request.auth.uid == resource.data.creatorId && resource.data.playerIds.size() == 1) || isSuperAdmin();
     }
     
     match /matches/{matchId}/results/{userId} {
@@ -83,24 +84,26 @@ service cloud.firestore {
     
     // ========= TOURNAMENTS =========
     match /tournaments/{tournamentId} {
-        allow read: if request.auth.uid != null;
+        allow read: if request.auth != null;
         allow write: if isMatchAdmin();
     }
     
      match /tournaments/{tournamentId}/matches/{matchId} {
-        allow read: if request.auth.uid != null;
+        allow read: if request.auth != null;
+        allow write: if isMatchAdmin();
      }
 
     // ========= APP CONTENT & CONFIG =========
-    match /referralConfiguration/settings { allow read: if request.auth.uid != null; allow write: if isSuperAdmin(); }
-    match /matchCommission/settings { allow read: if request.auth.uid != null; allow write: if isSuperAdmin(); }
-    match /upiConfiguration/{docId} { allow read: if request.auth.uid != null; allow write: if isSuperAdmin(); }
-    match /bonus_config/settings { allow read: if request.auth.uid != null; allow write: if isSuperAdmin(); }
-    match /tasks/{taskId} { allow read: if request.auth.uid != null; allow write: if isSuperAdmin(); }
-    match /news/{newsId} { allow read: if request.auth.uid != null; allow write: if isSuperAdmin(); }
-    match /banners/{bannerId} { allow read: if request.auth.uid != null; allow write: if isSuperAdmin(); }
-    match /announcements/{announcementId} { allow read: if request.auth.uid != null; allow write: if isSuperAdmin(); }
-    match /dashboardCardImages/{imageId} { allow read: if request.auth.uid != null; allow write: if isSuperAdmin(); }
+    match /referralConfiguration/settings { allow read: if request.auth != null; allow write: if isSuperAdmin(); }
+    match /matchCommission/settings { allow read: if request.auth != null; allow write: if isSuperAdmin(); }
+    match /upiConfiguration/{docId} { allow read: if request.auth != null; allow write: if isSuperAdmin(); }
+    match /bonus_config/settings { allow read: if request.auth != null; allow write: if isSuperAdmin(); }
+    match /tasks/{taskId} { allow read: if request.auth != null; allow write: if isSuperAdmin(); }
+    match /news/{newsId} { allow read: if request.auth != null; allow write: if isSuperAdmin(); }
+    match /banners/{bannerId} { allow read: if request.auth != null; allow write: if isSuperAdmin(); }
+    match /announcements/{announcementId} { allow read: if request.auth != null; allow write: if isSuperAdmin(); }
+    match /dashboardCardImages/{imageId} { allow read: if request.auth != null; allow write: if isSuperAdmin(); }
+    
     match /settings/global { 
       allow get: if true; 
       allow write: if isSuperAdmin();
@@ -122,15 +125,15 @@ service cloud.firestore {
     
     // ========= COMMUNITY FORUM =========
     match /forumPosts/{postId} {
-      allow read, list: if request.auth.uid != null;
+      allow read, list: if request.auth != null;
       allow create: if isOwner(request.resource.data.authorId);
       allow update: if isOwner(resource.data.authorId) || isMatchAdmin();
       allow delete: if isOwner(resource.data.authorId) || isSuperAdmin();
     }
     match /forumPosts/{postId}/replies/{replyId} {
-      allow read, list: if request.auth.uid != null;
+      allow read, list: if request.auth != null;
       allow create: if isOwner(request.resource.data.authorId);
-      allow delete: if isOwner(request.resource.data.authorId) || isSuperAdmin();
+      allow delete: if isOwner(resource.data.authorId) || isSuperAdmin();
     }
     
     // ========= LOGGING & OLD COLLECTIONS =========
@@ -138,9 +141,6 @@ service cloud.firestore {
       allow read: if isAdmin();
       allow write: if false; // Logs are immutable, written by functions
     }
-    // Securing old queue collections that are no longer used.
-    match /roomCodeCreators/{userId} { allow read, write: if false; }
-    match /roomCodeSeekers/{userId} { allow read, write: if false; }
     match /submittedUTRs/{utrId} { allow read, write: if false; } // Only accessible by backend
     
   }
