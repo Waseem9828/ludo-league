@@ -30,13 +30,14 @@ export const UserProvider = ({ children }: UserProviderProps) => {
   const [user, setUser] = useState<FirebaseUser | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [role, setRole] = useState<string | null>(null);
   const [loading, setLoading] = useState(true); // The one and only loading state.
   const firestore = useFirestore();
 
   useEffect(() => {
     let profileUnsubscribe: (() => void) | null = null;
 
-    const authUnsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+    const authUnsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       // First, if a profile listener is active from a previous user, clean it up.
       if (profileUnsubscribe) {
         profileUnsubscribe();
@@ -46,6 +47,16 @@ export const UserProvider = ({ children }: UserProviderProps) => {
 
       if (firebaseUser) {
         setUser(firebaseUser);
+
+        // As soon as we have a user, force a refresh of the ID token
+        // to get the latest custom claims.
+        try {
+          const tokenResult = await firebaseUser.getIdTokenResult(true); // force refresh
+          setIsAdmin(!!tokenResult.claims.admin);
+        } catch (error) {
+          console.error('Error fetching custom claims:', error);
+          setIsAdmin(false);
+        }
 
         // Can't get profile without firestore.
         // This case is handled because the effect depends on `firestore`.
@@ -57,26 +68,18 @@ export const UserProvider = ({ children }: UserProviderProps) => {
           if (docSnap.exists()) {
             const profile = docSnap.data() as UserProfile;
             setUserProfile(profile);
-
-            // Securely check for admin status via custom claims.
-            try {
-              const tokenResult = await firebaseUser.getIdTokenResult(true); // force refresh
-              setIsAdmin(!!tokenResult.claims.admin);
-            } catch (error) {
-              console.error('Error fetching custom claims:', error);
-              setIsAdmin(false);
-            }
+            setRole(profile.role || null);
           } else {
             // This can happen if the user doc isn't created yet after signup.
             setUserProfile(null);
-            setIsAdmin(false);
+            setRole(null);
           }
           // Only once we have the profile (or know it doesn't exist) are we done loading.
           setLoading(false);
         }, (error) => {
           console.error("Error listening to user profile:", error);
           setUserProfile(null);
-          setIsAdmin(false);
+          setRole(null);
           setLoading(false);
         });
 
@@ -85,6 +88,7 @@ export const UserProvider = ({ children }: UserProviderProps) => {
         setUser(null);
         setUserProfile(null);
         setIsAdmin(false);
+        setRole(null);
         setLoading(false); // We are done loading, there's just no user.
       }
     });
@@ -104,8 +108,9 @@ export const UserProvider = ({ children }: UserProviderProps) => {
       loading,
       userProfile,
       isAdmin,
+      role,
     }),
-    [user, loading, userProfile, isAdmin]
+    [user, loading, userProfile, isAdmin, role]
   );
 
   return <UserContext.Provider value={value}>{children}</UserContext.Provider>;

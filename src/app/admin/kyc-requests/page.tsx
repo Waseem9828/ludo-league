@@ -28,7 +28,6 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useRole } from '@/hooks/useRole';
 
 const KycStats = ({ applications, loading }: { applications: KycApplication[], loading: boolean }) => {
     const stats = applications.reduce((acc, req) => {
@@ -88,15 +87,12 @@ const RejectionDialog = ({ onConfirm, loading }: { onConfirm: (reason: string) =
 export default function KycRequestsPage() {
     useAdminOnly();
     const firestore = useFirestore();
-    const { role } = useRole();
 
     const [applications, setApplications] = useState<KycApplication[]>([]);
     const [loading, setLoading] = useState(true);
     const [actionLoading, setActionLoading] = useState<Record<string, boolean>>({});
     const [filter, setFilter] = useState('pending');
     const { toast } = useToast();
-
-    const canManageKyc = role === 'superAdmin' || role === 'kycAdmin';
 
     useEffect(() => {
         if (!firestore) return;
@@ -119,11 +115,6 @@ export default function KycRequestsPage() {
     }, [firestore, toast]);
 
     const handleUpdateStatus = useCallback(async (applicationId: string, status: 'approved' | 'rejected', rejectionReason?: string) => {
-        if (!canManageKyc) {
-            toast({ title: "Permission Denied", description: "You don't have rights to perform this action.", variant: "destructive" });
-            return;
-        }
-
         if (status === 'rejected' && !rejectionReason) {
             toast({ title: "Rejection reason is required", variant: "destructive" });
             return;
@@ -154,7 +145,7 @@ export default function KycRequestsPage() {
         } finally {
             setActionLoading(prev => ({ ...prev, [applicationId]: false }));
         }
-    }, [canManageKyc, toast]);
+    }, [toast]);
     
     const filteredApplications = applications.filter(req => filter === 'all' || req.status === filter);
 
@@ -190,7 +181,7 @@ export default function KycRequestsPage() {
                         </div>
                     </DialogContent>
                 </Dialog>
-                {canManageKyc && application.status === 'pending' && (
+                {application.status === 'pending' && (
                     <div className={cn("flex gap-2", {"w-full": isMobile})}>
                          <Button 
                             size={isMobile ? 'sm' : 'icon'} 

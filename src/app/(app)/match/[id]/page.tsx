@@ -62,6 +62,8 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import { httpsCallable } from 'firebase/functions';
+import { functions } from '@/firebase/functions';
 
 const PlayerLobby = ({ match, winnerId }: { match: Match, winnerId?: string | null }) => {
     const playersArray = Object.values(match.players);
@@ -236,7 +238,7 @@ const RoomCodeManager = ({ match, isCreator }: { match: Match; isCreator: boolea
             const matchRef = doc(firestore, 'matches', match.id);
             await updateDoc(matchRef, {
                 roomCode: roomCode,
-                status: 'in-progress'
+                status: 'PLAYING'
             });
             toast({ title: 'Room code saved!', className: 'bg-green-100 text-green-800' });
         } catch (error: any) {
@@ -462,62 +464,24 @@ export default function MatchPage() {
 
 
   const handleJoinMatch = async () => {
-    if (!firestore || !user || !match || !userProfile || match.status !== 'waiting') return;
+    if (!user || !match) return;
 
     setIsActionLoading(true);
-    const { id: toastId } = toast({ title: "Joining match..." });
     try {
-      await runTransaction(firestore, async (transaction) => {
-        const matchRef = doc(firestore, 'matches', match.id);
-        const userRef = doc(firestore, 'users', user.uid);
-
-        const matchDoc = await transaction.get(matchRef);
-        const userDoc = await transaction.get(userRef);
-        if (!matchDoc.exists() || !userDoc.exists()) throw new Error("Match or user not found");
+        const joinMatchFn = httpsCallable(functions, 'joinMatch');
+        const result = await joinMatchFn({ matchId: match.id });
+        const data = result.data as { success: boolean; matchId: string; message?: string };
         
-        const currentMatch = matchDoc.data() as Match;
-        const currentUser = userDoc.data() as UserProfile;
-
-        if (currentUser.walletBalance < currentMatch.entryFee) throw new Error("Insufficient funds");
-        if (Object.keys(currentMatch.players).includes(user.uid)) throw new Error("You are already in this match");
-        if (Object.keys(currentMatch.players).length >= (currentMatch.maxPlayers ?? 2)) throw new Error("Match is full");
-        if (currentUser.activeMatchIds && currentUser.activeMatchIds.length >= 5) throw new Error("You have reached the maximum of 5 active matches.");
-
-        const newPlayer: MatchPlayer = { 
-            id: user.uid, 
-            name: userProfile.displayName ?? 'Player', 
-            avatarUrl: userProfile.photoURL ?? '',
-            winRate: userProfile.winRate || 0,
-        };
-
-        const isNowFull = Object.keys(currentMatch.players).length + 1 === currentMatch.maxPlayers;
-
-        transaction.update(matchRef, { 
-            [`players.${user.uid}`]: newPlayer,
-            playerIds: arrayUnion(user.uid),
-            status: isNowFull ? 'in-progress' : 'waiting',
-        });
-
-        transaction.update(userRef, { activeMatchIds: arrayUnion(match.id) });
-
-        const entryFeeTransactionRef = doc(collection(firestore, "transactions"));
-        transaction.set(entryFeeTransactionRef, {
-            userId: user.uid,
-            type: 'entry-fee',
-            amount: -match.entryFee,
-            status: 'completed',
-            createdAt: Timestamp.now(),
-            relatedMatchId: match.id,
-            description: `Entry fee for match ${match.id}`
-        });
-
-      });
-      toast({ id: toastId, title: "Successfully Joined!", description: "You have been added to the match." });
+        if (data.success) {
+            toast({ title: "Successfully Joined!", description: "You have been added to the match." });
+        } else {
+            throw new Error(data.message || 'Failed to join match.');
+        }
     } catch (error: any) {
-      console.error('Error joining match:', error);
-      toast({ id: toastId, title: 'Error Joining Match', description: error.message, variant: 'destructive' });
+        console.error('Error joining match:', error);
+        toast({ title: 'Error Joining Match', description: error.message, variant: 'destructive' });
     } finally {
-      setIsActionLoading(false);
+        setIsActionLoading(false);
     }
   };
 
@@ -631,7 +595,7 @@ export default function MatchPage() {
                             </Button>
                         </CardFooter>
                     )}
-                    {match.status === 'in-progress' && isPlayer && (
+                    {match.status === 'PLAYING' && isPlayer && (
                         <CardFooter>
                             <Button asChild className="w-full">
                                 <Link href={`/match/${id}/submit`}>

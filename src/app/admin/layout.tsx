@@ -10,13 +10,11 @@ import { SidebarProvider, useSidebar, AdminSidebar } from '@/components/ui/sideb
 import { useAdminOnly } from '@/hooks/useAdminOnly';
 
 function AdminLayoutContent({ children }: { children: React.ReactNode }) {
-  const { isAuthenticating } = useAuthGuard();
-  const { isAdmin, loading: adminLoading } = useAdminOnly();
+  useAuthGuard(); // Ensures user is logged in
+  const { isAdmin, loading: adminLoading } = useAdminOnly(); // Ensures user is an admin
   const { isOpen, setIsOpen } = useSidebar();
 
-  const isLoading = isAuthenticating || adminLoading;
-
-  if (isLoading) {
+  if (adminLoading) {
       return (
           <div className="h-screen w-full flex items-center justify-center">
               <CustomLoader />
@@ -25,6 +23,7 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
   }
 
   if (!isAdmin) {
+      // useAdminOnly hook handles redirection, but this is a fallback UI.
       return (
           <div className="h-screen w-full flex items-center justify-center">
               <p>You do not have permission to view this page.</p>

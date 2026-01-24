@@ -6,6 +6,7 @@ import { Toaster } from '@/components/ui/toaster';
 import { FirebaseClientProvider } from '@/firebase/client-provider';
 import { FirebaseErrorListener } from '@/components/FirebaseErrorListener';
 import { Inter } from 'next/font/google';
+import { UserProvider } from '@/hooks/useUser'; // Import UserProvider
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 
@@ -59,9 +60,11 @@ export default function RootLayout({
       </head>
       <body className="font-sans antialiased">
         <FirebaseClientProvider>
+          <UserProvider>
             {children}
             <Toaster />
             <FirebaseErrorListener />
+          </UserProvider>
         </FirebaseClientProvider>
       </body>
     </html>

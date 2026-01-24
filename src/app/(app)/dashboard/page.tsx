@@ -2,7 +2,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useUser } from '@/firebase/auth/use-user';
+import { useUser } from '@/hooks/useUser';
+import { useAuthGuard } from '@/hooks/useAuthGuard';
 import { useFirestore } from '@/firebase';
 import { collection, query, where, onSnapshot, QuerySnapshot, DocumentData, orderBy, limit } from 'firebase/firestore';
 import { Card } from '@/components/ui/card';
@@ -205,6 +206,7 @@ const ActionCard = ({
 
 
 export default function DashboardPage() {
+    useAuthGuard();
     const { user, userProfile } = useUser();
     const firestore = useFirestore();
     const [tournaments, setTournaments] = useState<Tournament[]>([]);

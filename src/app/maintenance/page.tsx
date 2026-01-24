@@ -9,7 +9,6 @@ import { useRouter } from 'next/navigation';
 import { motion, Variants } from 'framer-motion';
 import Image from 'next/image';
 import { useAuthGuard } from '@/hooks/useAuthGuard';
-import CustomLoader from '@/components/CustomLoader';
 
 const containerVariants: Variants = {
   initial: { opacity: 0 },
@@ -48,7 +47,7 @@ const pulseVariants: Variants = {
 
 
 export default function MaintenancePage() {
-  const { isAuthenticating } = useAuthGuard();
+  useAuthGuard();
   const router = useRouter();
   const { user, isAdmin, loading } = useUser();
 
@@ -56,11 +55,6 @@ export default function MaintenancePage() {
     await signOut();
     router.replace('/login');
   };
-
-  if (isAuthenticating) {
-    return <CustomLoader />;
-  }
-
 
   return (
     <div className="relative min-h-screen w-full flex flex-col items-center justify-center p-4 bg-background overflow-hidden text-center">

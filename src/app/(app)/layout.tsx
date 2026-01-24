@@ -3,32 +3,15 @@
 import { Toaster } from '@/components/ui/toaster';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import AppHeader from '@/components/AppHeader';
-import { useAuthGuard } from '@/hooks/useAuthGuard';
-import CustomLoader from '@/components/CustomLoader';
 import { FirebaseErrorListener } from '@/components/FirebaseErrorListener';
 import { SidebarProvider, useSidebar } from '@/components/ui/sidebar';
 import { AppSidebar } from "@/components/app/AppSidebar";
 import { FcmInitializer } from "@/components/app/fcm-initializer";
-import { usePathname } from 'next/navigation';
 import { PromotionBanner } from '@/components/app/PromotionBanner';
 import { BottomNav } from '@/components/app/bottom-nav';
 
-
 function AppLayoutContent({ children }: { children: React.ReactNode }) {
-  const { isAuthenticating } = useAuthGuard();
   const { isOpen, setIsOpen } = useSidebar();
-  const pathname = usePathname();
-
-  // The AuthGuard will handle redirection, so we just show a loader while it's working.
-  if (isAuthenticating) {
-    return <CustomLoader />;
-  }
-
-  // Prevents app shell from flashing on auth pages before redirect
-  const isAuthPage = pathname === '/login' || pathname === '/signup';
-  if (isAuthPage) {
-    return <>{children}</>;
-  }
 
   return (
     <div className='lg:grid lg:grid-cols-12 min-h-screen'>

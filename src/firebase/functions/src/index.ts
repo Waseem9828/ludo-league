@@ -132,6 +132,86 @@ export const createMatch = functions.https.onCall(async (data, context) => {
     }
 });
 
+export const joinMatch = functions.https.onCall(async (data, context) => {
+    if (!context.auth) {
+        throw new HttpsError('unauthenticated', 'You must be logged in to join a match.');
+    }
+
+    const { matchId } = data;
+    const userId = context.auth.uid;
+
+    if (!matchId) {
+        throw new HttpsError('invalid-argument', 'matchId is required.');
+    }
+    
+    const userRef = db.doc(`users/${userId}`);
+    const matchRef = db.doc(`matches/${matchId}`);
+
+    try {
+        await db.runTransaction(async (transaction) => {
+            const userDoc = await transaction.get(userRef);
+            const matchDoc = await transaction.get(matchRef);
+
+            if (!userDoc.exists()) throw new HttpsError('not-found', 'User profile not found.');
+            if (!matchDoc.exists()) throw new HttpsError('not-found', 'Match not found.');
+            
+            const userData = userDoc.data()!;
+            const matchData = matchDoc.data()!;
+
+            if (matchData.status !== 'waiting') throw new HttpsError('failed-precondition', 'This match is not available to join.');
+            if (userData.isBlocked) throw new HttpsError('permission-denied', 'Your account is blocked.');
+            if ((userData.activeMatchIds || []).length >= 5) throw new HttpsError('failed-precondition', 'You have reached the maximum of 5 active matches.');
+            if (userData.walletBalance < matchData.entryFee) throw new HttpsError('failed-precondition', 'Insufficient wallet balance.');
+            if (matchData.playerIds.includes(userId)) throw new HttpsError('failed-precondition', 'You are already in this match.');
+            
+            // 1. Create entry-fee transaction for the joining user
+            const entryFeeTransactionRef = db.collection("transactions").doc();
+            transaction.set(entryFeeTransactionRef, {
+                userId: userId,
+                type: 'entry-fee',
+                amount: -matchData.entryFee,
+                status: 'completed',
+                createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                relatedMatchId: matchId,
+                description: `Entry fee for match ${matchId}`
+            });
+
+            // 2. Update the match document
+            const newPlayer = {
+                id: userId,
+                name: userData.displayName || 'Player',
+                avatarUrl: userData.photoURL || '',
+                winRate: userData.winRate || 0,
+            };
+            const isNowFull = matchData.playerIds.length + 1 === matchData.maxPlayers;
+            transaction.update(matchRef, {
+                [`players.${userId}`]: newPlayer,
+                playerIds: admin.firestore.FieldValue.arrayUnion(userId),
+                status: isNowFull ? 'JOINED' : 'waiting',
+            });
+
+            // 3. Update the user's active matches
+            transaction.update(userRef, {
+                activeMatchIds: admin.firestore.FieldValue.arrayUnion(matchId)
+            });
+        });
+
+        // Send notifications
+        const matchData = (await matchRef.get()).data()!;
+        await sendNotification(matchData.creatorId, "Opponent Joined!", `An opponent has joined your match for ₹${matchData.prizePool}. Time to play!`, `/match/${matchId}`);
+        await sendNotification(userId, "Match Joined!", `You have joined a match for ₹${matchData.prizePool}.`, `/match/${matchId}`);
+
+        return { success: true, matchId: matchId };
+
+    } catch (error) {
+        console.error("Error joining match:", error);
+        if (error instanceof HttpsError) {
+            throw error;
+        }
+        throw new HttpsError('internal', 'Could not join match.', error);
+    }
+});
+
 
 export const onTransactionCreate = functions.firestore
   .document('transactions/{transactionId}')
@@ -340,12 +420,36 @@ export const onResultSubmit = functions.firestore
         const results = resultsSnapshot.docs.map(doc => doc.data());
         const winClaims = results.filter(r => r.status === 'win');
         const lossClaims = results.filter(r => r.status === 'loss');
-
-        if (winClaims.length === 1 && lossClaims.length === 1) {
-            transaction.update(matchRef, { status: 'completed', winnerId: winClaims[0].userId });
+        const drawClaims = results.filter(r => r.status === 'draw');
+        const screenshotUrls = results.map(r => r.screenshotUrl).filter(Boolean); 
+        const uniqueUrls = new Set(screenshotUrls);
+        
+        if (drawClaims.length === expectedResults) {
+            console.log(`Match ${matchId} ended in a draw. Cancelling and refunding.`);
+            transaction.update(matchRef, { status: 'cancelled', reviewReason: 'Match ended in a draw.' });
             return;
         }
 
+        if (winClaims.length === 1 && lossClaims.length === 1 && screenshotUrls.length === expectedResults) {
+            const winnerId = winClaims[0].userId;
+            console.log(`Match ${matchId} completed automatically. Winner: ${winnerId}`);
+            transaction.update(matchRef, { status: 'completed', winnerId: winnerId });
+            return;
+        }
+
+        if (winClaims.length > 1) {
+          console.log(`Dispute for match ${matchId}: Multiple win claims.`);
+          transaction.update(matchRef, { status: 'disputed', reviewReason: 'Multiple players claimed victory.' });
+          return;
+        }
+
+        if (screenshotUrls.length > uniqueUrls.size) {
+           console.log(`Dispute for match ${matchId}: Duplicate screenshots detected.`);
+           transaction.update(matchRef, { status: 'disputed', reviewReason: 'Duplicate screenshots submitted.' });
+           return;
+        }
+        
+        console.log(`Dispute for match ${matchId}: Unclear results.`);
         transaction.update(matchRef, { status: 'disputed', reviewReason: 'Conflicting or unclear results submitted.' });
       });
     } catch (error) {
@@ -354,6 +458,34 @@ export const onResultSubmit = functions.firestore
     }
      return null;
   });
+
+export const matchCleanup = functions.pubsub.schedule('every 30 minutes').onRun(async (context) => {
+    const now = admin.firestore.Timestamp.now();
+    const oneHourAgo = admin.firestore.Timestamp.fromMillis(now.toMillis() - (60 * 60 * 1000));
+    const twoHoursAgo = admin.firestore.Timestamp.fromMillis(now.toMillis() - (2 * 60 * 60 * 1000));
+
+    const batch = db.batch();
+
+    // Cancel old 'waiting' matches
+    const oldWaitingQuery = db.collection('matches').where('status', '==', 'waiting').where('createdAt', '<=', oneHourAgo);
+    const oldWaitingSnapshot = await oldWaitingQuery.get();
+    oldWaitingSnapshot.forEach(doc => {
+        console.log(`Cancelling old waiting match: ${doc.id}`);
+        batch.update(doc.ref, { status: 'cancelled', reviewReason: 'Match expired without an opponent.' });
+    });
+
+    // Dispute old 'PLAYING' matches (no result submitted)
+    const oldPlayingQuery = db.collection('matches').where('status', '==', 'PLAYING').where('createdAt', '<=', twoHoursAgo);
+    const oldPlayingSnapshot = await oldPlayingQuery.get();
+    oldPlayingSnapshot.forEach(doc => {
+        console.log(`Disputing old playing match: ${doc.id}`);
+        batch.update(doc.ref, { status: 'disputed', reviewReason: 'No result was submitted within the time limit.' });
+    });
+
+    await batch.commit();
+    console.log(`Match cleanup finished. Cancelled ${oldWaitingSnapshot.size} and disputed ${oldPlayingSnapshot.size} matches.`);
+    return null;
+});
 
 
 export const claimSuperAdminRole = functions.https.onCall(async (data, context) => {

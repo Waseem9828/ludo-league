@@ -40,6 +40,7 @@ import { Loader2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '@/firebase/functions';
+import { CreateMatchDialog } from '@/components/app/create-match-dialog';
 
 
 const ActiveMatchesAlert = ({ activeMatchIds }: { activeMatchIds: string[] }) => {
@@ -90,10 +91,39 @@ const ActiveMatchesAlert = ({ activeMatchIds }: { activeMatchIds: string[] }) =>
 
 const WaitingMatchCard = ({ match }: { match: Match }) => {
     const router = useRouter();
+    const { user } = useUser();
+    const { toast } = useToast();
+    const [isJoining, setIsJoining] = useState(false);
     const creator = match.players ? match.players[match.creatorId] : null;
 
-    const handleJoin = () => {
-        router.push(`/match/${match.id}`);
+    const handleJoin = async () => {
+        if (!user) {
+            toast({ title: "Please login to play.", variant: "destructive" });
+            return;
+        }
+        if (user.uid === match.creatorId) {
+            toast({ title: "You cannot join your own match.", variant: "destructive" });
+            return;
+        }
+
+        setIsJoining(true);
+        try {
+            const joinMatchFn = httpsCallable(functions, 'joinMatch');
+            const result = await joinMatchFn({ matchId: match.id });
+            const data = result.data as { success: boolean; matchId: string; message?: string };
+            
+            if (data.success) {
+                toast({ title: "Match Joined!", description: "You are now being redirected to the match room." });
+                router.push(`/match/${data.matchId}`);
+            } else {
+                throw new Error(data.message || 'Failed to join match.');
+            }
+        } catch (error: any) {
+            console.error("Error joining match:", error);
+            toast({ title: 'Failed to join match', description: error.message, variant: 'destructive' });
+        } finally {
+            setIsJoining(false);
+        }
     };
 
     if (!creator) return null;
@@ -127,9 +157,10 @@ const WaitingMatchCard = ({ match }: { match: Match }) => {
                 <div className="flex-1 flex justify-end">
                     <Button 
                         onClick={handleJoin}
+                        disabled={isJoining}
                         className="bg-white text-primary hover:bg-gray-200 font-bold rounded-xl px-6 shadow-md"
                     >
-                        Join
+                        {isJoining ? <Loader2 className="animate-spin" /> : "Join"}
                     </Button>
                 </div>
             </div>
@@ -311,94 +342,14 @@ const useLobbyContext = () => useContext(LobbyContext);
 
 export default function LobbyPage() {
   const { user, userProfile, loading } = useUser();
-  const firestore = useFirestore();
-  const router = useRouter();
-  const { toast } = useToast();
-
-  const [showStakesDialog, setShowStakesDialog] = useState(false);
-  const [commissionPercentage, setCommissionPercentage] = useState(10);
-  const [loadingCommission, setLoadingCommission] = useState(true);
-  
   const activeMatchIds = userProfile?.activeMatchIds || [];
-
-  useEffect(() => {
-    if (!firestore) return;
-    const configRef = doc(firestore, 'matchCommission', 'settings');
-    const unsubscribe = onSnapshot(configRef, (doc) => {
-        if (doc.exists()) {
-            setCommissionPercentage(doc.data().percentage || 10);
-        }
-        setLoadingCommission(false);
-    }, (error) => {
-        console.error("Error fetching commission settings: ", error);
-        setLoadingCommission(false);
-    });
-    return () => unsubscribe();
-  }, [firestore]);
   
-
-  const handleCreateMatch = async (fee: number) => {
-    if (!user || !userProfile || !firestore) {
-        toast({ title: "Please login to play.", variant: "destructive" });
-        return;
-    }
-     if ((userProfile as any).isBlocked) {
-        toast({ title: "Your account is blocked.", variant: "destructive" });
-        return;
-    }
-    if (activeMatchIds.length >= 5) {
-        toast({ title: "Match Limit Reached", description: "You can have a maximum of 5 active matches.", variant: "destructive" });
-        return;
-    }
-     if (userProfile.walletBalance < fee) {
-        toast({ title: "Insufficient Balance", description: `You need at least ₹${fee} to play.`, variant: "destructive" });
-        router.push('/wallet');
-        return;
-    }
-
-    setShowStakesDialog(false);
-
-    const { id: toastId, update } = toast({ title: "Creating your match..." });
-
-    try {
-        const createMatchFunction = httpsCallable(functions, 'createMatch');
-        await createMatchFunction({ entryFee: fee });
-
-        update({ id: toastId, title: "Match Created!", description: "Your match is now live in the Open Battles list.", className: "bg-green-100 text-green-800" });
-
-    } catch (error: any) {
-         console.error("Error creating match:", error);
-         update({ id: toastId, title: "Failed to create match", description: error.message, variant: 'destructive' });
-    }
-  };
-  
-  if (loading || loadingCommission) {
+  if (loading) {
     return <CustomLoader />;
   }
 
-  const lowStakes = Array.from({ length: 10 }, (_, i) => 50 + i * 50);
-  const mediumStakes = Array.from({ length: 9 }, (_, i) => 1000 + i * 500);
-  const highStakes = Array.from({ length: 9 }, (_, i) => 10000 + i * 5000);
-
-  const FeeTier = ({ fees, tier }: { fees: number[], tier: 'low' | 'medium' | 'high' }) => (
-    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-      {fees.map(fee => {
-        const isLocked = false;
-        return (
-          <EntryFeeCard
-            key={fee}
-            fee={fee}
-            onPlay={handleCreateMatch}
-            isLocked={isLocked}
-            commissionPercentage={commissionPercentage}
-          />
-        )
-      })}
-    </div>
-  );
-
   return (
-    <LobbyContext.Provider value={{ commissionPercentage }}>
+    <LobbyContext.Provider value={{ commissionPercentage: 10 }}>
         <div className="flex flex-col h-full">
             <div className="flex-shrink-0 space-y-6">
                 <div className="relative w-full aspect-video rounded-lg overflow-hidden">
@@ -408,37 +359,7 @@ export default function LobbyPage() {
                 {activeMatchIds.length > 0 && <ActiveMatchesAlert activeMatchIds={activeMatchIds} />}
             
                 <div className="grid grid-cols-2 gap-4">
-                    <Dialog open={showStakesDialog} onOpenChange={setShowStakesDialog}>
-                        <DialogTrigger asChild>
-                            <Button size="lg" className="w-full h-20 text-lg">
-                                <PlusCircle className="mr-2 h-6 w-6"/> Create New Match
-                            </Button>
-                        </DialogTrigger>
-                        <DialogContent className="sm:max-w-5xl">
-                            <DialogHeader>
-                                <DialogTitle>Select Your Stake</DialogTitle>
-                                <DialogDescription>Choose an entry fee to create an open match.</DialogDescription>
-                            </DialogHeader>
-                            <Tabs defaultValue="low" className="w-full pt-4">
-                                <TabsList className="grid w-full grid-cols-3">
-                                    <TabsTrigger value="low">Low Stakes</TabsTrigger>
-                                    <TabsTrigger value="medium">Medium Stakes</TabsTrigger>
-                                    <TabsTrigger value="high">High Stakes</TabsTrigger>
-                                </TabsList>
-                                <ScrollArea className="h-[65vh] pr-4">
-                                    <TabsContent value="low" className="pt-4">
-                                        <FeeTier fees={lowStakes} tier="low" />
-                                    </TabsContent>
-                                    <TabsContent value="medium" className="pt-4">
-                                        <FeeTier fees={mediumStakes} tier="medium" />
-                                    </TabsContent>
-                                    <TabsContent value="high" className="pt-4">
-                                        <FeeTier fees={highStakes} tier="high" />
-                                    </TabsContent>
-                                </ScrollArea>
-                            </Tabs>
-                        </DialogContent>
-                    </Dialog>
+                    <CreateMatchDialog canCreate={(userProfile?.activeMatchIds?.length ?? 0) < 5} />
 
                     <Dialog>
                         <DialogTrigger asChild>
