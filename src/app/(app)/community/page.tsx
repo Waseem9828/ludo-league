@@ -1,52 +1,97 @@
+'use client';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Newspaper, Users, Trophy, BarChart, MessageSquare, GraduationCap } from "lucide-react";
+import { Newspaper, Users, Trophy, BarChart, MessageSquare, GraduationCap, ArrowRight } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { PlaceHolderImages } from "@/lib/placeholder-images";
+import { motion, Variants } from 'framer-motion';
 
 const bannerImage = PlaceHolderImages.find(img => img.id === 'community-banner');
 
+const containerVariants: Variants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.1,
+    },
+  },
+};
+
+const itemVariants: Variants = {
+  hidden: { y: 20, opacity: 0 },
+  visible: {
+    y: 0,
+    opacity: 1,
+    transition: {
+      type: 'spring',
+      stiffness: 100,
+    },
+  },
+};
 
 const FeatureCard = ({ title, description, href, icon: Icon }: { title: string, description: string, href: string, icon: React.ElementType }) => (
-    <Card className="shadow-md hover:shadow-lg transition-shadow hover:bg-muted/50">
-        <CardHeader className="flex-row items-start gap-4">
-            <div className="bg-primary/10 p-3 rounded-lg">
-                <Icon className="h-6 w-6 text-primary"/>
-            </div>
-            <div>
-                <CardTitle>{title}</CardTitle>
-                <CardDescription className="mt-1">{description}</CardDescription>
-            </div>
-        </CardHeader>
-        <CardContent>
-            <Button asChild variant="outline">
-                <Link href={href}>
-                    Explore
-                </Link>
-            </Button>
-        </CardContent>
-    </Card>
+    <motion.div variants={itemVariants} className="h-full">
+        <Link href={href} className="block h-full">
+            <Card className="shadow-md hover:shadow-xl transition-all duration-300 h-full flex flex-col group border-border/20 hover:border-primary/50 hover:-translate-y-1">
+                <CardHeader>
+                    <div className="flex items-center justify-between">
+                        <div className="bg-primary/10 p-3 rounded-full border-2 border-primary/20 group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
+                            <Icon className="h-6 w-6 text-primary group-hover:text-primary-foreground transition-colors"/>
+                        </div>
+                        <ArrowRight className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-transform group-hover:translate-x-1" />
+                    </div>
+                </CardHeader>
+                <CardContent className="flex-grow">
+                    <CardTitle className="text-lg">{title}</CardTitle>
+                    <CardDescription className="mt-2 text-sm">{description}</CardDescription>
+                </CardContent>
+            </Card>
+        </Link>
+    </motion.div>
 );
 
 export default function CommunityPage() {
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
         {bannerImage && (
-            <div className="relative w-full aspect-video rounded-lg overflow-hidden mb-6">
+             <motion.div 
+                className="relative w-full aspect-video md:aspect-[21/9] rounded-2xl overflow-hidden mb-8 shadow-2xl shadow-primary/10"
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.5 }}
+            >
                 <Image src={bannerImage.imageUrl} alt={bannerImage.description} fill className="object-cover" priority />
-            </div>
+                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                 <div className="absolute bottom-0 left-0 p-6 text-white">
+                    <motion.h1 
+                        className="text-3xl md:text-5xl font-bold tracking-tight mb-2 text-gradient-primary bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-300"
+                        initial={{ y: 20, opacity: 0 }}
+                        animate={{ y: 0, opacity: 1 }}
+                        transition={{ delay: 0.3, duration: 0.5 }}
+                    >
+                        Community Hub
+                    </motion.h1>
+                    <motion.p 
+                        className="text-base md:text-lg max-w-2xl text-white/80"
+                        initial={{ y: 20, opacity: 0 }}
+                        animate={{ y: 0, opacity: 1 }}
+                        transition={{ delay: 0.4, duration: 0.5 }}
+                    >
+                        Connect, compete, and grow with the Ludo League family.
+                    </motion.p>
+                </div>
+            </motion.div>
         )}
-      <div className="flex items-center gap-3">
-        <Users className="h-8 w-8 text-primary" />
-        <h1 className="text-3xl font-bold tracking-tight">Community Hub</h1>
-      </div>
-      <p className="text-lg text-muted-foreground">
-        Connect with fellow Ludo enthusiasts, discuss strategies, and stay updated with the latest happenings in the Ludo League.
-      </p>
       
-      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 pt-4">
+      <motion.div 
+        className="grid md:grid-cols-2 lg:grid-cols-3 gap-6"
+        variants={containerVariants}
+        initial="hidden"
+        animate="visible"
+      >
         <FeatureCard 
             title="Community Forums"
             description="Join discussions, ask questions, and share your best Ludo moments with other players."
@@ -77,11 +122,13 @@ export default function CommunityPage() {
             href="/tutorials"
             icon={GraduationCap}
         />
-      </div>
+         <FeatureCard 
+            title="About Us"
+            description="Learn more about our mission and our commitment to fair play."
+            href="/about"
+            icon={Users}
+        />
+      </motion.div>
     </div>
   );
 }
-
-    
-
-    
