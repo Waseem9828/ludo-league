@@ -117,7 +117,7 @@ export default function SubmitResultPage() {
                 <Input type="file" accept="image/*" onChange={(e) => onChange(e.target.files)} {...rest} />
               )}
             />
-            {errors.screenshot && <p className="text-sm text-destructive">{errors.screenshot.message}</p>}
+            {errors.screenshot && <p className="text-sm text-destructive">{String(errors.screenshot.message)}</p>}
 
             <Button type="submit" className="w-full" disabled={isSubmitting}>
               {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
