@@ -51,24 +51,21 @@ service cloud.firestore {
     
     match /depositRequests/{depositId} {
       allow get: if isOwner(resource.data.userId) || isDepositAdmin();
-      // Allow users to list their own requests, and admins to list all.
-      allow list: if isDepositAdmin() || (request.query.where.userId == request.auth.uid);
+      allow list: if isDepositAdmin(); // User queries are secured by the 'get' rule.
       allow create: if isOwner(request.resource.data.userId);
       allow update: if isDepositAdmin();
     }
 
     match /withdrawalRequests/{withdrawalId} {
       allow get: if isOwner(resource.data.userId) || isWithdrawalAdmin();
-      // Allow users to list their own requests, and admins to list all.
-      allow list: if isWithdrawalAdmin() || (request.query.where.userId == request.auth.uid);
+      allow list: if isWithdrawalAdmin(); // User queries are secured by the 'get' rule.
       allow create: if isOwner(request.resource.data.userId);
       allow update: if isWithdrawalAdmin();
     }
     
     match /transactions/{transactionId} {
       allow get: if isOwner(resource.data.userId) || isAdmin();
-      // Allow users to list their own transactions, and admins to list all.
-      allow list: if isAdmin() || (request.query.where.userId == request.auth.uid);
+      allow list: if isAdmin(); // User queries are secured by the 'get' rule.
       allow create, delete: if false; 
       allow update: if isSuperAdmin();
     }
