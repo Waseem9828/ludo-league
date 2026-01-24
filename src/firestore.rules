@@ -1,0 +1,46 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ----- Helpers -----
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && request.auth.token.admin == true;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    // ----- App Global Settings -----
+    match /settings/global {
+      allow read: if true;       // ✅ allow app to load even before login
+      allow write: if isAdmin();
+    }
+
+    // ----- Users Collection -----
+    match /users/{userId} {
+      allow read, write: if isOwner(userId) || isAdmin();
+    }
+
+    // ----- Wallets -----
+    match /wallets/{userId} {
+      allow read, write: if isOwner(userId) || isAdmin();
+    }
+
+    // ----- Transactions -----
+    match /transactions/{docId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    // ----- Admin Full Access (should be last) -----
+    // This is a fallback. Be specific above.
+    match /{document=**} {
+      allow read, write: if isAdmin();
+    }
+  }
+}
