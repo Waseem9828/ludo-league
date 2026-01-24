@@ -29,7 +29,7 @@ service cloud.firestore {
     }
 
     function isOwner(userId) {
-      return request.auth.uid == userId;
+      return request.auth != null && request.auth.uid == userId;
     }
 
     // Admins can read/write any user document. Users can only read/write their own.
@@ -40,22 +40,25 @@ service cloud.firestore {
 
     // KYC applications can be created by users, read by the owner or a KYC admin, and updated only by a KYC admin.
     match /kycApplications/{kycId} {
-      allow create: if request.auth.uid == request.resource.data.userId;
-      allow read: if isOwner(request.resource.data.userId) || isKycAdmin();
+      allow create: if isOwner(request.resource.data.userId);
+      allow get: if isOwner(resource.data.userId) || isKycAdmin();
+      allow list: if isKycAdmin();
       allow update: if isKycAdmin();
     }
     
     // Deposit requests can be created by users, read by owner or deposit admin, and updated by deposit admin.
     match /depositRequests/{depositId} {
-      allow create: if request.auth.uid == request.resource.data.userId;
-      allow read: if isOwner(request.resource.data.userId) || isDepositAdmin();
+      allow create: if isOwner(request.resource.data.userId);
+      allow get: if isOwner(resource.data.userId) || isDepositAdmin();
+      allow list: if (request.auth.uid == request.query.where.userId) || isDepositAdmin();
       allow update: if isDepositAdmin();
     }
 
     // Withdrawal requests can be created by users, read by owner or withdrawal admin, and updated by withdrawal admin.
     match /withdrawalRequests/{withdrawalId} {
-      allow create: if request.auth.uid == request.resource.data.userId;
-      allow read: if isOwner(request.resource.data.userId) || isWithdrawalAdmin();
+      allow create: if isOwner(request.resource.data.userId);
+      allow get: if isOwner(resource.data.userId) || isWithdrawalAdmin();
+      allow list: if (request.auth.uid == request.query.where.userId) || isWithdrawalAdmin();
       allow update: if isWithdrawalAdmin();
     }
 
@@ -76,7 +79,8 @@ service cloud.firestore {
 
     // Transactions are read-only for users to see their own history. Creation is handled by functions.
     match /transactions/{transactionId} {
-      allow read: if isOwner(request.resource.data.userId) || isAdmin();
+      allow get: if isOwner(resource.data.userId) || isAdmin();
+      allow list: if (request.auth.uid == request.query.where.userId) || isAdmin();
       allow create: if false; 
       allow update: if false;
       allow delete: if false;
@@ -122,5 +126,13 @@ service cloud.firestore {
         allow read: if isOwner(userId);
         allow write: if false; // Progress updated by functions
     }
+    
+    match /supportChats/{userId} {
+        allow list: if isAdmin();
+        match /{path=**} {
+             allow read, write: if isOwner(userId) || isAdmin();
+        }
+    }
+    
   }
 }
