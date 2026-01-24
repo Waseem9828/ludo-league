@@ -3,124 +3,23 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // ========= Helper Functions =========
-    function isOwner(userId) {
-      return request.auth != null && request.auth.uid == userId;
-    }
-
+    // Admins can read and write all documents
     function isAdmin() {
-      // Check for custom admin claim OR a specific field in the user's document.
-      return request.auth != null && (
-        request.auth.token.admin == true ||
-        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true)
-      );
+      return request.auth.token.admin == true;
     }
 
-    // ========= Rules for Non-Admin Authenticated Users =========
-
-    // User Profile Documents
-    match /users/{userId} {
-      allow read: if request.auth != null; // Any auth user can read public profiles.
-      allow create, update: if isOwner(userId); // Only owner can create/update their profile.
-    }
-    
-    // User Activity Subcollection
-    match /users/{userId}/activity/{logId} {
-        allow read: if isOwner(userId) || isAdmin();
+    // Users can only read and write their own documents
+    function isOwner(userId) {
+      return request.auth.uid == userId;
     }
 
-    // Advanced Matchmaking Queues
-    match /roomCodeCreators/{userId} {
-        allow read, create, delete: if isOwner(userId);
-        allow update: if false; // Handled by Cloud Function
-        allow list: if request.auth != null;
-    }
-    match /roomCodeSeekers/{userId} {
-        allow read, create, delete: if isOwner(userId);
-        allow update: if false; // Handled by Cloud Function
-        allow list: if request.auth != null;
-    }
-    
-    // KYC Applications
-    match /kycApplications/{kycId} {
-      allow create: if isOwner(request.resource.data.userId); // User can create their own KYC app.
-      allow read: if isOwner(resource.data.userId); // User can read their own KYC app.
-    }
-
-    // Matches Collection
-    match /matches/{matchId} {
-      allow read: if request.auth != null; // Any user can see match details.
-      allow list: if request.auth != null;
-      allow create: if false; // Handled by matchmaking Cloud Function
-      allow update: if (request.auth != null && request.auth.uid in resource.data.playerIds); // Only players can update.
-    }
-
-    // Match Results Sub-collection
-    match /matches/{matchId}/results/{userId} {
-      allow read: if request.auth != null;
-      allow write: if isOwner(userId); // A player can submit their own result.
-    }
-
-    // Transactions Collection
-    match /transactions/{transactionId} {
-        allow read: if isOwner(resource.data.userId);
-        allow create, update, delete: if false; // All transactions created by Cloud Functions.
-    }
-    
-    // Deposit Requests
-    match /depositRequests/{depositId} {
-        allow get: if isOwner(resource.data.userId);
-        allow list: if request.auth.uid == request.query.where.userId;
-        allow create: if isOwner(request.resource.data.userId);
-    }
-    
-    // Withdrawal Requests
-    match /withdrawalRequests/{withdrawalId} {
-        allow get: if isOwner(resource.data.userId);
-        allow list: if request.auth.uid == request.query.where.userId;
-        allow create: if isOwner(request.resource.data.userId);
-    }
-
-    // Support Chat
-    match /supportChats/{userId} {
-      // A user can create/read their own chat thread, admins can access any.
-      allow read, write: if isOwner(userId) || isAdmin();
-    }
-    match /supportChats/{userId}/messages/{messageId} {
-      // A user can read/write to their own chat thread. Admins can too.
-      allow read, write: if isOwner(userId) || isAdmin();
-    }
-    
-    // Task and Mission rules
-    match /tasks/{taskId} {
-      allow get: if request.auth != null; // All users can read available tasks.
-    }
-    match /user_tasks/{userId}/tasks/{taskId} {
-        // Users can only read their own task progress. Updates are done via Cloud Functions.
-        allow get: if isOwner(userId);
-    }
-
-    // Read-only collections for all authenticated users.
-    match /tournaments/{doc=**} { allow read: if request.auth != null; }
-    match /news/{doc=**} { allow read: if request.auth != null; }
-    match /upiConfiguration/{doc=**} { allow read: if request.auth != null; }
-    match /referralConfiguration/settings { allow get: if request.auth != null; }
-    match /bonus_config/settings { allow get: if request.auth != null; }
+    // Allow all authenticated users to read the settings
     match /settings/global {
-      allow get: if true; // Publicly readable for maintenance mode checks
-      allow write: if isAdmin(); // Only admins can change global settings
-    }
-    match /banners/{bannerId} { allow read: if request.auth != null; }
-    match /announcements/{announcementId} { 
       allow read: if request.auth != null;
       allow write: if isAdmin();
     }
 
-
-    // ========= ADMIN RULE: Global Read/Write Access =========
-    // Admins can read and write anything, anywhere. This must be the last rule.
-    match /{path=**} {
+    match /{document=**} {
       allow read, write: if isAdmin();
     }
   }
