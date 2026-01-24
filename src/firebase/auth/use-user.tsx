@@ -1,4 +1,3 @@
-
 'use client';
 
 import {
@@ -36,55 +35,71 @@ export const UserProvider = ({ children }: UserProviderProps) => {
   const firestore = useFirestore();
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
-      setUser(firebaseUser);
-      setLoading(false); 
-    });
-    return () => unsubscribe();
-  }, []);
+    let profileUnsubscribe: (() => void) | null = null;
 
-  useEffect(() => {
-    if (!user || !firestore) {
-      setUserProfile(null);
-      setIsAdmin(false);
-      setRole(null);
-      if (user) {
-        setLoading(true);
+    const authUnsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      // First, if a profile listener is active from a previous user, clean it up.
+      if (profileUnsubscribe) {
+        profileUnsubscribe();
       }
-      return;
-    }
+      
+      setLoading(true); // Always start loading when auth state changes.
 
-    setLoading(true); 
-    const userRef = doc(firestore, 'users', user.uid);
-    const unsubscribe = onSnapshot(userRef, async (docSnap: DocumentSnapshot) => {
-      if (docSnap.exists()) {
-        const profile = docSnap.data() as UserProfile;
-        setUserProfile(profile);
-        setRole(profile.role || null); // Get role from Firestore profile
+      if (firebaseUser) {
+        setUser(firebaseUser);
 
-        try {
-          const tokenResult = await user.getIdTokenResult(true); 
-          setIsAdmin(!!tokenResult.claims.admin);
-        } catch (error) {
-          console.error('Error fetching custom claims:', error);
+        // Can't get profile without firestore.
+        if (!firestore) return; // The effect will re-run when firestore is available.
+
+        const userRef = doc(firestore, 'users', firebaseUser.uid);
+        profileUnsubscribe = onSnapshot(userRef, async (docSnap: DocumentSnapshot) => {
+          if (docSnap.exists()) {
+            const profile = docSnap.data() as UserProfile;
+            setUserProfile(profile);
+            setRole(profile.role || null);
+
+            // Securely check for admin status via custom claims.
+            try {
+              const tokenResult = await firebaseUser.getIdTokenResult(true); // force refresh
+              setIsAdmin(!!tokenResult.claims.admin);
+            } catch (error) {
+              console.error('Error fetching custom claims:', error);
+              setIsAdmin(false);
+            }
+          } else {
+            // This can happen if the user doc isn't created yet after signup.
+            setUserProfile(null);
+            setIsAdmin(false);
+            setRole(null);
+          }
+          // Only once we have the profile (or know it doesn't exist) are we done loading.
+          setLoading(false);
+        }, (error) => {
+          console.error("Error listening to user profile:", error);
+          setUserProfile(null);
           setIsAdmin(false);
-        }
+          setRole(null);
+          setLoading(false);
+        });
+
       } else {
+        // No user is logged in.
+        setUser(null);
         setUserProfile(null);
         setIsAdmin(false);
         setRole(null);
+        setLoading(false); // We are done loading, there's just no user.
       }
-      setLoading(false); 
-    }, (error) => {
-      console.error("Error listening to user profile:", error);
-      setUserProfile(null);
-      setIsAdmin(false);
-      setRole(null);
-      setLoading(false); 
     });
 
-    return () => unsubscribe();
-  }, [user, firestore]);
+    // Cleanup function for the auth listener.
+    return () => {
+      authUnsubscribe();
+      if (profileUnsubscribe) {
+        profileUnsubscribe();
+      }
+    };
+  }, [firestore]); // This effect depends on firestore, so it will re-run if firestore becomes available.
 
   const value = useMemo(
     () => ({
