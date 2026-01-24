@@ -1,3 +1,4 @@
+
 rules_version = '2';
 
 service cloud.firestore {
@@ -49,7 +50,7 @@ service cloud.firestore {
     match /depositRequests/{depositId} {
       allow create: if isOwner(request.resource.data.userId);
       allow get: if isOwner(resource.data.userId) || isDepositAdmin();
-      allow list: if (request.auth.uid == request.query.where.userId) || isDepositAdmin();
+      allow list: if isDepositAdmin();
       allow update: if isDepositAdmin();
     }
 
@@ -57,7 +58,7 @@ service cloud.firestore {
     match /withdrawalRequests/{withdrawalId} {
       allow create: if isOwner(request.resource.data.userId);
       allow get: if isOwner(resource.data.userId) || isWithdrawalAdmin();
-      allow list: if (request.auth.uid == request.query.where.userId) || isWithdrawalAdmin();
+      allow list: if isWithdrawalAdmin();
       allow update: if isWithdrawalAdmin();
     }
 
@@ -79,7 +80,7 @@ service cloud.firestore {
     // Transactions are read-only for users to see their own history. Creation is handled by functions.
     match /transactions/{transactionId} {
       allow get: if isOwner(resource.data.userId) || isAdmin();
-      allow list: if (request.auth.uid == request.query.where.userId) || isAdmin();
+      allow list: if isAdmin();
       allow create: if false; 
       allow update: if false;
       allow delete: if false;
