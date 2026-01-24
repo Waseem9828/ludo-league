@@ -12,9 +12,11 @@ import { signInWithGoogle, sendOtp, verifyOtpAndSignIn } from '@/firebase/auth/c
 import { getAuth, sendPasswordResetEmail, RecaptchaVerifier, ConfirmationResult } from 'firebase/auth';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 
 export default function LoginPage() {
   const { toast } = useToast();
+  const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [phone, setPhone] = useState('');
@@ -88,6 +90,7 @@ export default function LoginPage() {
     try {
       await verifyOtpAndSignIn(confirmationResult, otp);
       toast({ title: "Login Successful!", description: "Welcome back! Redirecting..." });
+      router.push('/dashboard');
     } catch (error: any) {
       handleAuthError(error);
     } finally {
@@ -100,6 +103,7 @@ export default function LoginPage() {
     try {
       await signInWithGoogle();
       toast({ title: "Login Successful!", description: "Welcome back! Redirecting..." });
+      router.push('/dashboard');
     } catch (error: any) {
       handleAuthError(error);
     } finally {
@@ -194,6 +198,7 @@ export default function LoginPage() {
           </p>
         </div>
       </div>
+      <div id="recaptcha-container"></div>
     </>
   );
 }

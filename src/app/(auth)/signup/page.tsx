@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { Gift, Loader2, Phone, MessageCircle } from 'lucide-react';
 import { GoogleIcon } from "@/components/icons/GoogleIcon";
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { signInWithGoogle, sendOtp, verifyOtpAndSignIn } from '@/firebase/auth/client';
 import Image from 'next/image';
@@ -14,6 +14,7 @@ import { getAuth, RecaptchaVerifier, type ConfirmationResult } from 'firebase/au
 
 function SignUpForm() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const { toast } = useToast();
   
   const [phone, setPhone] = useState('');
@@ -102,6 +103,7 @@ function SignUpForm() {
       } else {
         toast({ title: "Login Successful!", description: "Welcome back! Redirecting..." });
       }
+      router.push('/dashboard');
     } catch (error: any) {
       handleAuthError(error);
     } finally {
@@ -118,6 +120,7 @@ function SignUpForm() {
       } else {
         toast({ title: "Login Successful!", description: "Welcome back! Redirecting..." });
       }
+      router.push('/dashboard');
     } catch (error: any) {
       handleAuthError(error);
     } finally {
@@ -217,6 +220,7 @@ function SignUpForm() {
                 </Link>
             </p>
         </div>
+         <div id="recaptcha-container"></div>
     </div>
   );
 }
