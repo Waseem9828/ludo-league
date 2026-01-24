@@ -1,4 +1,3 @@
-
 'use client';
 import Image from 'next/image';
 import {
@@ -160,7 +159,7 @@ const AdminActionCard = ({ match, onDeclareWinner, onCancelMatch, isProcessing }
         <Card className="border-primary">
             <CardHeader>
                 <CardTitle className="flex items-center gap-2"><Gavel/>Admin Actions</CardTitle>
-                <CardDescription>Manually resolve this match. This action is final and will process payments.</CardDescription>
+                <CardDescription>Manually resolve this match. This action is final and will process payments automatically.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
                 <div>
@@ -180,7 +179,7 @@ const AdminActionCard = ({ match, onDeclareWinner, onCancelMatch, isProcessing }
             <CardFooter className="flex flex-col gap-2">
                  <Button className="w-full" onClick={() => onDeclareWinner(selectedWinner)} disabled={!selectedWinner || isProcessing}>
                     {isProcessing ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Crown className="mr-2 h-4 w-4"/>}
-                    Declare Winner & Distribute Prize
+                    Declare Winner
                 </Button>
                  <Button className="w-full" variant="destructive" onClick={onCancelMatch} disabled={isProcessing}>
                     {isProcessing ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Trash2 className="mr-2 h-4 w-4"/>}
@@ -258,7 +257,7 @@ export default function AdminMatchDetailPage() {
     setIsProcessing(true);
 
     const functions = getFunctions();
-    const declareWinnerFn = httpsCallable(functions, 'declareWinnerAndDistribute');
+    const declareWinnerFn = httpsCallable(functions, 'declareWinner');
 
     try {
         const result = await declareWinnerFn({ matchId: match.id, winnerId });
@@ -273,41 +272,13 @@ export default function AdminMatchDetailPage() {
   }
 
   const handleCancelMatch = async () => {
-    if(!firestore || !match || !adminUser) return;
+    if(!firestore || !match) return;
     setIsProcessing(true);
     try {
-        await runTransaction(firestore, async (transaction) => {
-            const matchRef = doc(firestore, 'matches', match.id);
-            const matchDoc = await transaction.get(matchRef);
-
-             if (!matchDoc.exists() || !['in-progress', 'disputed', 'waiting'].includes(matchDoc.data()?.status as string)) {
-                throw new Error('Match cannot be cancelled in its current state.');
-            }
-
-            transaction.update(matchRef, { 
-                status: 'cancelled',
-                resolvedBy: adminUser.uid,
-                resolvedAt: Timestamp.now()
-            });
-
-            // Refund players
-            for(const playerId of Object.keys(match.players)) {
-                const refundTransactionRef = doc(collection(firestore, 'transactions'));
-                transaction.set(refundTransactionRef, {
-                    userId: playerId,
-                    amount: match.entryFee,
-                    type: 'refund',
-                    status: 'completed',
-                    description: `Refund for cancelled match ${match.id}`,
-                    createdAt: Timestamp.now(),
-                    relatedMatchId: match.id
-                });
-            }
-        });
-
-        toast({ title: 'Match Cancelled', description: 'Players have been refunded.', variant: 'destructive'});
+        const matchRef = doc(firestore, 'matches', match.id);
+        await updateDoc(matchRef, { status: 'cancelled' });
+        toast({ title: 'Match Cancelled', description: 'Players will be refunded automatically.', variant: 'destructive'});
         router.push('/admin/matches');
-
     } catch(error: any) {
         toast({ title: 'Error Cancelling Match', description: error.message, variant: 'destructive'});
     } finally {
