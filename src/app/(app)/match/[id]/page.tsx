@@ -13,7 +13,7 @@ import {
 import { cn } from '@/lib/utils';
 import {
   Copy,
-  Crown,
+  Trophy,
   ShieldCheck,
   Swords,
   Users,
@@ -23,11 +23,10 @@ import {
   Trash2,
   LogOut,
   Gamepad2,
-  Trophy,
   Edit,
   Save,
-  X,
-  Flag
+  Flag,
+  Hourglass
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button, buttonVariants } from '@/components/ui/button';
@@ -155,6 +154,40 @@ const MatchDetailsCard = ({ match }: { match: Match }) => (
     </div>
 );
 
+const WaitingForOpponentCard = () => (
+    <Card>
+        <CardHeader className='items-center text-center'>
+            <Loader2 className="h-8 w-8 animate-spin text-primary mb-2" />
+            <CardTitle>Waiting for Opponent</CardTitle>
+            <CardDescription>The match will begin once another player joins. Your match is listed publicly.</CardDescription>
+        </CardHeader>
+    </Card>
+);
+
+const ResultSubmittedCard = () => (
+    <Card>
+        <CardHeader className='items-center text-center'>
+            <Hourglass className="h-8 w-8 text-primary mb-2" />
+            <CardTitle>Result Submitted</CardTitle>
+            <CardDescription>Your result has been recorded. Waiting for the opponent to submit their result. The match will be settled automatically.</CardDescription>
+        </CardHeader>
+    </Card>
+);
+
+const UnderReviewCard = ({ reason }: { reason?: string }) => (
+     <Card className="border-amber-500/50 bg-amber-500/10">
+        <CardHeader className='items-center text-center'>
+            <ShieldCheck className="h-8 w-8 text-amber-600 mb-2" />
+            <CardTitle className="text-amber-700">Match Under Review</CardTitle>
+            <CardDescription className="text-amber-600">
+                An admin is reviewing this match due to a discrepancy.
+                {reason && <span className="block mt-2 font-semibold">Reason: {reason}</span>}
+            </CardDescription>
+        </CardHeader>
+    </Card>
+);
+
+
 const JoinMatchButton = ({ match, userProfile, isActionLoading, handleJoinMatch }: { match: Match, userProfile: UserProfile | null, isActionLoading: boolean, handleJoinMatch: () => void}) => {
     const hasSufficientBalance = userProfile && userProfile.walletBalance >= match.entryFee;
     const isAlreadyInMatch = userProfile && userProfile.activeMatchIds && userProfile.activeMatchIds.includes(match.id);
@@ -198,16 +231,6 @@ const JoinMatchButton = ({ match, userProfile, isActionLoading, handleJoinMatch 
         </Card>
     );
 }
-
-const WaitingForRoomCodeCard = () => (
-    <Card>
-        <CardHeader className='items-center text-center'>
-            <Loader2 className="h-8 w-8 animate-spin text-primary mb-2" />
-            <CardTitle>Waiting for Room Code</CardTitle>
-            <CardDescription>The match creator is entering the Ludo King room code. The page will update automatically.</CardDescription>
-        </CardHeader>
-    </Card>
-);
 
 const RoomCodeManager = ({ match, isCreator }: { match: Match; isCreator: boolean }) => {
     const firestore = useFirestore();
@@ -269,7 +292,15 @@ const RoomCodeManager = ({ match, isCreator }: { match: Match; isCreator: boolea
                 </Card>
             );
         } else {
-            return <WaitingForRoomCodeCard />;
+            return (
+                <Card>
+                    <CardHeader className='items-center text-center'>
+                        <Loader2 className="h-8 w-8 animate-spin text-primary mb-2" />
+                        <CardTitle>Waiting for Room Code</CardTitle>
+                        <CardDescription>The match creator is entering the Ludo King room code. The page will update automatically.</CardDescription>
+                    </CardHeader>
+                </Card>
+            );
         }
     }
 
@@ -286,17 +317,6 @@ const RoomCodeManager = ({ match, isCreator }: { match: Match; isCreator: boolea
     );
 };
 
-
-const MatchRules = () => (
-    <Card>
-      <CardHeader><CardTitle>Match Rules</CardTitle></CardHeader>
-      <CardContent className="text-sm text-muted-foreground space-y-2">
-        <p>1. Players must use the provided Ludo King room code.</p>
-        <p>2. After the match, the winner must upload a screenshot of the win.</p>
-        <p>3. Any disputes will be reviewed by an admin.</p>
-      </CardContent>
-    </Card>
-);
 
 const IdAndCodeCard = ({ match, id, isCreator }: { match: Match, id: string, isCreator: boolean }) => {
     const { toast } = useToast();
@@ -403,10 +423,7 @@ const MatchConcludedCard = ({ match }: {match: Match}) => {
     let title = "Match Concluded";
     let description = "This match has finished. Winnings are being processed or are already distributed.";
 
-    if (match.status === 'disputed') {
-        title = "Match Disputed";
-        description = "There was a conflict in the submitted results. An admin is reviewing the match. Please be patient."
-    } else if (match.status === 'cancelled') {
+    if (match.status === 'cancelled') {
         title = "Match Cancelled";
         description = "This match was cancelled. Any entry fees have been refunded."
     }
@@ -434,13 +451,24 @@ export default function MatchPage() {
   const [loading, setLoading] = useState(true);
   const [isActionLoading, setIsActionLoading] = useState(false);
   const { toast } = useToast();
+  const [hasSubmitted, setHasSubmitted] = useState(false);
 
   useEffect(() => {
     if (!firestore || !id) return;
     setLoading(true);
     const matchRef = doc(firestore, 'matches', id);
     const unsubscribe = onSnapshot(matchRef, (doc: DocumentSnapshot) => {
-        if (doc.exists()) setMatch({ id: doc.id, ...doc.data() } as Match);
+        if (doc.exists()) {
+            const matchData = { id: doc.id, ...doc.data() } as Match;
+            setMatch(matchData);
+
+            if (user) {
+                const resultsRef = doc(firestore, `matches/${id}/results`, user.uid);
+                onSnapshot(resultsRef, (resultDoc) => {
+                    setHasSubmitted(resultDoc.exists());
+                });
+            }
+        }
         else {
           toast({ title: "Match not found", variant: "destructive" });
           router.push('/lobby');
@@ -450,11 +478,12 @@ export default function MatchPage() {
         console.error('Error fetching match:', error);
         setLoading(false);
       });
+
     return () => unsubscribe();
-  }, [firestore, id, router, toast]);
+  }, [firestore, id, router, toast, user]);
   
   useEffect(() => {
-    if (user && userProfile && match && ['cancelled', 'completed', 'disputed'].includes(match.status)) {
+    if (user && userProfile && match && ['cancelled', 'completed'].includes(match.status)) {
       if (userProfile.activeMatchIds?.includes(match.id)) {
         const userRef = doc(firestore, 'users', user.uid);
         updateDoc(userRef, { activeMatchIds: arrayRemove(match.id) });
@@ -536,46 +565,44 @@ export default function MatchPage() {
   const isCreator = user.uid === match.creatorId;
   const isPlayer = Object.keys(match.players).includes(user.uid);
   const isMatchFull = Object.keys(match.players).length === match.maxPlayers;
-  const isConcluded = ['completed', 'disputed', 'cancelled'].includes(match.status);
-
-  const showJoinButton = match.status === 'waiting' && !isPlayer && !isMatchFull;
-  const showRoomCodeStage = isPlayer && isMatchFull && !isConcluded;
-  const showMatchConcluded = isConcluded;
-
+  
   const ActionArea = () => {
-      if (showJoinButton) return <JoinMatchButton {...{match, userProfile, isActionLoading, handleJoinMatch}} />
-      if (showRoomCodeStage) return <RoomCodeManager match={match} isCreator={isCreator} />
-      if (showMatchConcluded) return <MatchConcludedCard match={match} />
-      if (match.status === 'waiting' && isPlayer) {
-        return (
-          <Card>
-            <CardHeader className='items-center text-center'>
-              <Loader2 className="h-8 w-8 animate-spin text-primary mb-2" />
-              <CardTitle>Waiting for Opponent</CardTitle>
-              <CardDescription>The match will begin once another player joins.</CardDescription>
-            </CardHeader>
-          </Card>
-        )
-      }
-      return null; 
+    switch (match.status) {
+        case 'waiting':
+            if (isPlayer) return <WaitingForOpponentCard />;
+            return <JoinMatchButton {...{match, userProfile, isActionLoading, handleJoinMatch}} />;
+        case 'in-progress':
+            return <RoomCodeManager match={match} isCreator={isCreator} />;
+        case 'PLAYING':
+            if (hasSubmitted) return <ResultSubmittedCard />;
+            return <RoomCodeManager match={match} isCreator={isCreator} />;
+        case 'RESULT_SUBMITTED':
+            if (hasSubmitted) return <ResultSubmittedCard />;
+            return <p>Opponent has submitted. Please submit your result.</p>; // This case might need a proper UI card
+        case 'UNDER_REVIEW':
+            return <UnderReviewCard reason={match.reviewReason} />;
+        case 'completed':
+        case 'cancelled':
+            return <MatchConcludedCard match={match} />;
+        default:
+            return <Card><CardContent><p>Loading match status...</p></CardContent></Card>;
+    }
   }
 
   return (
     <div className="container mx-auto max-w-4xl py-4 md:py-8">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* Main Content: Player Lobby & Actions */}
             <div className="md:col-span-2 space-y-6">
                 <MatchDetailsCard match={match} />
                 <PlayerLobby match={match} winnerId={match.winnerId} /> 
                 <ActionArea />
             </div>
 
-            {/* Sidebar: Match Info, Rules, etc. */}
             <div className="space-y-6">
                  <Card>
                     <CardHeader className="flex-row items-center justify-between pb-2">
                         <CardTitle>Match Status</CardTitle>
-                        <Badge variant={match.status === 'disputed' ? 'destructive' : 'secondary'}>{match.status}</Badge>
+                        <Badge variant={match.status === 'UNDER_REVIEW' ? 'destructive' : 'secondary'}>{match.status}</Badge>
                     </CardHeader>
                     <CardContent>
                         <p className="text-sm text-muted-foreground">
@@ -595,7 +622,7 @@ export default function MatchPage() {
                             </Button>
                         </CardFooter>
                     )}
-                    {match.status === 'PLAYING' && isPlayer && (
+                    {(match.status === 'PLAYING' && isPlayer && !hasSubmitted) && (
                         <CardFooter>
                             <Button asChild className="w-full">
                                 <Link href={`/match/${id}/submit`}>
@@ -607,7 +634,6 @@ export default function MatchPage() {
                     )}
                  </Card>
                 <IdAndCodeCard id={id} match={match} isCreator={isCreator}/>
-                <MatchRules />
             </div>
         </div>
     </div>

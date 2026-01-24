@@ -31,8 +31,6 @@ import type { Transaction, UpiConfiguration, DepositRequest, WithdrawalRequest }
 import { useToast } from "@/hooks/use-toast"
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage"
 import { PlaceHolderImages } from '@/lib/placeholder-images';
-import { errorEmitter } from '@/firebase/error-emitter';
-import { FirestorePermissionError } from '@/firebase/errors';
 import { compressImage } from '@/lib/image-utils';
 
 const bannerImage = PlaceHolderImages.find(img => img.id === 'wallet-banner');
@@ -125,74 +123,47 @@ export default function WalletPage() {
   }, [firestore]);
 
 
-  const transQuery = useMemo(() => {
-    if (!firestore || !user) return null;
-    return query(collection(firestore, 'transactions'), where('userId', '==', user.uid), orderBy('createdAt', 'desc'), limit(10));
-  }, [firestore, user]);
-
-  const depositsQuery = useMemo(() => {
-    if (!firestore || !user) return null;
-    return query(collection(firestore, 'depositRequests'), where('userId', '==', user.uid), orderBy('createdAt', 'desc'));
-  }, [firestore, user]);
-
-  const withdrawalsQuery = useMemo(() => {
-    if (!firestore || !user) return null;
-    return query(collection(firestore, 'withdrawalRequests'), where('userId', '==', user.uid), orderBy('createdAt', 'desc'));
-  }, [firestore, user]);
-
-
   useEffect(() => {
-    if (!transQuery) {
+    if (!firestore || !user) {
         setTransactionsLoading(false);
+        setHistoryLoading(false);
         return;
     };
+    
     setTransactionsLoading(true);
+    const transQuery = query(collection(firestore, 'transactions'), where('userId', '==', user.uid), orderBy('createdAt', 'desc'), limit(10));
     const unsubscribeTrans = onSnapshot(transQuery, (snapshot) => {
         const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Transaction));
         setTransactions(data);
         setTransactionsLoading(false);
     }, (error) => {
-      errorEmitter.emit('permission-error', new FirestorePermissionError({
-        path: `transactions where userId == ${user?.uid}`,
-        operation: 'list',
-      }));
+      console.error("Permission error fetching transactions:", error);
       setTransactionsLoading(false);
     });
-
-    return () => unsubscribeTrans();
-  }, [transQuery, user]);
-
-  useEffect(() => {
-    if (!depositsQuery || !withdrawalsQuery) {
-      setHistoryLoading(false);
-      return;
-    }
+    
     setHistoryLoading(true);
+    const depositsQuery = query(collection(firestore, 'depositRequests'), where('userId', '==', user.uid), orderBy('createdAt', 'desc'));
     const unsubscribeDeposits = onSnapshot(depositsQuery, (snapshot) => {
         const data = snapshot.docs.map((doc: QueryDocumentSnapshot) => ({ id: doc.id, ...doc.data() } as DepositRequest));
         setDepositHistory(data);
     }, (error) => {
-       errorEmitter.emit('permission-error', new FirestorePermissionError({
-        path: `depositRequests where userId == ${user?.uid}`,
-        operation: 'list',
-      }));
+      console.error("Permission error fetching deposit requests:", error);
     });
     
+    const withdrawalsQuery = query(collection(firestore, 'withdrawalRequests'), where('userId', '==', user.uid), orderBy('createdAt', 'desc'));
     const unsubscribeWithdrawals = onSnapshot(withdrawalsQuery, (snapshot) => {
         const data = snapshot.docs.map((doc: QueryDocumentSnapshot) => ({ id: doc.id, ...doc.data() } as WithdrawalRequest));
         setWithdrawalHistory(data);
     }, (error) => {
-         errorEmitter.emit('permission-error', new FirestorePermissionError({
-            path: `withdrawalRequests where userId == ${user?.uid}`,
-            operation: 'list',
-        }));
+      console.error("Permission error fetching withdrawal requests:", error);
     });
 
     return () => {
+        unsubscribeTrans();
         unsubscribeDeposits();
         unsubscribeWithdrawals();
     };
-  }, [depositsQuery, withdrawalsQuery, user]);
+  }, [firestore, user]);
 
   useEffect(() => {
     const combined = [...depositHistory, ...withdrawalHistory];
@@ -202,10 +173,10 @@ export default function WalletPage() {
       return dateB - dateA;
     });
     setCombinedHistory(combined);
-    if (depositHistory.length > 0 || withdrawalHistory.length > 0) {
+    if (!transactionsLoading) { // Assume if transactions are done loading, history should be too
         setHistoryLoading(false);
     }
-  }, [depositHistory, withdrawalHistory]);
+  }, [depositHistory, withdrawalHistory, transactionsLoading]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {

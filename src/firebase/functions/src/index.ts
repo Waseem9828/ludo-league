@@ -293,25 +293,40 @@ export const onMatchUpdate = functions.firestore
                 createdAt: admin.firestore.FieldValue.serverTimestamp(), relatedMatchId: matchId, description: `Winnings for match ${matchId}`,
             });
 
-            batch.set(db.collection('transactions').doc(), {
-                userId: 'platform', type: 'match_commission', amount: commission, status: 'completed',
-                createdAt: admin.firestore.FieldValue.serverTimestamp(), relatedMatchId: matchId, description: `${commissionPercentage}% commission from match ${matchId}`,
-            });
+            if (commission > 0) {
+                batch.set(db.collection('transactions').doc(), {
+                    userId: 'platform', type: 'match_commission', amount: commission, status: 'completed',
+                    createdAt: admin.firestore.FieldValue.serverTimestamp(), relatedMatchId: matchId, description: `${commissionPercentage}% commission from match ${matchId}`,
+                });
+            }
 
             for (const playerId of playerIds) {
                 const userRef = db.collection('users').doc(playerId);
                 const isWinner = (playerId === winnerId);
-                const incrementWon = isWinner ? 1 : 0;
-
+                
                 batch.update(userRef, {
                     totalMatchesPlayed: admin.firestore.FieldValue.increment(1),
-                    totalMatchesWon: admin.firestore.FieldValue.increment(incrementWon),
+                    totalMatchesWon: admin.firestore.FieldValue.increment(isWinner ? 1 : 0),
                     activeMatchIds: admin.firestore.FieldValue.arrayRemove(matchId)
                 });
             }
             
             batch.update(change.after.ref, { prizeDistributed: true });
             await batch.commit();
+
+            // Recalculate Win Rates separately as it needs the updated totals
+            for (const playerId of playerIds) {
+                const userRef = db.doc(`users/${playerId}`);
+                const userDoc = await userRef.get();
+                if (userDoc.exists) {
+                    const userData = userDoc.data()!;
+                    const newWinRate = userData.totalMatchesPlayed > 0 
+                        ? (userData.totalMatchesWon / userData.totalMatchesPlayed) * 100 
+                        : 0;
+                    await userRef.update({ winRate: newWinRate });
+                }
+            }
+            
             console.log(`Prize distribution and stats updates completed for match ${matchId}.`);
             
             for (const pId of playerIds) {
@@ -441,8 +456,8 @@ export const onResultSubmit = functions.firestore
             return;
         }
         
-        // Case 2: Clean Win/Loss
-        if (winClaims.length === 1 && lossClaims.length === (expectedResults - 1)) {
+        // Case 2: Clean Win/Loss for a 2-player game
+        if (expectedResults === 2 && winClaims.length === 1 && lossClaims.length === 1) {
             const winnerId = winClaims[0].userId;
             transaction.update(matchRef, { status: 'completed', winnerId: winnerId });
             return;
@@ -473,16 +488,16 @@ export const matchCleanup = functions.pubsub.schedule('every 30 minutes').onRun(
         batch.update(doc.ref, { status: 'cancelled', reviewReason: 'Match expired without an opponent.' });
     });
 
-    // Dispute old 'PLAYING' matches (no result submitted)
-    const oldPlayingQuery = db.collection('matches').where('status', '==', 'PLAYING').where('createdAt', '<=', twoHoursAgo);
-    const oldPlayingSnapshot = await oldPlayingQuery.get();
-    oldPlayingSnapshot.forEach(doc => {
-        console.log(`Disputing old playing match: ${doc.id}`);
-        batch.update(doc.ref, { status: 'UNDER_REVIEW', reviewReason: 'No result was submitted within the time limit.' });
+    // Dispute old 'PLAYING' or 'RESULT_SUBMITTED' matches (no result submitted or incomplete results)
+    const oldInProgressQuery = db.collection('matches').where('status', 'in', ['PLAYING', 'RESULT_SUBMITTED', 'in-progress']).where('createdAt', '<=', twoHoursAgo);
+    const oldInProgressSnapshot = await oldInProgressQuery.get();
+    oldInProgressSnapshot.forEach(doc => {
+        console.log(`Marking old match for review: ${doc.id}`);
+        batch.update(doc.ref, { status: 'UNDER_REVIEW', reviewReason: 'Match timed out without a clear result.' });
     });
 
     await batch.commit();
-    console.log(`Match cleanup finished. Cancelled ${oldWaitingSnapshot.size} and disputed ${oldPlayingSnapshot.size} matches.`);
+    console.log(`Match cleanup finished. Cancelled ${oldWaitingSnapshot.size} and marked ${oldInProgressSnapshot.size} for review.`);
     return null;
 });
 
@@ -545,7 +560,7 @@ export const setRole = functions.https.onCall(async (data, context) => {
     const isNowAdmin = role !== 'none';
     
     await admin.auth().setCustomUserClaims(uid, { 
-        role: role === 'none' ? null : role,
+        role: isNowAdmin ? role : null,
         admin: isNowAdmin ? true : null
     });
     
@@ -1052,5 +1067,3 @@ export const distributeTournamentWinnings = functions.https.onCall(async (data, 
         throw new HttpsError('internal', 'An unexpected error occurred.', error);
     }
 });
-
-    

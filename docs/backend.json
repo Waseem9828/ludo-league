@@ -569,12 +569,6 @@
     "providers": ["email_password", "google", "phone"],
     "customClaims": [
       {
-        "name": "admin",
-        "description": "General admin access.",
-        "type": "boolean",
-        "defaultValue": false
-      },
-      {
         "name": "role",
         "description": "Specifies granular admin permissions.",
         "type": "string",
@@ -719,5 +713,3 @@
     }
   }
 }
-
-    
