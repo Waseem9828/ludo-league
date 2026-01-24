@@ -24,7 +24,7 @@ import {
     CircleDashed
 } from 'lucide-react';
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid, Legend } from 'recharts';
-import { useFirestore } from '@/firebase';
+import { useFirestore, useUser } from '@/firebase';
 import { collection, query, where, onSnapshot, Timestamp, collectionGroup } from 'firebase/firestore';
 import Link from 'next/link';
 import { DateRangePicker } from '@/components/ui/date-range-picker';
@@ -34,7 +34,6 @@ import { useAdminOnly } from '@/hooks/useAdminOnly';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import type { Match, Tournament } from '@/lib/types';
-import { useRole } from '@/hooks/useRole';
 import { useRouter } from 'next/navigation';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 
@@ -77,7 +76,7 @@ const StatCard = ({ title, value, description, icon: Icon, href, loading, classN
 
 export default function AdminDashboardPage() {
     useAdminOnly();
-    const { role, loading: roleLoading } = useRole();
+    const { role, loading: userLoading } = useUser();
     const router = useRouter();
     const firestore = useFirestore();
     const [stats, setStats] = useState({
@@ -102,7 +101,7 @@ export default function AdminDashboardPage() {
     const [loadingFinancials, setLoadingFinancials] = useState(true);
 
     useEffect(() => {
-        if (roleLoading) return;
+        if (userLoading) return;
         if (role && role !== 'superAdmin') {
             const roleRedirects: { [key: string]: string } = {
                 depositAdmin: '/admin/deposits',
@@ -115,7 +114,7 @@ export default function AdminDashboardPage() {
                 router.replace(redirectPath);
             }
         }
-    }, [role, roleLoading, router]);
+    }, [role, userLoading, router]);
     
     useEffect(() => {
         if (!firestore || role !== 'superAdmin') return;
@@ -206,7 +205,7 @@ export default function AdminDashboardPage() {
 
     }, [firestore, dateRange, role]);
     
-    if (roleLoading) {
+    if (userLoading) {
         return <Loader2 className="h-10 w-10 animate-spin text-primary mx-auto my-10" />;
     }
 

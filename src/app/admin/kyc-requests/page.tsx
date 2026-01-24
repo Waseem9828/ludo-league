@@ -28,7 +28,6 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useRole } from '@/hooks/useRole';
 
 const KycStats = ({ applications, loading }: { applications: KycApplication[], loading: boolean }) => {
     const stats = applications.reduce((acc, req) => {
@@ -88,8 +87,7 @@ const RejectionDialog = ({ onConfirm, loading }: { onConfirm: (reason: string) =
 export default function KycRequestsPage() {
     useAdminOnly();
     const firestore = useFirestore();
-    const { user: adminUser } = useUser();
-    const { role } = useRole();
+    const { user: adminUser, role } = useUser();
 
     const [applications, setApplications] = useState<KycApplication[]>([]);
     const [loading, setLoading] = useState(true);

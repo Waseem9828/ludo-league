@@ -28,7 +28,6 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useRole } from '@/hooks/useRole';
 
 const DepositStats = ({ requests, loading }: { requests: DepositRequest[], loading: boolean }) => {
     const stats = requests.reduce((acc, req) => {
@@ -88,8 +87,7 @@ const RejectionDialog = ({ onConfirm, loading }: { onConfirm: (reason: string) =
 export default function DepositsPage() {
     useAdminOnly();
     const firestore = useFirestore();
-    const { user: adminUser } = useUser();
-    const { role } = useRole();
+    const { user: adminUser, role } = useUser();
 
     const [requests, setRequests] = useState<DepositRequest[]>([]);
     const [loading, setLoading] = useState(true);
@@ -297,5 +295,3 @@ export default function DepositsPage() {
         </div>
     );
 }
-
-    

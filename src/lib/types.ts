@@ -17,6 +17,7 @@ export type UserProfile = {
     displayName: string | null;
     photoURL: string | null;
     isAdmin?: boolean;
+    role?: string;
     walletBalance: number;
     kycStatus: 'not_submitted' | 'pending' | 'approved' | 'rejected';
     kycRejectionReason?: string;
@@ -283,6 +284,7 @@ export interface KycApplication {
     loading: boolean;
     userProfile: UserProfile | null;
     isAdmin: boolean;
+    role: string | null;
   };
 
   export type Task = {

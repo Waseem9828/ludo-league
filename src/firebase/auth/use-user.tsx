@@ -1,3 +1,4 @@
+
 'use client';
 
 import {
@@ -30,41 +31,39 @@ export const UserProvider = ({ children }: UserProviderProps) => {
   const [user, setUser] = useState<FirebaseUser | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [role, setRole] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const firestore = useFirestore();
 
-  // Handle auth state changes
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
       setUser(firebaseUser);
-      setLoading(false); // Auth state is known, so we can stop initial loading
+      setLoading(false); 
     });
     return () => unsubscribe();
   }, []);
 
-  // Handle user profile and custom claims
   useEffect(() => {
     if (!user || !firestore) {
-      // If there's no user or firestore isn't ready, clear profile data
       setUserProfile(null);
       setIsAdmin(false);
-      // If user is null, loading is already false from the previous effect.
-      // If user is not null but firestore is not ready, we should indicate loading.
+      setRole(null);
       if (user) {
         setLoading(true);
       }
       return;
     }
 
-    setLoading(true); // Start loading profile data
+    setLoading(true); 
     const userRef = doc(firestore, 'users', user.uid);
     const unsubscribe = onSnapshot(userRef, async (docSnap: DocumentSnapshot) => {
       if (docSnap.exists()) {
         const profile = docSnap.data() as UserProfile;
         setUserProfile(profile);
+        setRole(profile.role || null); // Get role from Firestore profile
 
         try {
-          const tokenResult = await user.getIdTokenResult(true); // force refresh
+          const tokenResult = await user.getIdTokenResult(true); 
           setIsAdmin(!!tokenResult.claims.admin);
         } catch (error) {
           console.error('Error fetching custom claims:', error);
@@ -73,13 +72,15 @@ export const UserProvider = ({ children }: UserProviderProps) => {
       } else {
         setUserProfile(null);
         setIsAdmin(false);
+        setRole(null);
       }
-      setLoading(false); // Profile data loaded
+      setLoading(false); 
     }, (error) => {
       console.error("Error listening to user profile:", error);
       setUserProfile(null);
       setIsAdmin(false);
-      setLoading(false); // Error occurred, stop loading
+      setRole(null);
+      setLoading(false); 
     });
 
     return () => unsubscribe();
@@ -91,8 +92,9 @@ export const UserProvider = ({ children }: UserProviderProps) => {
       loading,
       userProfile,
       isAdmin,
+      role,
     }),
-    [user, loading, userProfile, isAdmin]
+    [user, loading, userProfile, isAdmin, role]
   );
 
   return <UserContext.Provider value={value}>{children}</UserContext.Provider>;

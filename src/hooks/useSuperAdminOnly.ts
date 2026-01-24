@@ -1,11 +1,12 @@
+
 'use client';
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useRole } from './useRole';
+import { useUser } from '@/firebase';
 
 export function useSuperAdminOnly() {
-  const { role, loading } = useRole();
+  const { role, loading } = useUser();
   const router = useRouter();
 
   useEffect(() => {

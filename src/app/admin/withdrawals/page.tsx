@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
@@ -16,7 +17,6 @@ import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useRole } from '@/hooks/useRole';
 import QRCode from 'qrcode.react';
 
 const RejectionDialog = ({ onConfirm, loading }: { onConfirm: (reason: string) => void, loading: boolean }) => {
@@ -113,8 +113,7 @@ const ViewDetailsDialog = ({ request }: { request: WithdrawalRequest }) => {
 export default function WithdrawalsPage() {
     useAdminOnly();
     const firestore = useFirestore();
-    const { user: adminUser } = useUser();
-    const { role } = useRole();
+    const { user: adminUser, role } = useUser();
 
     const [requests, setRequests] = useState<WithdrawalRequest[]>([]);
     const [loading, setLoading] = useState(true);

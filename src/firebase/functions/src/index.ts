@@ -98,7 +98,7 @@ export const setRole = functions.https.onCall(async (data, context) => {
     const isNowAdmin = role !== 'none';
     
     await admin.auth().setCustomUserClaims(uid, { role: isNowAdmin ? role : null, admin: isNowAdmin ? true : null });
-    await db.collection('users').set({ isAdmin: isNowAdmin, role: isNowAdmin ? role : null }, { merge: true });
+    await db.collection('users').doc(uid).set({ isAdmin: isNowAdmin, role: isNowAdmin ? role : null }, { merge: true });
 
 
     if (isNowAdmin) {
@@ -140,8 +140,8 @@ export const listUsers = functions.https.onCall(async (data, context) => {
 });
 
 export const getAdminDashboardStats = functions.https.onCall(async (data, context) => {
-    if (!context.auth || context.auth.token.role !== 'superAdmin') {
-        throw new HttpsError('permission-denied', 'Only super admins can access dashboard stats.');
+    if (!context.auth || !context.auth.token.admin) {
+        throw new HttpsError('permission-denied', 'Only admins can access dashboard stats.');
     }
 
     try {
@@ -165,8 +165,8 @@ export const getAdminDashboardStats = functions.https.onCall(async (data, contex
 });
 
 export const getAdminUserStats = functions.https.onCall(async (data, context) => {
-    if (!context.auth || context.auth.token.role !== 'superAdmin') {
-        throw new HttpsError('permission-denied', 'Only super admins can access user stats.');
+    if (!context.auth || !context.auth.token.admin) {
+        throw new HttpsError('permission-denied', 'Only admins can access user stats.');
     }
 
     try {

@@ -164,8 +164,9 @@ export default function UserProfilePage() {
     if (loading) return <div className="flex h-64 items-center justify-center"><Loader2 className="h-10 w-10 animate-spin text-primary" /></div>;
     if (!user) return <div className="text-center py-10">User not found.</div>;
 
-    const totalWagered = matches.reduce((acc, m) => acc + m.entryFee, 0);
-    const totalWinnings = transactions.filter(t => t.type === 'winnings').reduce((acc, t) => acc + t.amount, 0);
+    const totalWagered = transactions
+        .filter(t => t.type === 'entry-fee')
+        .reduce((acc, t) => acc - t.amount, 0); // Amount is negative
 
     return (
         <div className="space-y-6">
@@ -239,8 +240,8 @@ export default function UserProfilePage() {
             {/* Stats Grid */}
             <div className="grid gap-4 md:grid-cols-3">
                 <Card><CardHeader><CardTitle>Total Wagered</CardTitle><CardDescription>₹{totalWagered.toLocaleString('en-IN')}</CardDescription></CardHeader></Card>
-                <Card><CardHeader><CardTitle>Total Winnings</CardTitle><CardDescription>₹{totalWinnings.toLocaleString('en-IN')}</CardDescription></CardHeader></Card>
-                <Card><CardHeader><CardTitle>Matches Played</CardTitle><CardDescription>{matches.length}</CardDescription></CardHeader></Card>
+                <Card><CardHeader><CardTitle>Total Winnings</CardTitle><CardDescription>₹{(user.winnings || 0).toLocaleString('en-IN')}</CardDescription></CardHeader></Card>
+                <Card><CardHeader><CardTitle>Matches Played</CardTitle><CardDescription>{user.totalMatchesPlayed || 0}</CardDescription></CardHeader></Card>
             </div>
 
             <Tabs defaultValue="transactions">
