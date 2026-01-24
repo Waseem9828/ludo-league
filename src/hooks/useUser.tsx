@@ -44,8 +44,6 @@ export const UserProvider = ({ children }: UserProviderProps) => {
         profileUnsubscribe();
       }
 
-      setLoading(true); // Always start loading when auth state changes.
-
       if (firebaseUser) {
         setUser(firebaseUser);
 
