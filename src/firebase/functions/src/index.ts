@@ -650,10 +650,10 @@ export const onWithdrawalRequestUpdate = functions.firestore
         await db.collection('transactions').doc().set({
             userId: userId,
             type: 'withdrawal_refund',
-            amount: amount, // Positive amount to credit back
+            amount: amount, // Positive amount
             status: 'completed',
             createdAt: admin.firestore.FieldValue.serverTimestamp(),
-            description: `Refund for rejected withdrawal request of ₹${amount}`,
+            description: `Refund for rejected withdrawal of ₹${amount}`,
             relatedId: context.params.withdrawalId,
         });
         
@@ -827,7 +827,7 @@ export const claimTaskReward = functions.https.onCall(async (data, context) => {
 
 
 export const distributeTournamentWinnings = functions.https.onCall(async (data, context) => {
-    if (!context.auth || context.auth.token.admin !== true) {
+    if (!context.auth || !context.auth.token.admin) {
         throw new HttpsError('permission-denied', 'Only admins can perform this action.');
     }
 
@@ -839,72 +839,79 @@ export const distributeTournamentWinnings = functions.https.onCall(async (data, 
     const tournamentRef = db.doc(`tournaments/${tournamentId}`);
 
     try {
-        const tournamentDoc = await tournamentRef.get();
-        if (!tournamentDoc.exists) {
-            throw new HttpsError('not-found', 'Tournament not found.');
-        }
-        const tournamentData = tournamentDoc.data()!;
+        return await db.runTransaction(async (transaction) => {
+            const tournamentDoc = await transaction.get(tournamentRef);
+            if (!tournamentDoc.exists) {
+                throw new HttpsError('not-found', 'Tournament not found.');
+            }
+            const tournamentData = tournamentDoc.data()!;
 
-        if (tournamentData.prizeDistributed) {
-            throw new HttpsError('failed-precondition', 'Prizes have already been distributed for this tournament.');
-        }
-        if (tournamentData.status !== 'completed') {
-            throw new HttpsError('failed-precondition', 'Tournament is not completed yet.');
-        }
-        
-        if (!Array.isArray(tournamentData.winners)) {
-            throw new HttpsError(
-                'failed-precondition',
-                'Tournament winners list is missing or invalid.'
-            );
-        }
+            if (tournamentData.prizeDistributed) {
+                throw new HttpsError('failed-precondition', 'Prizes have already been distributed for this tournament.');
+            }
+            if (tournamentData.status !== 'completed') {
+                throw new HttpsError('failed-precondition', 'Tournament is not completed yet.');
+            }
 
-        const batch = db.batch();
-        
-        const totalCollected = tournamentData.entryFee * tournamentData.filledSlots;
-        const commission = totalCollected - tournamentData.prizePool;
+            const totalToDistribute = Object.values(prizeDistribution).reduce((sum: number, val: any) => sum + Number(val), 0);
+            if (totalToDistribute > tournamentData.prizePool) {
+                throw new HttpsError('invalid-argument', 'Prize distribution total exceeds tournament prize pool.');
+            }
+            
+            // Calculate winners based on matches in the subcollection
+            const matchesQuery = db.collection(`tournaments/${tournamentId}/matches`).where('status', '==', 'completed');
+            const matchesSnapshot = await transaction.get(matchesQuery);
 
-        if (commission > 0) {
-            const commissionTransactionRef = db.collection('transactions').doc();
-            batch.set(commissionTransactionRef, {
-                userId: 'platform',
-                type: 'tournament_commission',
-                amount: commission,
-                status: 'completed',
-                createdAt: admin.firestore.FieldValue.serverTimestamp(),
-                relatedTournamentId: tournamentId,
-                description: `Commission from ${tournamentData.name}`,
+            const playerWins: { [key: string]: number } = {};
+            (tournamentData.playerIds || []).forEach((id: string) => {
+                playerWins[id] = 0;
             });
-        }
-        
-        for (const rankStr in prizeDistribution) {
-            const rank = parseInt(rankStr, 10);
-            const winnerId = tournamentData.winners[rank - 1]; 
-            const amount = Number(prizeDistribution[rankStr]);
+            matchesSnapshot.forEach(matchDoc => {
+                const matchData = matchDoc.data();
+                if (matchData.winnerId && playerWins.hasOwnProperty(matchData.winnerId)) {
+                    playerWins[matchData.winnerId]++;
+                }
+            });
 
-            if (!amount || amount <= 0) continue;
+            const sortedPlayers = Object.entries(playerWins).sort(([, winsA], [, winsB]) => winsB - winsA);
 
-            if (winnerId) {
-                const userRef = db.collection('users').doc(winnerId);
-                const transactionRef = db.collection('transactions').doc();
-                batch.set(userRef, { walletBalance: admin.firestore.FieldValue.increment(amount) }, { merge: true });
-                batch.set(transactionRef, {
-                    userId: winnerId,
-                    type: 'winnings',
-                    amount: amount,
+            const totalCollected = tournamentData.entryFee * tournamentData.filledSlots;
+            const commission = totalCollected - tournamentData.prizePool;
+            if (commission > 0) {
+                const commissionTransactionRef = db.collection('transactions').doc();
+                transaction.set(commissionTransactionRef, {
+                    userId: 'platform',
+                    type: 'tournament_commission',
+                    amount: commission,
                     status: 'completed',
                     createdAt: admin.firestore.FieldValue.serverTimestamp(),
                     relatedTournamentId: tournamentId,
-                    description: `Rank ${rank} prize in ${tournamentData.name}.`,
+                    description: `Commission from ${tournamentData.name}`,
                 });
             }
-        }
-        
-        batch.update(tournamentRef, { prizeDistributed: true });
-        await batch.commit();
 
-        return { success: true, message: 'Winnings distributed successfully.' };
-
+            let rank = 1;
+            for (const [playerId] of sortedPlayers) {
+                const prizeAmount = prizeDistribution[String(rank)];
+                if (prizeAmount > 0) {
+                    const winningsTransactionRef = db.collection('transactions').doc();
+                    transaction.set(winningsTransactionRef, {
+                        userId: playerId,
+                        type: 'winnings',
+                        amount: prizeAmount,
+                        status: 'completed',
+                        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                        relatedTournamentId: tournamentId,
+                        description: `Rank ${rank} prize in ${tournamentData.name}.`,
+                    });
+                }
+                rank++;
+            }
+            
+            transaction.update(tournamentRef, { prizeDistributed: true });
+            
+            return { success: true, message: 'Winnings distributed successfully.' };
+        });
     } catch (error) {
         console.error('Error distributing tournament winnings:', error);
         if (error instanceof HttpsError) {
