@@ -3,30 +3,69 @@ rules_version = '2';
 
 service firebase.storage {
   match /b/{bucket}/o {
+
+    // ========= Helper Functions =========
     function isOwner(userId) {
-      return request.auth.uid == userId;
+      return request.auth != null && request.auth.uid == userId;
+    }
+    
+    function isSuperAdmin() {
+      return request.auth != null && request.auth.token.role == 'superAdmin';
+    }
+    function isKycAdmin() {
+      return request.auth != null && (request.auth.token.role == 'kycAdmin' || isSuperAdmin());
+    }
+    function isDepositAdmin() {
+      return request.auth != null && (request.auth.token.role == 'depositAdmin' || isSuperAdmin());
+    }
+    function isMatchAdmin() {
+      return request.auth != null && (request.auth.token.role == 'matchAdmin' || isSuperAdmin());
+    }
+    function isAdmin() {
+      return request.auth != null && request.auth.token.admin == true;
+    }
+    
+    // ===================================
+    //      Storage Rules by Path
+    // ===================================
+
+    // --- User Profile Pictures ---
+    // A user can manage their own profile pictures. Any authenticated user can view them.
+    match /profile-pictures/{userId}/{allPaths=**} {
+        allow read: if request.auth != null;
+        allow write: if isOwner(userId);
     }
 
-    match /users/{userId}/profile.jpg {
-      allow read;
+    // --- KYC Documents ---
+    // User can write. Only user and KYC Admins can read.
+    match /kyc/{userId}/{allPaths=**} {
+      allow read: if isOwner(userId) || isKycAdmin();
       allow write: if isOwner(userId);
     }
     
-    match /kyc-documents/{userId}/{document} {
+    // --- Deposit Screenshots ---
+    // User can write. Only user and Deposit Admins can read.
+    match /deposits/{userId}/{allPaths=**} {
+      allow read: if isOwner(userId) || isDepositAdmin();
       allow write: if isOwner(userId);
-      allow read: if isOwner(userId) || request.auth.token.role == 'kycAdmin' || request.auth.token.role == 'superAdmin';
     }
 
-    // Corrected path for match results
-    match /match-results/{matchId}/{userId} {
-      allow read: if request.auth != null; 
-      // Allow write if the user is authenticated and is the one uploading the file
-      allow write: if request.auth.uid == userId;
+    // --- Match Result Screenshots ---
+    // User can write. Only user and Match Admins can read.
+    match /match-results/{matchId}/{userId}/{fileName} {
+      allow read: if isOwner(userId) || isMatchAdmin();
+      allow write: if isOwner(userId);
     }
     
-    match /banners/{bannerName} {
-      allow read: if request.auth != null;
-      allow write: if request.auth.token.admin == true;
+    // --- Publicly Readable, Admin Writable ---
+    // Banners, card images, etc.
+    match /banners/{allPaths=**} {
+      allow read: if true;
+      allow write: if isAdmin(); // Any admin can manage these assets
+    }
+    match /dashboard-cards/{allPaths=**} {
+        allow read: if true;
+        allow write: if isAdmin();
     }
   }
 }
