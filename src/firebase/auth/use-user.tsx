@@ -38,18 +38,20 @@ export const UserProvider = ({ children }: UserProviderProps) => {
     let profileUnsubscribe: (() => void) | null = null;
 
     const authUnsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
-      // First, if a profile listener is active from a previous user, clean it up.
+      // Every time auth state changes, we might need to tear down the old profile listener
       if (profileUnsubscribe) {
         profileUnsubscribe();
+        profileUnsubscribe = null;
       }
-      
-      setLoading(true); // Always start loading when auth state changes.
 
       if (firebaseUser) {
         setUser(firebaseUser);
 
-        // Can't get profile without firestore.
-        if (!firestore) return; // The effect will re-run when firestore is available.
+        if (!firestore) {
+            // Firestore isn't ready yet. We will remain in a loading state.
+            // The effect will re-run when firestore becomes available.
+            return;
+        }
 
         const userRef = doc(firestore, 'users', firebaseUser.uid);
         profileUnsubscribe = onSnapshot(userRef, async (docSnap: DocumentSnapshot) => {
@@ -58,37 +60,35 @@ export const UserProvider = ({ children }: UserProviderProps) => {
             setUserProfile(profile);
             setRole(profile.role || null);
 
-            // Securely check for admin status via custom claims.
             try {
-              const tokenResult = await firebaseUser.getIdTokenResult(true); // force refresh
+              const tokenResult = await firebaseUser.getIdTokenResult(true);
               setIsAdmin(!!tokenResult.claims.admin);
             } catch (error) {
               console.error('Error fetching custom claims:', error);
               setIsAdmin(false);
             }
           } else {
-            // This can happen if the user doc isn't created yet after signup.
+            // This can happen briefly during user creation
             setUserProfile(null);
             setIsAdmin(false);
             setRole(null);
           }
-          // Only once we have the profile (or know it doesn't exist) are we done loading.
-          setLoading(false);
+          setLoading(false); // Definitive state is known, set loading to false.
         }, (error) => {
           console.error("Error listening to user profile:", error);
+          setUser(null);
           setUserProfile(null);
           setIsAdmin(false);
           setRole(null);
-          setLoading(false);
+          setLoading(false); // Definitive state (error) is known.
         });
-
       } else {
-        // No user is logged in.
+        // No user is logged in. This is a definitive state.
         setUser(null);
         setUserProfile(null);
         setIsAdmin(false);
         setRole(null);
-        setLoading(false); // We are done loading, there's just no user.
+        setLoading(false); // Definitive state is known.
       }
     });
 
@@ -99,7 +99,7 @@ export const UserProvider = ({ children }: UserProviderProps) => {
         profileUnsubscribe();
       }
     };
-  }, [firestore]); // This effect depends on firestore, so it will re-run if firestore becomes available.
+  }, [firestore]); // This effect depends on firestore.
 
   const value = useMemo(
     () => ({
