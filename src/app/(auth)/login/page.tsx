@@ -13,6 +13,7 @@ import { getAuth, sendPasswordResetEmail, RecaptchaVerifier, ConfirmationResult 
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
+import { motion } from 'framer-motion';
 
 export default function LoginPage() {
   const { toast } = useToast();
@@ -114,14 +115,27 @@ export default function LoginPage() {
   const isButtonDisabled = isLoading || isGoogleLoading || isOtpLoading || cooldown > 0;
 
   return (
-    <>
+    <div className="relative mt-16">
+      <motion.div
+        className="absolute -top-16 left-1/2 -translate-x-1/2 z-20"
+        initial={{ scale: 0, opacity: 0, y: 50 }}
+        animate={{ scale: 1, opacity: 1, y: 0 }}
+        transition={{
+          type: "spring",
+          stiffness: 260,
+          damping: 20,
+          delay: 0.2
+        }}
+      >
+        <div className="p-3 bg-card/80 backdrop-blur-md rounded-full shadow-2xl border border-border/20">
+          <Image src="/icon-192x192.png" alt="Ludo League Logo" width={96} height={96} priority />
+        </div>
+      </motion.div>
+
       <div
-        className="w-full h-full bg-card/80 dark:bg-card/60 backdrop-blur-lg rounded-2xl shadow-2xl border border-border/20 p-8 text-foreground flex flex-col justify-center"
+        className="w-full h-full bg-card/60 dark:bg-card/50 backdrop-blur-lg rounded-2xl shadow-2xl border border-border/20 p-8 pt-24 text-foreground flex flex-col justify-center"
       >
         <div className="text-center mb-8">
-          <div className="inline-block p-3 bg-primary/10 rounded-full mb-4 border border-primary/20">
-            <Image src="/icon-192x192.png" alt="Ludo League Logo" width={40} height={40} />
-          </div>
           <h1 className="text-3xl font-bold tracking-tighter">Welcome Back</h1>
           <p className="text-muted-foreground mt-1">Log in to continue your streak.</p>
         </div>
@@ -199,6 +213,6 @@ export default function LoginPage() {
         </div>
       </div>
       <div id="recaptcha-container"></div>
-    </>
+    </div>
   );
 }
